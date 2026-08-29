@@ -221,7 +221,12 @@ resource "kubernetes_ingress_v1" "deluge" {
     ingress_class_name = "traefik"
 
     rule {
-      host = "deluge.k3s.local"
+      # The real production hostname -- shared_ingress's outer Traefik
+      # forwards the client's original Host header unchanged
+      # (passHostHeader: true), so this has to match what actually
+      # arrives once home-infra points shared_ingress_deluge_upstream
+      # at this cluster.
+      host = "torrent.jkandler.de"
 
       http {
         path {
