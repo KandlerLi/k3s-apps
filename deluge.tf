@@ -41,6 +41,53 @@ resource "kubernetes_deployment_v1" "deluge" {
       }
 
       spec {
+        # Seeds web.conf into the config PVC before Deluge's own
+        # container starts. NOT a subPath volume_mount into the same
+        # path (what this replaced) -- Kubernetes creates a subPath
+        # mount's target file at the OCI-runtime level, running as
+        # root on the *node*, and that root gets squashed by NFS's
+        # root_squash (deliberately configured, see nfs_server in
+        # home-infra) to an unprivileged user that can't write into
+        # deluge-config (owned by deluge:deluge, mode 0750). Confirmed
+        # live: the Pod never started, stuck in CrashLoopBackOff with
+        # "openat2 /config/web.conf: permission denied" from runc
+        # itself, before Deluge's own process ever ran.
+        #
+        # This container's own process runs as the real Deluge uid
+        # (993/986) instead, doing a normal file write through its own
+        # mount of the same PVC -- no subPath, no root-level mount
+        # trick, so root_squash never enters into it. Only seeds the
+        # file if it's missing, matching the Ansible role's own
+        # "Deluge never writes web.conf on its own until something
+        # triggers a save" reasoning; deliberately simpler than that
+        # role's further logic to detect and repair a known-bad
+        # default password left by an old migration bug, since nothing
+        # here has that history yet. This does mean a Terraform-side
+        # password rotation later won't take effect on its own (an
+        # existing web.conf is left alone) -- a real, acknowledged gap
+        # to solve when password rotation actually comes up, not
+        # bundled into getting the first deploy working.
+        init_container {
+          name    = "seed-web-conf"
+          image   = "linuxserver/deluge:2.2.0-ls381@sha256:33a939576f7ecfc1227db1a0cb2afce030ce983e620ec9d93c956e3700e21fe9"
+          command = ["sh", "-c", "test -f /config/web.conf || cp /secret-source/web.conf /config/web.conf"]
+
+          security_context {
+            run_as_user  = 993
+            run_as_group = 986
+          }
+
+          volume_mount {
+            name       = "config"
+            mount_path = "/config"
+          }
+          volume_mount {
+            name       = "web-conf-source"
+            mount_path = "/secret-source"
+            read_only  = true
+          }
+        }
+
         container {
           name  = "deluge"
           image = "linuxserver/deluge:2.2.0-ls381@sha256:33a939576f7ecfc1227db1a0cb2afce030ce983e620ec9d93c956e3700e21fe9"
@@ -88,16 +135,6 @@ resource "kubernetes_deployment_v1" "deluge" {
             name       = "downloads"
             mount_path = "/downloads"
           }
-          # Injects just this one key from the Secret as a specific
-          # file inside the config PVC's own mount, rather than the
-          # whole Secret as a directory -- the same "one real file
-          # among the rest of Deluge's normal state" shape the Ansible
-          # role's bind-mount already has.
-          volume_mount {
-            name       = "web-conf"
-            mount_path = "/config/web.conf"
-            sub_path   = "web.conf"
-          }
         }
 
         volume {
@@ -113,7 +150,7 @@ resource "kubernetes_deployment_v1" "deluge" {
           }
         }
         volume {
-          name = "web-conf"
+          name = "web-conf-source"
           secret {
             secret_name = kubernetes_secret_v1.deluge_web_conf.metadata[0].name
           }
