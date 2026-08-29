@@ -18,47 +18,62 @@ this repo's commit history / conversation history for the trade-off).
   mount point, same real content (`files/index.html`, `files/style.css`,
   pulled from the live homeserver, not fabricated).
 
-## Running it
+## Running it from your laptop
 
-Runs **on the k3s VM itself** (`ansible@k3s-node-1`, reachable via
-`ssh -J julian@<homeserver> ansible@192.168.101.10`), not from the
-homeserver or your laptop -- that's where both `kubectl` and now
-`terraform` are already installed, and where the kubeconfig
-(`/etc/rancher/k3s/k3s.yaml`) `provider.tf` points at already lives.
-
-Copy this repo onto the VM, then:
+The k3s VM's network (`192.168.101.0/24`) only exists as a
+directly-connected route on the homeserver itself -- confirmed live,
+nothing beyond the homeserver (not your router, not your laptop) knows
+how to reach it. So running Terraform from your laptop needs an SSH
+tunnel to the apiserver, opened first and kept running:
 
 ```
-terraform init
-terraform plan
-terraform apply
+ssh -L 6443:192.168.101.10:6443 julian@192.168.178.100
 ```
 
-State is local to the VM for now (`terraform.tfstate`, gitignored) --
-there's no S3 backend like every other Terraform repo in this homelab
-uses, because that would mean putting AWS credentials on a learning VM
-for no real benefit yet. Move to a remote backend later if/when this
-cluster holds something worth protecting against the VM's disk being
-lost.
+Then, **one-time**, pull the kubeconfig k3s already generates onto your
+laptop (its `server:` field is already `https://127.0.0.1:6443` by
+default -- k3s assumes it'll be used locally on the node itself, which
+is exactly what the tunnel above fakes -- so it works unmodified):
+
+```
+scp -o ProxyJump=julian@192.168.178.100 ansible@192.168.101.10:/etc/rancher/k3s/k3s.yaml ~/.kube/k3s-node-1.yaml
+```
+
+Then, with the tunnel still open in its own terminal:
+
+```
+git clone https://github.com/KandlerLi/k3s-apps.git
+cd k3s-apps
+KUBECONFIG=~/.kube/k3s-node-1.yaml terraform init
+KUBECONFIG=~/.kube/k3s-node-1.yaml terraform plan
+KUBECONFIG=~/.kube/k3s-node-1.yaml terraform apply
+```
+
+State is local (`terraform.tfstate`, gitignored) -- there's no S3
+backend like every other Terraform repo in this homelab uses, because
+that would mean putting AWS credentials on your laptop's local runs for
+no real benefit yet. Move to a remote backend later if/when this
+cluster holds something worth protecting against that file being lost.
 
 **Before the first `terraform apply`**: if you built `landing-page`
 by hand with `kubectl create`/`kubectl apply` first (the learning path
 that led here), delete those objects first -- Terraform doesn't know
 about resources it didn't create, and will fail with "already exists"
-on names it collides with:
+on names it collides with. Run this against the same tunnel/kubeconfig:
 
 ```
-kubectl delete deployment landing-page
-kubectl delete service landing-page-svc
-kubectl delete ingress landing-page-ingress
-kubectl delete configmap landing-page-html
+KUBECONFIG=~/.kube/k3s-node-1.yaml kubectl delete deployment landing-page
+KUBECONFIG=~/.kube/k3s-node-1.yaml kubectl delete service landing-page-svc
+KUBECONFIG=~/.kube/k3s-node-1.yaml kubectl delete ingress landing-page-ingress
+KUBECONFIG=~/.kube/k3s-node-1.yaml kubectl delete configmap landing-page-html
 ```
 
 ## Relationship to the Ansible-managed original
 
 The real `landing_page` role on the homeserver, and `landing.jkandler.de`
 DNS/Traefik routing, are both untouched by this. This is a parallel,
-private copy running only on the k3s VM's own isolated network
-(`192.168.101.0/24`), unreachable from anywhere else. Cutting over the
-real domain to point here -- and retiring the Ansible role -- is a
-deliberate later step, not something this repo does on its own.
+private copy running only on the k3s VM's own isolated network,
+reachable only through the tunnel above, unreachable from anywhere else.
+Cutting over the real domain to point here -- and retiring the Ansible
+role -- is a deliberate later step, not something this repo does on its
+own.
