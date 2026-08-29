@@ -44,10 +44,18 @@ Then, with the tunnel still open in its own terminal:
 ```
 git clone https://github.com/KandlerLi/k3s-apps.git
 cd k3s-apps
-KUBECONFIG=~/.kube/k3s-node-1.yaml terraform init
-KUBECONFIG=~/.kube/k3s-node-1.yaml terraform plan
-KUBECONFIG=~/.kube/k3s-node-1.yaml terraform apply
+terraform init
+terraform plan
+terraform apply
 ```
+
+No `KUBECONFIG=...` prefix needed for the `terraform` commands above --
+unlike `kubectl`, the `kubernetes` provider does **not** read that
+environment variable (confirmed against its own docs; an earlier version
+of this file assumed it did, which silently fell back to querying
+`http://localhost` instead of erroring clearly). `provider.tf` points
+`config_path` straight at `~/.kube/k3s-node-1.yaml` instead, so it isn't
+dependent on how you invoke the shell.
 
 State is local (`terraform.tfstate`, gitignored) -- there's no S3
 backend like every other Terraform repo in this homelab uses, because

@@ -4,12 +4,16 @@
 # backend once this pattern is trusted enough to matter if the local
 # copy is lost.
 provider "kubernetes" {
-  # No hardcoded config_path: the k3s VM's network is only reachable
-  # from the homeserver, not directly from a laptop (confirmed live --
-  # 192.168.101.0/24 exists only as a link-local route on the
-  # homeserver itself), so this deliberately runs from wherever an SSH
-  # tunnel to the apiserver is open, not fixed to one machine. Point it
-  # at the right kubeconfig the standard way instead:
-  #   KUBECONFIG=~/.kube/k3s-node-1.yaml terraform apply
-  # See README.md for the tunnel + kubeconfig setup.
+  # NOTE: the kubernetes provider does NOT read the standard KUBECONFIG
+  # environment variable the way kubectl does -- confirmed against its
+  # own docs (hashicorp/terraform-provider-kubernetes, docs/index.md):
+  # "The provider does not use the KUBECONFIG environment variable by
+  # default." An earlier version of this file relied on that and just
+  # silently fell back to querying http://localhost, which is why
+  # `terraform apply` failed with a connection-refused error instead of
+  # a clear "no config" one. config_path is set explicitly here instead
+  # so this doesn't depend on how the shell invoking terraform is set
+  # up. See README.md for the tunnel + kubeconfig setup this path
+  # assumes.
+  config_path = pathexpand("~/.kube/k3s-node-1.yaml")
 }
