@@ -7,12 +7,24 @@
 # permissions (uid 993 / gid 986, Deluge's real service account) were
 # confirmed live before writing this.
 #
-# storage_class_name = "" on both the PV and PVC opts them out of
-# dynamic provisioning entirely -- without it, the PVC would try to
-# match k3s's default StorageClass (local-path) instead of binding to
-# this specific pre-existing PV. volume_name pins the PVC to this exact
-# PV by name rather than relying on the default controller's best-guess
-# matching, so there's no ambiguity as more PVs get added later.
+# storage_class_name = "local-path" on both the PV and PVC -- NOT the
+# empty string "" the comment here originally said, and not actually
+# using k3s's local-path-provisioner despite the name. Found live: an
+# explicit "" gets serialized identically to "not set at all" by this
+# provider (a long-standing, widely-reported terraform-provider-
+# kubernetes quirk), so k3s's DefaultStorageClass admission controller
+# silently injected "local-path" into the PVC regardless of what was
+# written here. That mismatched the PV's real (correctly empty)
+# storage class, so they could never bind -- both PVCs sat Pending
+# forever, and Terraform itself crashed trying to write that stuck
+# state to disk. Matching the class name the admission controller
+# injects anyway, on both sides, is the actual working fix: with
+# volume_name also pointing at this specific PV and everything else
+# (capacity, access mode) already satisfied, Kubernetes' own built-in
+# PV controller binds them directly on the next reconcile -- the real
+# local-path-provisioner is never invoked, since a suitable Available
+# PV already exists and static binding always wins over dynamic
+# provisioning.
 #
 # reclaim_policy = "Retain", not the "Delete" some defaults use --
 # critical here specifically because this PV points at real,
@@ -36,7 +48,7 @@ resource "kubernetes_persistent_volume_v1" "deluge_downloads" {
     }
     access_modes                     = ["ReadWriteMany"]
     persistent_volume_reclaim_policy = "Retain"
-    storage_class_name               = ""
+    storage_class_name               = "local-path"
 
     persistent_volume_source {
       nfs {
@@ -54,7 +66,7 @@ resource "kubernetes_persistent_volume_claim_v1" "deluge_downloads" {
 
   spec {
     access_modes       = ["ReadWriteMany"]
-    storage_class_name = ""
+    storage_class_name = "local-path"
     volume_name        = kubernetes_persistent_volume_v1.deluge_downloads.metadata[0].name
 
     resources {
@@ -76,7 +88,7 @@ resource "kubernetes_persistent_volume_v1" "deluge_config" {
     }
     access_modes                     = ["ReadWriteMany"]
     persistent_volume_reclaim_policy = "Retain"
-    storage_class_name               = ""
+    storage_class_name               = "local-path"
 
     persistent_volume_source {
       nfs {
@@ -94,7 +106,7 @@ resource "kubernetes_persistent_volume_claim_v1" "deluge_config" {
 
   spec {
     access_modes       = ["ReadWriteMany"]
-    storage_class_name = ""
+    storage_class_name = "local-path"
     volume_name        = kubernetes_persistent_volume_v1.deluge_config.metadata[0].name
 
     resources {
