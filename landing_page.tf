@@ -92,7 +92,13 @@ resource "kubernetes_ingress_v1" "landing_page" {
     ingress_class_name = "traefik"
 
     rule {
-      host = "landing.k3s.local"
+      # The real production hostname, not a made-up test one -- this
+      # only matters once shared_ingress's outer Traefik on the
+      # homeserver is pointed at this cluster (see home-infra), since it
+      # forwards the client's original Host header unchanged
+      # (passHostHeader: true on the "home" service in dynamic.yml.j2),
+      # and this Ingress has to match what actually arrives.
+      host = "home.jkandler.de"
 
       http {
         path {
