@@ -36,12 +36,20 @@ resource "kubernetes_deployment_v1" "home_agent" {
       spec {
         # Neither container talks to the Kubernetes API, so there's
         # nothing for the default projected serviceaccount-token volume
-        # to do here -- and with read_only_root_filesystem set below,
-        # kubelet can't even create its mountpoint at container start
-        # (confirmed live: "mkdirat .../run/secrets/kubernetes.io:
-        # read-only file system"). Same least-privilege reasoning as the
-        # cap_drop/non-root/read-only-root baseline already applied to
-        # both containers -- just turning off a mount neither needs.
+        # to do here -- and it collides with the openai_api_key Secret
+        # mounted at /run/secrets below: kubelet auto-mounts the token
+        # at /var/run/secrets/kubernetes.io/serviceaccount, which
+        # aliases (/var/run -> /run) into a subdirectory of that same
+        # already-mounted path, and can't create it there (confirmed
+        # live: "mkdirat .../run/secrets/kubernetes.io: read-only file
+        # system"). Not actually caused by read_only_root_filesystem
+        # below, despite this comment originally blaming it -- the
+        # grafana module hit the identical collision with no
+        # read_only_root_filesystem set at all, from its own Secret
+        # mounted the same way at /run/secrets. Same least-privilege
+        # reasoning as the cap_drop/non-root/read-only-root baseline
+        # already applied to both containers either way -- just turning
+        # off a mount neither needs.
         automount_service_account_token = false
 
         image_pull_secrets {

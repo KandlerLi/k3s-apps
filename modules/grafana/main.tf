@@ -46,6 +46,21 @@ resource "kubernetes_deployment_v1" "grafana" {
       }
 
       spec {
+        # Grafana doesn't talk to the Kubernetes API, so there's nothing
+        # for the default projected serviceaccount-token volume to do
+        # here -- and it collides with the admin-password Secret
+        # mounted at /run/secrets below: kubelet auto-mounts the token
+        # at /var/run/secrets/kubernetes.io/serviceaccount, which
+        # aliases (/var/run -> /run) into a subdirectory of that same
+        # already-mounted path, and can't create it there. Confirmed
+        # live: "mkdirat .../run/secrets/kubernetes.io: read-only file
+        # system", CrashLoopBackOff -- home_agent hit the identical
+        # collision (see its own main.tf) mounting its OpenAI key the
+        # same way; that comment blamed read_only_root_filesystem, but
+        # this module has none set and still hit it, so the real
+        # trigger is the /run/secrets mount path itself, not that flag.
+        automount_service_account_token = false
+
         container {
           name  = "grafana"
           image = "grafana/grafana:13.1.4@sha256:9be3a3ccdb06bcbb127f888b0c4c1d151837443e478887897a63a27d7b348043"
