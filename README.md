@@ -169,7 +169,17 @@ straight through into this routing cutover instead of restoring the
 old container first.
 
 The old `home_agent`/`open_webui`/`nextcloud_tools` Docker containers
-are still on the homeserver, just unreachable from outside now --
-reshaping those roles down to whatever host state they still own
-(mirroring `deluge`'s own precedent) is a distinct follow-up step, not
-bundled into this cutover.
+and the roles that ran them are gone now too (also 2026-08-30, a
+distinct follow-up step, not bundled into this cutover): `home_agent`
+and `open_webui` reshaped down to just the host prerequisites their
+k3s copies still depend on (mirroring `deluge`'s own precedent),
+`nextcloud_tools` retired outright since its only consumer was
+`home_agent`'s own now-gone container. See `home-infra-ai-context/
+context/current-state.md` for that reshape's own real near-miss: an
+intervening `site.yml` run for an unrelated fix silently restarted the
+already-stopped `open-webui` container (its role was still
+Docker-based at that point), leaving it running against the same
+NFS-shared WAL-mode SQLite database as this Pod for about two hours
+before being caught -- `PRAGMA integrity_check` came back clean and no
+corruption resulted, but it's a real sequencing lesson for any future
+reshape-after-cutover step here.
