@@ -109,6 +109,18 @@ code doesn't need touching.
   new address as the same object rather than proposing a
   destroy+recreate. Safe to delete once a plan against the current state
   comes back clean.
+- `secrets.sops.yml` / `.sops.yaml` -- this repo's own sops vault, same
+  PGP key as `home-infra`'s. Holds only `nextcloud_tools_app_password`
+  -- every other secret this repo's modules need is read straight out
+  of `home-infra`'s own vault instead of duplicated here (see
+  `scripts/export-tf-vars.sh`).
+- `scripts/export-tf-vars.sh` (thin wrapper around
+  `scripts/print_tf_var_exports.py`) -- decrypts and exports every
+  `TF_VAR_*` secret in one `source` instead of typing each
+  `TF_VAR_...="$(sops -d ...)"` by hand. See "Running it from your
+  laptop" below.
+- `terraform.tfvars` -- `home_agent_image`'s pinned digest. Not a
+  secret, tracked directly rather than exported like the values above.
 
 ## Running it from your laptop
 
@@ -131,15 +143,35 @@ is exactly what the tunnel above fakes -- so it works unmodified):
 scp -o ProxyJump=julian@192.168.178.100 ansible@192.168.101.10:/etc/rancher/k3s/k3s.yaml ~/.kube/k3s-node-1.yaml
 ```
 
-Then, with the tunnel still open in its own terminal:
+Then, with the tunnel still open in its own terminal (assumes
+`home-infra` is checked out as a sibling directory -- set
+`HOME_INFRA_DIR` if yours lives somewhere else):
 
 ```
 git clone https://github.com/KandlerLi/k3s-apps.git
 cd k3s-apps
 terraform init
-TF_VAR_deluge_web_password="$(pass show deluge/password)" terraform plan
-TF_VAR_deluge_web_password="$(pass show deluge/password)" terraform apply
+source scripts/export-tf-vars.sh
+terraform plan
+terraform apply
 ```
+
+`scripts/export-tf-vars.sh` decrypts every `TF_VAR_*` secret this
+repo's modules need and exports them into your current shell --
+`deluge_web_password`, `home_agent_ghcr_token`,
+`home_agent_openai_api_key`, `grafana_admin_password`, and
+`blocky_postgres_password` come from home-infra's own
+`secrets.sops.yml` (the same value already applied there);
+`nextcloud_tools_app_password` comes from this repo's own
+`secrets.sops.yml` -- deliberately not in home-infra's vault, since
+it's a separate, independently-revocable app password for this k3s
+copy (see `modules/home_agent/variables.tf`). Fill that one in once via
+`sops secrets.sops.yml` before the first apply; it starts out as a
+`CHANGE_ME` placeholder, and the script refuses to export it
+unfilled rather than silently passing that placeholder through.
+`home_agent_image` isn't a secret -- it's just a pinned public digest
+string, tracked directly in this repo's own `terraform.tfvars`
+instead, updated by hand after each meaningful `home-agent` build.
 
 No `KUBECONFIG=...` prefix needed for the `terraform` commands above --
 unlike `kubectl`, the `kubernetes` provider does **not** read that

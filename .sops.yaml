@@ -1,0 +1,4 @@
+creation_rules:
+  - path_regex: 'secrets\.sops\.yml$'
+    pgp:
+      - 6D8B16CB662983A54B4AF1466F0B5C2AB1509600
