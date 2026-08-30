@@ -34,6 +34,16 @@ resource "kubernetes_deployment_v1" "home_agent" {
       }
 
       spec {
+        # Neither container talks to the Kubernetes API, so there's
+        # nothing for the default projected serviceaccount-token volume
+        # to do here -- and with read_only_root_filesystem set below,
+        # kubelet can't even create its mountpoint at container start
+        # (confirmed live: "mkdirat .../run/secrets/kubernetes.io:
+        # read-only file system"). Same least-privilege reasoning as the
+        # cap_drop/non-root/read-only-root baseline already applied to
+        # both containers -- just turning off a mount neither needs.
+        automount_service_account_token = false
+
         image_pull_secrets {
           name = kubernetes_secret_v1.ghcr_pull.metadata[0].name
         }
