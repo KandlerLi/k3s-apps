@@ -30,9 +30,24 @@ code doesn't need touching.
   the Deployment/Services/Ingress (`main.tf`, with an init container
   working around a Kubernetes `subPath`/NFS `root_squash`
   incompatibility). Serves `torrent.jkandler.de` in production.
+- `modules/home_agent/` -- `home_agent` + `nextcloud_tools` as sidecars
+  in one Pod, sharing a Unix socket through an `emptyDir` (preserves the
+  exact trust shape `home-infra`'s own deployment has today, just
+  relocated from "two processes on one host" to "two containers in one
+  Pod"). `nextcloud_tools` reaches Nextcloud AIO's Apache at
+  `192.168.101.1:11000` (see `nextcloud_aio_apache_ip_binding` in
+  `home-infra`). `home_agent`'s own image is a private GHCR package,
+  built and pushed by `home-infra`'s `build-home-agent.yml` on its
+  self-hosted CI runner -- never on the homeserver. The one dependency
+  that couldn't move as a sidecar is `home_tools_service` (it reports
+  the *homeserver's own* hardware, so it has to keep running there);
+  reached instead over its own optional TCP listener at
+  `192.168.101.1:8095`. No Ingress yet -- not cut over to
+  `ai.jkandler.de`, and `open_webui` (the only other consumer) hasn't
+  moved here yet either.
 - `moved.tf` -- records the 2026-08-30 restructure from flat root-level
-  resources into these two modules, so `terraform plan` recognizes each
-  resource's new address as the same object rather than proposing a
+  resources into modules, so `terraform plan` recognizes each resource's
+  new address as the same object rather than proposing a
   destroy+recreate. Safe to delete once a plan against the current state
   comes back clean.
 

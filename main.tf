@@ -13,3 +13,12 @@ module "deluge" {
 
   deluge_web_password = var.deluge_web_password
 }
+
+module "home_agent" {
+  source = "./modules/home_agent"
+
+  home_agent_image             = var.home_agent_image
+  home_agent_ghcr_token        = var.home_agent_ghcr_token
+  home_agent_openai_api_key    = var.home_agent_openai_api_key
+  nextcloud_tools_app_password = var.nextcloud_tools_app_password
+}
