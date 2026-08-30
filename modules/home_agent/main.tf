@@ -187,7 +187,16 @@ resource "kubernetes_deployment_v1" "home_agent" {
             allow_privilege_escalation = false
             run_as_non_root            = true
             run_as_user                = 10002
-            run_as_group               = 10002
+            # Shares home-agent's own GID (10001), not this container's
+            # own UID's group -- the socket this process creates and
+            # chmods 0660 needs to be group-readable/writable by
+            # home-agent's process specifically, the same "put the
+            # client in the tools' own group" shape home-infra's own
+            # Ansible deployment already uses
+            # (home_agent_nextcloud_tools_client_group). Confirmed live:
+            # without this, home-agent got PermissionError connecting to
+            # the socket even though both containers were Running.
+            run_as_group = 10001
             capabilities {
               drop = ["ALL"]
             }
