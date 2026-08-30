@@ -22,3 +22,9 @@ module "home_agent" {
   home_agent_openai_api_key    = var.home_agent_openai_api_key
   nextcloud_tools_app_password = var.nextcloud_tools_app_password
 }
+
+module "open_webui" {
+  source = "./modules/open_webui"
+
+  depends_on = [module.home_agent]
+}

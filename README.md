@@ -57,8 +57,22 @@ code doesn't need touching.
   about this Pod's real address, non-deterministic file permissions
   from the CI image build, and the two containers' sidecar UIDs not
   sharing a GID despite the Unix socket depending on one. No Ingress
-  yet -- not cut over to `ai.jkandler.de`, and `open_webui` (the only
-  other consumer) hasn't moved here yet either.
+  yet -- not cut over to `ai.jkandler.de`.
+- `modules/open_webui/` -- the k3s-native copy of `home-infra`'s own
+  `open_webui` role: same pinned image, same real data (mounted from
+  an NFS export of `/var/lib/open-webui`, not started fresh -- same
+  "share the real state" choice already made for Deluge's config,
+  see `nfs_server_exports` in `home-infra`), and the same UID:GID
+  (`995:0`, not the account's own default group -- see the module's
+  own comment) the Docker deployment already runs as, so the shared
+  NFS export's permissions just work. Points at `home_agent`'s own
+  in-cluster Service instead of the Docker `home-agent` network alias
+  for its OpenAI-compatible API. Resourced deliberately differently
+  from every other module here (Burstable, not this repo's usual
+  limits-only-implies-Guaranteed) -- see the module's own comment for
+  why. No Ingress here either -- see the "Cutting over `ai.jkandler.de`"
+  section below for what's still needed before either this or
+  `home_agent` actually serves real traffic.
 - `moved.tf` -- records the 2026-08-30 restructure from flat root-level
   resources into modules, so `terraform plan` recognizes each resource's
   new address as the same object rather than proposing a
@@ -122,3 +136,15 @@ still needs). `home-infra`'s `shared_ingress` role points at this
 cluster's Traefik Ingress (`http://192.168.101.10:80`) for both routes;
 see `home-infra-ai-context/context/current-state.md`'s "k3s learning
 cluster" section for the full cutover history.
+
+## Cutting over `ai.jkandler.de`
+
+Both `home_agent` and `open_webui` are running here and individually
+confirmed reachable, but neither has an Ingress yet, and cutting either
+over isn't as simple as Deluge's or `home.jkandler.de`'s single-service
+swap: `ai.jkandler.de` is one hostname split by *path* between the two
+(`home_agent` answers `/healthz` and `/v1/chat` directly, `open_webui`
+gets everything else -- see `home-infra`'s own `shared_ingress`/
+`open_webui` roles for how the Docker deployment does this today). The
+k3s-native equivalent needs a single Ingress with path rules routing to
+both Services, not two separate ones -- not yet written.
