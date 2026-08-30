@@ -42,9 +42,23 @@ code doesn't need touching.
   that couldn't move as a sidecar is `home_tools_service` (it reports
   the *homeserver's own* hardware, so it has to keep running there);
   reached instead over its own optional TCP listener at
-  `192.168.101.1:8095`. No Ingress yet -- not cut over to
-  `ai.jkandler.de`, and `open_webui` (the only other consumer) hasn't
-  moved here yet either.
+  `192.168.101.1:8095`. Confirmed live 2026-08-30: both containers
+  Running, and all four paths this Pod depends on actually exercised
+  from inside it (not just "the process didn't crash") --
+  `home-agent`'s own `/healthz`, the Unix socket to `nextcloud-tools`,
+  `nextcloud-tools` reaching Nextcloud AIO's `/status.php`, and
+  `home-agent` reaching `home_tools_service` over the TCP listener and
+  getting real homeserver hardware data back. Getting there needed
+  several real fixes past the first-cut manifest: CPU requests/limits
+  sized without measuring what these processes actually do (starved the
+  Pod off the VM's 2 vCPU budget), a serviceaccount token neither
+  container needs colliding with `read_only_root_filesystem`,
+  `nextcloud_tools_service.py`'s own loopback-only guard not knowing
+  about this Pod's real address, non-deterministic file permissions
+  from the CI image build, and the two containers' sidecar UIDs not
+  sharing a GID despite the Unix socket depending on one. No Ingress
+  yet -- not cut over to `ai.jkandler.de`, and `open_webui` (the only
+  other consumer) hasn't moved here yet either.
 - `moved.tf` -- records the 2026-08-30 restructure from flat root-level
   resources into modules, so `terraform plan` recognizes each resource's
   new address as the same object rather than proposing a
