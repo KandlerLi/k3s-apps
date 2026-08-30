@@ -71,10 +71,16 @@ resource "kubernetes_deployment_v1" "home_agent" {
             container_port = 8000
           }
 
+          # I/O-bound (waiting on the OpenAI API over the network, not
+          # burning CPU) -- 1000m was unmeasured copy-pasted headroom
+          # that alone left no room for this Pod on the k3s VM's 2 vCPU
+          # budget (k3s_node_vm_vcpus), on top of deluge's own Guaranteed
+          # 1000m. Confirmed live: that combination failed to schedule
+          # ("0/1 nodes are available: 1 Insufficient cpu").
           resources {
             limits = {
               memory = "256Mi"
-              cpu    = "1000m"
+              cpu    = "250m"
             }
           }
 
@@ -156,10 +162,13 @@ resource "kubernetes_deployment_v1" "home_agent" {
             value = "Shared/AI Workspace"
           }
 
+          # Same over-provisioning fix as the home-agent container above --
+          # this is a stdlib-only socket relay to Nextcloud's WebDAV API,
+          # not something that needs half a core.
           resources {
             limits = {
               memory = "128Mi"
-              cpu    = "500m"
+              cpu    = "100m"
             }
           }
 
