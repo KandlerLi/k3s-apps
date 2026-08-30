@@ -1,7 +1,7 @@
 # Terraform equivalent of home-infra's ansible/roles/landing_page role --
 # same image digest, same mount point, same links -- run against the k3s
 # learning cluster instead of a Docker container on the homeserver. The
-# real index.html/style.css content lives in files/ in this repo (pulled
+# real index.html/style.css content lives in files/ in this module (pulled
 # from the live homeserver, not fabricated), read in via file() below,
 # the same way the Ansible role templates them from its own source.
 

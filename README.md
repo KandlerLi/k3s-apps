@@ -3,7 +3,8 @@
 Terraform-managed workloads for the personal k3s learning cluster
 (`k3s-node-1`, see the `k3s_node` role in `home-infra`). This is a
 **learning project**, kept deliberately separate from `home-infra`'s
-production Ansible-managed services.
+production Ansible-managed services -- services are cut over to it one
+at a time, each proven live first.
 
 Uses Terraform's `kubernetes` provider directly against the cluster,
 instead of plain `kubectl apply -f` -- a deliberate choice to keep one
@@ -13,10 +14,27 @@ this repo's commit history / conversation history for the trade-off).
 
 ## What's here
 
-- `landing_page.tf` -- the k3s-native equivalent of `home-infra`'s
-  `ansible/roles/landing_page` role: same pinned image digest, same
-  mount point, same real content (`files/index.html`, `files/style.css`,
-  pulled from the live homeserver, not fabricated).
+One module per service (`modules/<service>/`), wired together by the
+root `main.tf`. Adding a third service means a new `modules/<service>/`
+directory plus a `module` block in `main.tf` -- an existing service's
+code doesn't need touching.
+
+- `modules/landing_page/` -- the k3s-native equivalent of `home-infra`'s
+  now-deleted `ansible/roles/landing_page` role: same pinned image
+  digest, same mount point, same real content (`files/index.html`,
+  `files/style.css`, pulled from the live homeserver, not fabricated).
+  Serves `home.jkandler.de` in production.
+- `modules/deluge/` -- statically-provisioned NFS storage bound to
+  `home-infra`'s `nfs_server` exports (`storage.tf`), Deluge's own
+  web-login Secret reproducing its salted-SHA1 scheme (`secret.tf`), and
+  the Deployment/Services/Ingress (`main.tf`, with an init container
+  working around a Kubernetes `subPath`/NFS `root_squash`
+  incompatibility). Serves `torrent.jkandler.de` in production.
+- `moved.tf` -- records the 2026-08-30 restructure from flat root-level
+  resources into these two modules, so `terraform plan` recognizes each
+  resource's new address as the same object rather than proposing a
+  destroy+recreate. Safe to delete once a plan against the current state
+  comes back clean.
 
 ## Running it from your laptop
 
@@ -45,8 +63,8 @@ Then, with the tunnel still open in its own terminal:
 git clone https://github.com/KandlerLi/k3s-apps.git
 cd k3s-apps
 terraform init
-terraform plan
-terraform apply
+TF_VAR_deluge_web_password="$(pass show deluge/password)" terraform plan
+TF_VAR_deluge_web_password="$(pass show deluge/password)" terraform apply
 ```
 
 No `KUBECONFIG=...` prefix needed for the `terraform` commands above --
@@ -63,25 +81,15 @@ that would mean putting AWS credentials on your laptop's local runs for
 no real benefit yet. Move to a remote backend later if/when this
 cluster holds something worth protecting against that file being lost.
 
-**Before the first `terraform apply`**: if you built `landing-page`
-by hand with `kubectl create`/`kubectl apply` first (the learning path
-that led here), delete those objects first -- Terraform doesn't know
-about resources it didn't create, and will fail with "already exists"
-on names it collides with. Run this against the same tunnel/kubeconfig:
+## Relationship to the Ansible-managed originals
 
-```
-KUBECONFIG=~/.kube/k3s-node-1.yaml kubectl delete deployment landing-page
-KUBECONFIG=~/.kube/k3s-node-1.yaml kubectl delete service landing-page-svc
-KUBECONFIG=~/.kube/k3s-node-1.yaml kubectl delete ingress landing-page-ingress
-KUBECONFIG=~/.kube/k3s-node-1.yaml kubectl delete configmap landing-page-html
-```
-
-## Relationship to the Ansible-managed original
-
-The real `landing_page` role on the homeserver, and `landing.jkandler.de`
-DNS/Traefik routing, are both untouched by this. This is a parallel,
-private copy running only on the k3s VM's own isolated network,
-reachable only through the tunnel above, unreachable from anywhere else.
-Cutting over the real domain to point here -- and retiring the Ansible
-role -- is a deliberate later step, not something this repo does on its
-own.
+Both services here now serve their real production domains --
+`home.jkandler.de` (cut over 2026-08-29, the old `landing_page` role
+then deleted outright) and `torrent.jkandler.de` (cut over 2026-08-30,
+the old `deluge` role reshaped down to just the host prerequisites --
+service account, NFS-exported directories -- this cluster still depends
+on, since unlike `landing_page` it owns real state a homeserver rebuild
+still needs). `home-infra`'s `shared_ingress` role points at this
+cluster's Traefik Ingress (`http://192.168.101.10:80`) for both routes;
+see `home-infra-ai-context/context/current-state.md`'s "k3s learning
+cluster" section for the full cutover history.
