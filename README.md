@@ -99,11 +99,22 @@ code doesn't need touching.
   from `home-infra`'s `ansible/roles/monitoring/files/dashboards/*.json`,
   checksummed identical) is provisioned from files, confirmed with
   Julian first that there's no click-through UI state worth migrating
-  (matching the role's own README). Has its own Ingress for
-  `grafana.jkandler.de` already, but **not cut over yet** --
-  `home-infra`'s `shared_ingress_grafana_upstream` still points at the
-  Docker container until this is verified live with real dashboard
-  data from both datasources.
+  (matching the role's own README). Two real bugs found and fixed past
+  the first-cut manifest, both the kind that don't crash-loop loudly:
+  the admin-password Secret mounted at `/run/secrets` collided with
+  kubelet's own serviceaccount-token auto-mount there (same
+  `automount_service_account_token = false` fix as `modules/
+  home_agent`'s own case), and that Secret's data key didn't match its
+  own `GF_SECURITY_ADMIN_PASSWORD__FILE` path -- the Pod started fine
+  but silently kept the default `admin/admin` login instead of the
+  real sops password, caught only by actually logging in and checking.
+  **Confirmed live and cut over 2026-08-30**: `home-infra`'s
+  `shared_ingress_grafana_upstream` now points here (real TLS, real
+  Traefik Basic Auth, real Grafana admin login, both datasources
+  healthy with real scrape data), and its `monitoring` role is
+  reshaped down to nothing at all -- unlike `deluge`/`open_webui`,
+  Grafana left no host prerequisites behind, since its directories
+  were always ephemeral rather than real shared state.
 - `moved.tf` -- records the 2026-08-30 restructure from flat root-level
   resources into modules, so `terraform plan` recognizes each resource's
   new address as the same object rather than proposing a
