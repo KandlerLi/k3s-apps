@@ -85,6 +85,25 @@ code doesn't need touching.
   for `ai.jkandler.de` (`/healthz` and `/v1/chat` to `home_agent`,
   everything else to `open_webui`) using standard Kubernetes Ingress
   path matching instead of Traefik's own priority annotation.
+- `modules/grafana/` -- Phase 1 of moving `home-infra`'s `monitoring`
+  role into k3s: Grafana only. Prometheus, Alertmanager, the exporters,
+  and Blocky all stay on the homeserver permanently (they report *this
+  physical host's* own hardware/Docker daemon, or are LAN-facing --
+  see the module's own comment), reached here over the additive
+  `192.168.101.1` listeners `home-infra`'s `blocky` and `monitoring`
+  roles now expose (`blocky_postgres_k3s_bind_address`,
+  `monitoring_prometheus_k3s_bind_address`), confirmed reachable from
+  inside the cluster (`kubectl exec` + `curl`/`nc`) before this module
+  was built. No PVC, deliberately -- everything Grafana needs
+  (datasources, dashboard provider, the five dashboard JSONs vendored
+  from `home-infra`'s `ansible/roles/monitoring/files/dashboards/*.json`,
+  checksummed identical) is provisioned from files, confirmed with
+  Julian first that there's no click-through UI state worth migrating
+  (matching the role's own README). Has its own Ingress for
+  `grafana.jkandler.de` already, but **not cut over yet** --
+  `home-infra`'s `shared_ingress_grafana_upstream` still points at the
+  Docker container until this is verified live with real dashboard
+  data from both datasources.
 - `moved.tf` -- records the 2026-08-30 restructure from flat root-level
   resources into modules, so `terraform plan` recognizes each resource's
   new address as the same object rather than proposing a

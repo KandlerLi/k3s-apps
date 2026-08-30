@@ -28,3 +28,10 @@ module "open_webui" {
 
   depends_on = [module.home_agent]
 }
+
+module "grafana" {
+  source = "./modules/grafana"
+
+  grafana_admin_password   = var.grafana_admin_password
+  blocky_postgres_password = var.blocky_postgres_password
+}

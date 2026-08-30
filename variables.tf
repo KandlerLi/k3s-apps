@@ -51,3 +51,22 @@ variable "nextcloud_tools_app_password" {
   type        = string
   sensitive   = true
 }
+
+variable "grafana_admin_password" {
+  description = <<-EOT
+    Same value as home-infra's monitoring_grafana_admin_password SOPS
+    secret. Pass via TF_VAR_grafana_admin_password at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "blocky_postgres_password" {
+  description = <<-EOT
+    Same value as home-infra's blocky_postgres_password SOPS secret --
+    used by Grafana's blocky-postgresql datasource. Pass via
+    TF_VAR_blocky_postgres_password at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
