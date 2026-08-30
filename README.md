@@ -70,9 +70,21 @@ code doesn't need touching.
   for its OpenAI-compatible API. Resourced deliberately differently
   from every other module here (Burstable, not this repo's usual
   limits-only-implies-Guaranteed) -- see the module's own comment for
-  why. No Ingress here either -- see the "Cutting over `ai.jkandler.de`"
-  section below for what's still needed before either this or
-  `home_agent` actually serves real traffic.
+  why. Migrated against the real, already-live data: home-infra's own
+  container was stopped first (SQLite tolerates concurrent NFS writers
+  far worse than Deluge's own session state did), the k3s copy then
+  confirmed to have read the real accounts/chat history (persisted
+  database settings came back, not fresh env-var defaults), not
+  restarted afterward -- the outage carried straight through into the
+  routing cutover below instead of a throwaway validate-then-revert
+  cycle.
+- `ai_ingress.tf` -- the one resource that genuinely depends on both
+  `home_agent`'s and `open_webui`'s own Services (via each module's
+  `outputs.tf`), so it lives at the root instead of inside either
+  module. Replicates `home-infra`'s own `shared_ingress` path split
+  for `ai.jkandler.de` (`/healthz` and `/v1/chat` to `home_agent`,
+  everything else to `open_webui`) using standard Kubernetes Ingress
+  path matching instead of Traefik's own priority annotation.
 - `moved.tf` -- records the 2026-08-30 restructure from flat root-level
   resources into modules, so `terraform plan` recognizes each resource's
   new address as the same object rather than proposing a
@@ -139,12 +151,25 @@ cluster" section for the full cutover history.
 
 ## Cutting over `ai.jkandler.de`
 
-Both `home_agent` and `open_webui` are running here and individually
-confirmed reachable, but neither has an Ingress yet, and cutting either
-over isn't as simple as Deluge's or `home.jkandler.de`'s single-service
-swap: `ai.jkandler.de` is one hostname split by *path* between the two
+Unlike Deluge's or `home.jkandler.de`'s single-service swap,
+`ai.jkandler.de` is one hostname split by *path* between two services
 (`home_agent` answers `/healthz` and `/v1/chat` directly, `open_webui`
-gets everything else -- see `home-infra`'s own `shared_ingress`/
-`open_webui` roles for how the Docker deployment does this today). The
-k3s-native equivalent needs a single Ingress with path rules routing to
-both Services, not two separate ones -- not yet written.
+gets everything else). `ai_ingress.tf` at the root replicates that
+split; `home-infra`'s own `shared_ingress` role points both
+`shared_ingress_agent_upstream` and `shared_ingress_open_webui_upstream`
+at this cluster (`http://192.168.101.10:80`) once ready -- both have to
+move together, since this file's own path split forwards each branch
+to the same k3s Traefik entrypoint, which then re-splits internally.
+Cut over 2026-08-30, done in one pass rather than the usual
+validate-then-revert cycle: `open_webui`'s own migration already
+required stopping the live Docker container before the k3s copy could
+even be started (SQLite's own concurrent-NFS-writer risk), so once
+that data was confirmed to have migrated correctly, the outage carried
+straight through into this routing cutover instead of restoring the
+old container first.
+
+The old `home_agent`/`open_webui`/`nextcloud_tools` Docker containers
+are still on the homeserver, just unreachable from outside now --
+reshaping those roles down to whatever host state they still own
+(mirroring `deluge`'s own precedent) is a distinct follow-up step, not
+bundled into this cutover.
