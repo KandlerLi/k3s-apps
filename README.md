@@ -134,11 +134,16 @@ code doesn't need touching.
   history. Resourced off real `docker stats` (0.77% of one core,
   17.67MiB/128MiB memory) rather than its Docker `cpus:` ceiling, the
   smallest request yet (`20m`/`100m` CPU) given only 250m of headroom
-  was free before this module. Not cut over yet -- `home-infra`'s
-  `monitoring_alertmanager_upstream` still points Prometheus at the
-  homeserver's own Alertmanager until this is independently verified
-  (a real synthetic alert reaching both ntfy and SES) to rule out
-  double-firing every real notification during the switch.
+  was free before this module. **Confirmed live and cut over
+  2026-08-31**: a synthetic test alert posted straight to this
+  module's own API reached both ntfy and the real SES inbox before
+  `home-infra`'s `monitoring_alertmanager_upstream` was ever switched
+  over (ruling out double-firing during the cutover, the risk a
+  simultaneous old-and-new target would have carried); Prometheus's
+  own `/api/v1/alertmanagers` then confirmed exactly this target,
+  healthy, once switched. `home-infra`'s `monitoring` role is
+  reshaped down to just the ntfy relay it still runs -- unlike
+  Grafana, Alertmanager left no host prerequisites behind either.
 - `moved.tf` -- records the 2026-08-30 restructure from flat root-level
   resources into modules, so `terraform plan` recognizes each resource's
   new address as the same object rather than proposing a
