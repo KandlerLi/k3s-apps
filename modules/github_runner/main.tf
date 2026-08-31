@@ -125,12 +125,24 @@ resource "kubernetes_deployment_v1" "github_runner" {
             name  = "LABELS"
             value = "home,debian,x64"
           }
-          # Persistent, not autoscaled-ephemeral -- matches today's real
-          # shape (one long-lived process per repository), the smallest
-          # change from the proven VM-based design.
+          # Ephemeral, deliberately -- one job per Pod, then it exits
+          # and the Deployment restarts it fresh for the next. Confirmed
+          # live: the entrypoint's own EPHEMERAL check is `[ -n
+          # "${EPHEMERAL}" ]`, true for ANY set value including
+          # "false" -- there's no way to opt out of ephemeral mode by
+          # setting this to a falsy string, only by leaving it unset
+          # entirely, so it's set to "true" here to make the real,
+          # already-live behavior explicit rather than accidental. A
+          # deliberate departure from the old VM-based role's own
+          # persistent-systemd-service shape: ephemeral is GitHub's own
+          # recommended pattern for container/k8s-hosted runners, and it
+          # sidesteps the whole class of cross-job workspace-reuse bug
+          # that role needs real Ansible logic to handle (root-owned
+          # leftover files from a containerized job step blocking a
+          # later job's own checkout) -- every Pod starts clean.
           env {
             name  = "EPHEMERAL"
-            value = "false"
+            value = "true"
           }
           # The image itself should be bumped to update the runner
           # binary, not have it silently self-update inside a running
