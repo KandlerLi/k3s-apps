@@ -187,6 +187,38 @@ code doesn't need touching.
   replaced entirely by the runner container's own `umask 000` instead,
   which fixes the same race at the actual point files get created,
   no polling and nothing left to fight a later legitimate `chmod`.
+- `modules/ingress/` -- moving `shared_ingress` to k3s, the last and
+  highest-stakes piece of this whole project: unlike every service
+  before it, there's no safe additive window (only one thing can hold
+  the homeserver's own physical ports 80/443), so if this cutover ever
+  goes wrong, every public service goes dark at once, not one at a
+  time. A new, dedicated Traefik Deployment, not a reconfiguration of
+  k3s's own bundled instance (`k3s_node`'s own README deliberately
+  keeps that at defaults) -- k3s's bundled Traefik gets `--disable
+  traefik` on `k3s-node-1`'s own systemd unit once this one takes
+  over cleanly. Static/dynamic config mirrors `home-infra`'s own
+  `shared_ingress` role's templates nearly verbatim (the lowest-risk
+  possible translation, not a rewrite into Kubernetes'
+  `IngressRoute`/`Middleware` CRDs), but every backend now routes to
+  this cluster's own in-cluster Service DNS names directly
+  (`home-agent-svc`, `open-webui-svc`, `deluge-web-svc`,
+  `grafana-svc`, `landing-page-svc`) instead of bouncing back out
+  through the node's own external address -- this Traefik lives
+  inside the cluster now, so it doesn't need to. Nextcloud AIO's own
+  Apache is the one backend that isn't a k3s Service at all (stays on
+  the homeserver permanently); reached through a Service-without-
+  selector-plus-Endpoints pair pointing at `192.168.101.1:11000`,
+  not an `ExternalName` Service -- that type's own `external_name`
+  field wants a real DNS hostname, not a portable, reliable target
+  for a bare IP. A small PVC persists `/letsencrypt/acme.json` across
+  Pod restarts (unlike Alertmanager's/Grafana's own "start fresh, no
+  PVC" choice) -- losing it would mean re-issuing every certificate
+  every time, a real, avoidable rate-limit risk. Public traffic
+  actually reaching this Service at all still needs `home-infra`'s
+  own new `k3s_ingress_forward` role (iptables DNAT on the
+  homeserver, since the k3s VM's network is deliberately unreachable
+  from the LAN otherwise) -- see that role's own README, and the plan
+  in `home-infra`'s own history for the full staged rollout sequence.
 - `secrets.sops.yml` / `.sops.yaml` -- this repo's own sops vault, same
   PGP key as `home-infra`'s. Holds only `nextcloud_tools_app_password`
   -- every other secret this repo's modules need is read straight out

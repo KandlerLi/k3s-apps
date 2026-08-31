@@ -115,3 +115,13 @@ variable "github_runner_repositories" {
     repository = string
   }))
 }
+
+variable "shared_ingress_auth_password_hash" {
+  description = <<-EOT
+    Same bcrypt hash as home-infra's shared_ingress_auth_password_hash
+    SOPS secret. See modules/ingress's own variable of the same name.
+    Pass via TF_VAR_shared_ingress_auth_password_hash at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}

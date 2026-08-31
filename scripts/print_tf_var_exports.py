@@ -75,6 +75,11 @@ SECRET_SOURCES = [
         "github_runner_github_token",
         "github_runner_github_token",
     ),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "shared_ingress_auth_password_hash",
+        "shared_ingress_auth_password_hash",
+    ),
 ]
 
 

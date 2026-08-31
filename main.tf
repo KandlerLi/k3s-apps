@@ -49,3 +49,20 @@ module "github_runner" {
   github_runner_github_token = var.github_runner_github_token
   github_runner_repositories = var.github_runner_repositories
 }
+
+module "ingress" {
+  source = "./modules/ingress"
+
+  shared_ingress_auth_password_hash = var.shared_ingress_auth_password_hash
+
+  # Every backend it routes to by Service name -- a plain string
+  # inside a ConfigMap's own YAML content, not a real Terraform
+  # reference, so this has to be explicit rather than inferred.
+  depends_on = [
+    module.landing_page,
+    module.deluge,
+    module.home_agent,
+    module.open_webui,
+    module.grafana,
+  ]
+}
