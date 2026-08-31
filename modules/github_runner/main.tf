@@ -60,17 +60,24 @@
 # additively alongside it: confirmed live, a run where "Build CI
 # image" executed on the *old* VM (capturing its own real ghr-<id>
 # system account's uid) while "Validate" landed on this module's own
-# runner, asking to write as a uid that means nothing here. No fix on
-# this Pod's own side can predict or match an arbitrary incoming uid
-# from a different machine, so /work is kept world-writable
-# continuously instead, by a dedicated permission-fixer container (not
-# folded into dind's own command -- tried that first, and it left a
-# second, confusingly-orphaned copy of the whole command running as a
-# child of docker-init instead of cleanly replacing the entrypoint;
-# a separate container sidesteps the exec/subshell complexity
-# entirely). Continuous, not one-shot, since this image's own
-# entrypoint creates fresh restrictive-mode subdirectories on every
-# job cycle, not just at Pod start.
+# runner, asking to write as a uid that means nothing here.
+#
+# First fix tried: a dedicated permission-fixer container polling
+# `chmod -R 0777 /work`, on the theory that no fix on this Pod's own
+# side can predict or match an arbitrary incoming uid, so keep the
+# whole tree permissive instead. It worked for the original bug, but
+# turned out actively harmful, not just an unnecessary belt-and-
+# suspenders: confirmed live, it fought home-infra's own checks.yml,
+# which deliberately `chmod o-w`s its own checked-out workspace as a
+# real security measure (Ansible refuses to load an ansible.cfg from a
+# world-writable directory) -- this loop kept re-adding world-write
+# permissions moments later, breaking that repository's own CI outright
+# once its runner moved here. Removed. Fixed at the actual source
+# instead: the runner container's own `umask 000` (see its comment)
+# means anything *this Pod's own process tree* creates is 0777 from
+# the instant of creation, with no race to poll for and nothing to
+# retroactively widen -- confirmed live, a real checkout succeeded
+# cleanly with this alone, no fixer container involved.
 #
 # Known, accepted, bounded limitation: the fixes above cover a
 # `container:` job step *writing* into the shared work volume, but not
@@ -174,25 +181,24 @@ resource "kubernetes_deployment_v1" "github_runner" {
           name  = "runner"
           image = "myoung34/github-runner:2.337.0-debian-trixie@sha256:ab5c1f5abd6e96fa357c5003575a6b431265d5e7a41d81b5ec690abf3163dad7"
 
-          # Confirmed live: the permission-fixer container's own polling
-          # loop genuinely works (later inspection always found /work
-          # fully 0777), but lost a real race -- actions/checkout writes
-          # into a freshly mkdir'd _temp/_runner_file_commands/ faster
-          # than a 2s poll interval can catch, since this image's own
-          # entrypoint (and Runner.Listener itself, running as root
-          # thanks to RUN_AS_ROOT) creates it with the default 022
-          # umask. Fixing the umask this container's own process tree
-          # inherits removes the race entirely, at the source, rather
-          # than chasing it after the fact: anything created from here
-          # on is 0777 from the instant of creation. Minimal override --
+          # An earlier fix here was a separate container polling `chmod
+          # -R 0777 /work` -- it genuinely worked (later inspection
+          # always found /work fully 0777), but lost a real race
+          # (actions/checkout writes into a freshly mkdir'd
+          # _temp/_runner_file_commands/ faster than even a fast poll
+          # interval can reliably catch) and, worse, confirmed live to
+          # actively fight home-infra's own checks.yml security check
+          # (see this file's own header comment). Removed. Fixing the
+          # umask this container's own process tree inherits solves the
+          # same problem at the actual source instead of polling for
+          # it: anything created from here on is 0777 from the instant
+          # of creation, no race, nothing to retroactively widen or
+          # fight a later legitimate `chmod` over. Minimal override --
           # same ENTRYPOINT (/entrypoint.sh) and CMD (Dockerfile's own
           # ./bin/Runner.Listener run --startuptype service, passed
           # through as args below) as the image's own default, so
           # entrypoint.sh's own setup logic runs completely unchanged;
-          # only the umask ahead of its exec differs. The
-          # permission-fixer container stays on as a safety net, tuned
-          # to a much tighter poll interval, in case anything ends up
-          # created outside this process tree.
+          # only the umask ahead of its exec differs.
           command = ["sh", "-c", "umask 000 && exec /entrypoint.sh \"$@\"", "sh"]
           args    = ["./bin/Runner.Listener", "run", "--startuptype", "service"]
 
@@ -267,9 +273,9 @@ resource "kubernetes_deployment_v1" "github_runner" {
           # Keeps this container's own Runner.Listener process as uid 0
           # rather than gosu-ing to an internal non-root account -- one
           # less source of identity mismatch for the case where a
-          # workflow's own jobs all land on this same Pod (see the
-          # permission-fixer container's own comment for the case where
-          # they don't).
+          # workflow's own jobs all land on this same Pod (see this
+          # file's own header comment for the known, accepted, bounded
+          # limitation when they don't).
           env {
             name  = "RUN_AS_ROOT"
             value = "true"
@@ -373,38 +379,6 @@ resource "kubernetes_deployment_v1" "github_runner" {
           volume_mount {
             name       = "docker-socket"
             mount_path = "/var/run"
-          }
-        }
-
-        # Safety net, not the primary fix any more -- the runner
-        # container's own umask 000 (see its comment) removes the real
-        # race this loop originally lost against at a 2s interval, by
-        # preventing the restrictive mode from ever being set in the
-        # first place instead of fixing it up afterward. Kept, at a
-        # much tighter interval, in case anything ever gets created
-        # outside that process tree (e.g. by dind itself). Reuses the
-        # runner image (already being pulled twice over for the init
-        # container and the runner container itself) rather than
-        # introducing a third distinct image just for this.
-        container {
-          name    = "permission-fixer"
-          image   = "myoung34/github-runner:2.337.0-debian-trixie@sha256:ab5c1f5abd6e96fa357c5003575a6b431265d5e7a41d81b5ec690abf3163dad7"
-          command = ["sh", "-c", "while true; do chmod -R 0777 /work 2>/dev/null; sleep 0.2; done"]
-
-          resources {
-            requests = {
-              cpu    = "5m"
-              memory = "16Mi"
-            }
-            limits = {
-              cpu    = "50m"
-              memory = "32Mi"
-            }
-          }
-
-          volume_mount {
-            name       = "work"
-            mount_path = "/work"
           }
         }
 
