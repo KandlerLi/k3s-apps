@@ -196,25 +196,16 @@ resource "kubernetes_deployment_v1" "github_runner" {
             name  = "START_DOCKER_SERVICE"
             value = "false"
           }
-          # Confirmed live, and confirmed real: a `container:` job step
-          # got EACCES writing into the shared "work" volume, because a
-          # subdirectory its own checkout step needed (created fresh by
-          # this image's entrypoint, running as root, mid-startup,
-          # before it drops to a non-root identity for the actual job)
-          # was left at the default 0755 -- unwritable by whatever
-          # non-root identity the job container itself runs as. Tried
-          # security_context.fs_group first (Kubernetes' own standard
-          # answer to "several containers, different UIDs, one shared
-          # volume") -- it wasn't enough: the kubelet's own group-align
-          # sweep only runs once, at Pod/volume mount time, so anything
-          # this image's own entrypoint creates *afterward*, during its
-          # normal startup, never gets it. Root bypasses file permission
-          # checks entirely, sidestepping the whole ownership-
-          # inheritance question rather than chasing every path that
-          # needs fixing -- an acceptable posture change specifically
-          # because this Pod already runs a privileged dind sidecar on
-          # a node dedicated to nothing but CI (see this file's own
-          # header comment on that already-accepted trade-off).
+          # Keeps this container's own Runner.Listener process as uid 0
+          # rather than gosu-ing to an internal non-root account --
+          # doesn't, on its own, fully solve the /work EACCES class of
+          # problem (see the dind container's own comment for the real
+          # root cause and fix: an incoming `container:` job step's
+          # --user value can come from a *different machine entirely*,
+          # not from this Pod, so nothing this Pod does to its own
+          # identity can reliably match it). Kept anyway as one less
+          # source of identity mismatch for the case where a workflow's
+          # own jobs *do* all land on this same Pod.
           env {
             name  = "RUN_AS_ROOT"
             value = "true"
@@ -262,6 +253,36 @@ resource "kubernetes_deployment_v1" "github_runner" {
         container {
           name  = "dind"
           image = "docker:29.7.2-dind@sha256:12e683a161823b2a839aeea999b9d960e6e1f9a97b1679ad6b441982e2d9cf07"
+
+          # Confirmed live, and root cause found the hard way: RUN_AS_ROOT
+          # and fsGroup both looked plausible and both turned out
+          # insufficient, because the real problem isn't about *this*
+          # Pod's own internal identity at all. GitHub Actions' own
+          # workflow shape here (every repository's Checks.yml) captures
+          # id -u/id -g from the "Build CI image" job and passes it as
+          # `container: options: --user <uid>:<gid>` to the *separate*
+          # "Validate" job -- an assumption that only holds when both
+          # jobs land on the same machine, true by construction on the
+          # old VM (one shared filesystem) but no longer guaranteed once
+          # this module's own runners pool additively alongside it: a
+          # workflow run can have "Build CI image" execute on the old
+          # VM (capturing *its* real ghr-<id> system account's uid) and
+          # "Validate" on this Pod instead, asking to write as a uid
+          # that means nothing here. No fix on this Pod's own side can
+          # predict or match an arbitrary incoming uid from a different
+          # machine -- so instead of matching it, /work is kept
+          # world-writable continuously (not just at container start,
+          # since this image's own entrypoint creates fresh
+          # restrictive-mode subdirectories on every job cycle) by a
+          # background loop here, backgrounded before the real dockerd
+          # entrypoint takes over the foreground. This container is
+          # already privileged and already root, so a permissive scratch
+          # directory doesn't meaningfully widen the trust already
+          # accepted for it.
+          command = [
+            "sh", "-c",
+            "( while true; do chmod -R 0777 /work 2>/dev/null; sleep 2; done & ) ; exec dockerd-entrypoint.sh dockerd"
+          ]
 
           env {
             name  = "DOCKER_TLS_CERTDIR"
