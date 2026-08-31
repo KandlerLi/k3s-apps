@@ -171,7 +171,14 @@ code doesn't need touching.
   Actions runners sharing the same labels just pool capacity, so the
   new runners register and start serving real jobs alongside the old
   VM's runners with zero interruption risk, repository by repository,
-  until every one is proven and the old VM is decommissioned.
+  until every one is proven and the old VM is decommissioned. That
+  same pooling has one known, bounded rough edge during the rollout
+  window (see the module's own header comment): a workflow run whose
+  own jobs split across the old VM and this module's runner can
+  occasionally fail a workspace-cleanup step over a cross-machine uid
+  mismatch neither side controls -- a re-run usually lands both jobs
+  on the same runner and succeeds, and the whole class of failure
+  disappears permanently once the old VM is decommissioned.
 - `moved.tf` -- records the 2026-08-30 restructure from flat root-level
   resources into modules, so `terraform plan` recognizes each resource's
   new address as the same object rather than proposing a

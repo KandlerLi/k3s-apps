@@ -72,6 +72,26 @@
 # entrypoint creates fresh restrictive-mode subdirectories on every
 # job cycle, not just at Pod start.
 #
+# Known, accepted, bounded limitation: the fixes above cover a
+# `container:` job step *writing* into the shared work volume, but not
+# every possible interaction of the cross-machine uid handoff --
+# confirmed live, a workflow run where "Build CI image" executed on
+# the old VM and "Validate" landed here still occasionally fails a
+# later `chmod -R a+rwX "$GITHUB_WORKSPACE"` cleanup step with EPERM,
+# even though this Pod's own runner container is root with CAP_FOWNER
+# confirmed present (a synthetic touch+chown+chmod reproduction of the
+# same shape succeeds cleanly, so the exact mechanism wasn't fully
+# root-caused). When both jobs land on the *same* runner instead --
+# old+old, or confirmed live, new+new -- every step succeeds, cleanup
+# included. This only ever happens during Phase C's additive rollout,
+# while both an old-VM and a new-k3s runner share the same labels and
+# GitHub can freely mix which one executes which job within one
+# workflow run; it disappears entirely and permanently once Phase D
+# retires the old VM, leaving only internally-consistent runners. A
+# re-run picks a different runner pairing and normally succeeds.
+# Accepted deliberately rather than chased further, given the real,
+# steep diminishing returns already hit digging into it.
+#
 # Runner image: the community myoung34/github-runner image, not a
 # hand-rolled entrypoint -- its own registration/deregistration logic
 # (on container start/stop) replaces the drift/busy-safety Ansible
