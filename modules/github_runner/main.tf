@@ -97,6 +97,25 @@ resource "kubernetes_deployment_v1" "github_runner" {
         # Neither container talks to the Kubernetes API.
         automount_service_account_token = false
 
+        # Confirmed live: a `container:` job step (running as --user
+        # 995:987, an identity dynamic to this runner image, captured
+        # via a real `id -u`/`id -g` -- not the static runner:1001:121
+        # account /etc/passwd shows) got EACCES writing into the shared
+        # "work" volume, because whatever created its subdirectories
+        # (root, mid-startup, before this image's own entrypoint drops
+        # privileges) left them at the default 0755 -- unwritable by
+        # any other uid, including the one the job container actually
+        # runs as. fsGroup is the standard Kubernetes answer to exactly
+        # this "several containers, different UIDs, one shared volume"
+        # shape: the kubelet recursively aligns every volume's *group*
+        # ownership to this GID and adds group-write, on every Pod
+        # start, regardless of which container's process created a
+        # given file -- so it self-heals across repeated ephemeral
+        # restarts too, not just the first one.
+        security_context {
+          fs_group = 987
+        }
+
         node_selector = {
           "kubernetes.io/hostname" = "k3s-node-2"
         }
