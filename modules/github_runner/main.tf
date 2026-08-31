@@ -17,12 +17,15 @@
 # plan): every repository's existing `docker build`/`docker run`
 # workflow steps keep working completely unmodified, at the real cost
 # that a privileged container can escape to its own node. Contained to
-# k3s-node-2 alone, which runs nothing else. The two containers share
-# a Pod network namespace (an ordinary Kubernetes property, not
-# anything configured here), so the runner container reaches the
-# sidecar over plain localhost TCP -- DOCKER_TLS_CERTDIR="" disables
-# TLS entirely on the dind side, which is fine specifically because
-# that traffic never leaves the Pod's own network namespace.
+# k3s-node-2 alone, which runs nothing else. Reached over a shared
+# Unix socket volume (`/var/run/docker.sock`, an emptyDir mounted at
+# the identical path in both containers), not TCP -- confirmed live
+# that docker:dind's own entrypoint never actually opens a TCP
+# listener just because DOCKER_TLS_CERTDIR="" is set (that only skips
+# TLS cert generation); the socket is the only thing it ever binds,
+# matching the officially-documented host-socket pattern, just shared
+# between two containers in one Pod instead of between a container and
+# its host.
 #
 # Confirmed live and fixed: any job step using GitHub Actions' own
 # `container:` job option (every repository's own Validate job, home-
@@ -45,6 +48,29 @@
 # container instead, the same "seed a volume from image content before
 # the real container mounts shift it" shape modules/deluge's own
 # seed-web-conf init container already established in this repo.
+#
+# Confirmed live and fixed: a `container:` job step still got EACCES
+# writing into the shared "work" volume even after the bind-mount fix
+# above. Root cause is one level deeper than this Pod's own internal
+# identity: GitHub Actions' own workflow shape here captures id -u/
+# id -g from the "Build CI image" job and passes it as `container:
+# options: --user <uid>:<gid>` to the separate "Validate" job -- true
+# by construction on the old VM (one shared filesystem, one real
+# account), no longer guaranteed once this module's own runners pool
+# additively alongside it: confirmed live, a run where "Build CI
+# image" executed on the *old* VM (capturing its own real ghr-<id>
+# system account's uid) while "Validate" landed on this module's own
+# runner, asking to write as a uid that means nothing here. No fix on
+# this Pod's own side can predict or match an arbitrary incoming uid
+# from a different machine, so /work is kept world-writable
+# continuously instead, by a dedicated permission-fixer container (not
+# folded into dind's own command -- tried that first, and it left a
+# second, confusingly-orphaned copy of the whole command running as a
+# child of docker-init instead of cleanly replacing the entrypoint;
+# a separate container sidesteps the exec/subshell complexity
+# entirely). Continuous, not one-shot, since this image's own
+# entrypoint creates fresh restrictive-mode subdirectories on every
+# job cycle, not just at Pod start.
 #
 # Runner image: the community myoung34/github-runner image, not a
 # hand-rolled entrypoint -- its own registration/deregistration logic
@@ -197,22 +223,20 @@ resource "kubernetes_deployment_v1" "github_runner" {
             value = "false"
           }
           # Keeps this container's own Runner.Listener process as uid 0
-          # rather than gosu-ing to an internal non-root account --
-          # doesn't, on its own, fully solve the /work EACCES class of
-          # problem (see the dind container's own comment for the real
-          # root cause and fix: an incoming `container:` job step's
-          # --user value can come from a *different machine entirely*,
-          # not from this Pod, so nothing this Pod does to its own
-          # identity can reliably match it). Kept anyway as one less
-          # source of identity mismatch for the case where a workflow's
-          # own jobs *do* all land on this same Pod.
+          # rather than gosu-ing to an internal non-root account -- one
+          # less source of identity mismatch for the case where a
+          # workflow's own jobs all land on this same Pod (see the
+          # permission-fixer container's own comment for the case where
+          # they don't).
           env {
             name  = "RUN_AS_ROOT"
             value = "true"
           }
+          # The shared socket volume below, not TCP -- see this file's
+          # own header comment for why.
           env {
             name  = "DOCKER_HOST"
-            value = "tcp://localhost:2375"
+            value = "unix:///var/run/docker.sock"
           }
           # A plain, explicit path rather than this image's own
           # /_work/<runner-name> default -- both containers mount the
@@ -248,41 +272,15 @@ resource "kubernetes_deployment_v1" "github_runner" {
             name       = "work"
             mount_path = "/work"
           }
+          volume_mount {
+            name       = "docker-socket"
+            mount_path = "/var/run"
+          }
         }
 
         container {
           name  = "dind"
           image = "docker:29.7.2-dind@sha256:12e683a161823b2a839aeea999b9d960e6e1f9a97b1679ad6b441982e2d9cf07"
-
-          # Confirmed live, and root cause found the hard way: RUN_AS_ROOT
-          # and fsGroup both looked plausible and both turned out
-          # insufficient, because the real problem isn't about *this*
-          # Pod's own internal identity at all. GitHub Actions' own
-          # workflow shape here (every repository's Checks.yml) captures
-          # id -u/id -g from the "Build CI image" job and passes it as
-          # `container: options: --user <uid>:<gid>` to the *separate*
-          # "Validate" job -- an assumption that only holds when both
-          # jobs land on the same machine, true by construction on the
-          # old VM (one shared filesystem) but no longer guaranteed once
-          # this module's own runners pool additively alongside it: a
-          # workflow run can have "Build CI image" execute on the old
-          # VM (capturing *its* real ghr-<id> system account's uid) and
-          # "Validate" on this Pod instead, asking to write as a uid
-          # that means nothing here. No fix on this Pod's own side can
-          # predict or match an arbitrary incoming uid from a different
-          # machine -- so instead of matching it, /work is kept
-          # world-writable continuously (not just at container start,
-          # since this image's own entrypoint creates fresh
-          # restrictive-mode subdirectories on every job cycle) by a
-          # background loop here, backgrounded before the real dockerd
-          # entrypoint takes over the foreground. This container is
-          # already privileged and already root, so a permissive scratch
-          # directory doesn't meaningfully widen the trust already
-          # accepted for it.
-          command = [
-            "sh", "-c",
-            "( while true; do chmod -R 0777 /work 2>/dev/null; sleep 2; done & ) ; exec dockerd-entrypoint.sh dockerd"
-          ]
 
           env {
             name  = "DOCKER_TLS_CERTDIR"
@@ -327,6 +325,42 @@ resource "kubernetes_deployment_v1" "github_runner" {
             name       = "work"
             mount_path = "/work"
           }
+          # dockerd creates docker.sock here on startup -- shared with
+          # the runner container above so it can reach it at the exact
+          # same path, unix sockets aren't network-addressable.
+          volume_mount {
+            name       = "docker-socket"
+            mount_path = "/var/run"
+          }
+        }
+
+        # Keeps /work continuously world-writable -- see this file's
+        # own header comment for why this can't just be fixed once at
+        # startup, and why it needs to be a genuinely separate
+        # container rather than folded into dind's own command. Reuses
+        # the runner image (already being pulled twice over for the
+        # init container and the runner container itself) rather than
+        # introducing a third distinct image just for this.
+        container {
+          name    = "permission-fixer"
+          image   = "myoung34/github-runner:2.337.0-debian-trixie@sha256:ab5c1f5abd6e96fa357c5003575a6b431265d5e7a41d81b5ec690abf3163dad7"
+          command = ["sh", "-c", "while true; do chmod -R 0777 /work 2>/dev/null; sleep 2; done"]
+
+          resources {
+            requests = {
+              cpu    = "5m"
+              memory = "16Mi"
+            }
+            limits = {
+              cpu    = "50m"
+              memory = "32Mi"
+            }
+          }
+
+          volume_mount {
+            name       = "work"
+            mount_path = "/work"
+          }
         }
 
         volume {
@@ -339,6 +373,10 @@ resource "kubernetes_deployment_v1" "github_runner" {
         }
         volume {
           name = "work"
+          empty_dir {}
+        }
+        volume {
+          name = "docker-socket"
           empty_dir {}
         }
       }
