@@ -70,6 +70,11 @@ SECRET_SOURCES = [
         "monitoring_ses_smtp_password",
         "alertmanager_ses_smtp_password",
     ),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "github_runner_github_token",
+        "github_runner_github_token",
+    ),
 ]
 
 
