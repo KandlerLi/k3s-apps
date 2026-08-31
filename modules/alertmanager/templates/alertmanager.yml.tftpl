@@ -1,0 +1,27 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: dual-channel
+  group_by: ["alertname"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: dual-channel
+    # 192.168.101.1 -- this homeserver's own address on the k3s VM's
+    # isolated network, where the ntfy relay's own second listener now
+    # runs (see home-infra's monitoring_ntfy_relay_k3s_bind_address).
+    # The relay itself stays on the homeserver; only Alertmanager moved.
+    webhook_configs:
+      - url: http://192.168.101.1:9096/webhook
+        send_resolved: true
+    email_configs:
+      - to: ${alert_email}
+        from: ${ses_from_address}
+        smarthost: ${ses_smtp_host}
+        auth_username: ${ses_smtp_username}
+        auth_password: ${ses_smtp_password}
+        require_tls: true
+        send_resolved: true

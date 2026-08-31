@@ -35,3 +35,10 @@ module "grafana" {
   grafana_admin_password   = var.grafana_admin_password
   blocky_postgres_password = var.blocky_postgres_password
 }
+
+module "alertmanager" {
+  source = "./modules/alertmanager"
+
+  alertmanager_ses_smtp_username = var.alertmanager_ses_smtp_username
+  alertmanager_ses_smtp_password = var.alertmanager_ses_smtp_password
+}

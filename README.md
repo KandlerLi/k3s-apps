@@ -86,10 +86,11 @@ code doesn't need touching.
   everything else to `open_webui`) using standard Kubernetes Ingress
   path matching instead of Traefik's own priority annotation.
 - `modules/grafana/` -- Phase 1 of moving `home-infra`'s `monitoring`
-  role into k3s: Grafana only. Prometheus, Alertmanager, the exporters,
-  and Blocky all stay on the homeserver permanently (they report *this
-  physical host's* own hardware/Docker daemon, or are LAN-facing --
-  see the module's own comment), reached here over the additive
+  role into k3s: Grafana only. Prometheus, the exporters, and Blocky
+  all stay on the homeserver permanently (they report *this physical
+  host's* own hardware/Docker daemon, or are LAN-facing -- see the
+  module's own comment; Alertmanager has since moved too, see
+  `modules/alertmanager/` below), reached here over the additive
   `192.168.101.1` listeners `home-infra`'s `blocky` and `monitoring`
   roles now expose (`blocky_postgres_k3s_bind_address`,
   `monitoring_prometheus_k3s_bind_address`), confirmed reachable from
@@ -115,6 +116,29 @@ code doesn't need touching.
   reshaped down to nothing at all -- unlike `deluge`/`open_webui`,
   Grafana left no host prerequisites behind, since its directories
   were always ephemeral rather than real shared state.
+- `modules/alertmanager/` -- Phase 2: Alertmanager. Unlike Grafana, it
+  has no host dependency at all, so it moves outright rather than
+  needing a network exception in both directions -- but the direction
+  here is reversed from Grafana's own: Prometheus (staying on the
+  homeserver) has to reach *this*, not the other way around, over a
+  `type = "LoadBalancer"` Service (`modules/deluge`'s own
+  `deluge-peer-svc` precedent -- k3s's bundled ServiceLB binds it
+  directly to `192.168.101.10:9093`) rather than a ClusterIP +
+  Ingress, since this isn't a browser-facing app and needs a plain
+  `IP:port` target. Alertmanager itself keeps reaching the ntfy relay,
+  which stays on the homeserver, over the additive
+  `monitoring_ntfy_relay_k3s_bind_address` listener `home-infra`'s
+  `monitoring` role now exposes. No PVC (confirmed with Julian first,
+  same question already asked for Grafana) -- its own `/alertmanager`
+  data is active silences and a notification-dedup log, not real
+  history. Resourced off real `docker stats` (0.77% of one core,
+  17.67MiB/128MiB memory) rather than its Docker `cpus:` ceiling, the
+  smallest request yet (`20m`/`100m` CPU) given only 250m of headroom
+  was free before this module. Not cut over yet -- `home-infra`'s
+  `monitoring_alertmanager_upstream` still points Prometheus at the
+  homeserver's own Alertmanager until this is independently verified
+  (a real synthetic alert reaching both ntfy and SES) to rule out
+  double-firing every real notification during the switch.
 - `moved.tf` -- records the 2026-08-30 restructure from flat root-level
   resources into modules, so `terraform plan` recognizes each resource's
   new address as the same object rather than proposing a
