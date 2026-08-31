@@ -201,10 +201,24 @@ resource "kubernetes_deployment_v1" "ingress" {
 # own precedent -- k3s's bundled ServiceLB binds this directly to
 # k3s-node-1's own address, giving home-infra's new
 # k3s_ingress_forward role a stable 192.168.101.10:80/:443 DNAT target.
+#
+# wait_for_load_balancer = false: confirmed live that this resource
+# hangs indefinitely (Terraform's own default wait behavior for
+# LoadBalancer Services) without it -- k3s's own bundled Traefik is
+# still running as this module's own first apply, already holding
+# these exact ports on this exact node via its own svclb-traefik Pod,
+# so ServiceLB can never assign this Service an external IP until that
+# one is disabled. Deliberately not disabling it yet -- confirmed live
+# it's still routing real production traffic today (ai/torrent/
+# grafana/home.jkandler.de all forward through it already), so this
+# module gets built, wired, and verified via its own ClusterIP first;
+# disabling k3s's bundled Traefik is its own separate, deliberate step.
 resource "kubernetes_service_v1" "ingress" {
   metadata {
     name = "ingress-svc"
   }
+
+  wait_for_load_balancer = false
 
   spec {
     type = "LoadBalancer"
