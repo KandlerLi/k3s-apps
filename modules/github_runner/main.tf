@@ -24,6 +24,28 @@
 # TLS entirely on the dind side, which is fine specifically because
 # that traffic never leaves the Pod's own network namespace.
 #
+# Confirmed live and fixed: any job step using GitHub Actions' own
+# `container:` job option (every repository's own Validate job, home-
+# infra's own checks.yml included) failed with "stat /__e/node24/bin/
+# node: no such file or directory" -- actions/runner bind-mounts its
+# own /actions-runner/externals (the Node.js runtime for JS-based
+# actions) and /_work into the job containers it asks Docker to start,
+# and Docker resolves a bind-mount's *source* path against the
+# *daemon's* own filesystem, not the client's. With the daemon living
+# in a separate dind container, those paths simply didn't exist there.
+# Same root cause the image's own upstream docs call out for the
+# host-socket case ("this path needs to be the same path on host and
+# inside the container") -- just not documented for a separate-sidecar
+# dind setup at all. Fixed by sharing both directories as real
+# volumes, mounted at the identical absolute path in both containers,
+# so the daemon's own filesystem view actually has the files being
+# bind-mounted. /actions-runner is baked into the runner image's own
+# layer (not empty at start), so a plain empty_dir mounted there would
+# shadow the real install -- seeded first by a same-image init
+# container instead, the same "seed a volume from image content before
+# the real container mounts shift it" shape modules/deluge's own
+# seed-web-conf init container already established in this repo.
+#
 # Runner image: the community myoung34/github-runner image, not a
 # hand-rolled entrypoint -- its own registration/deregistration logic
 # (on container start/stop) replaces the drift/busy-safety Ansible
@@ -84,6 +106,22 @@ resource "kubernetes_deployment_v1" "github_runner" {
           operator = "Equal"
           value    = "github-runner"
           effect   = "NoSchedule"
+        }
+
+        # Seeds the shared actions-runner-install volume from this same
+        # image's own baked-in /actions-runner before either main
+        # container starts -- see the header comment above for why this
+        # needs to be real, shared, non-empty content rather than a
+        # plain empty_dir mounted straight over the image's own install.
+        init_container {
+          name    = "seed-runner-install"
+          image   = "myoung34/github-runner:2.337.0-debian-trixie@sha256:ab5c1f5abd6e96fa357c5003575a6b431265d5e7a41d81b5ec690abf3163dad7"
+          command = ["sh", "-c", "cp -a /actions-runner/. /actions-runner-shared/"]
+
+          volume_mount {
+            name       = "actions-runner-install"
+            mount_path = "/actions-runner-shared"
+          }
         }
 
         container {
@@ -162,6 +200,14 @@ resource "kubernetes_deployment_v1" "github_runner" {
             name  = "DOCKER_HOST"
             value = "tcp://localhost:2375"
           }
+          # A plain, explicit path rather than this image's own
+          # /_work/<runner-name> default -- both containers mount the
+          # shared "work" volume at this exact path (see the header
+          # comment on why it has to be identical on both sides).
+          env {
+            name  = "RUNNER_WORKDIR"
+            value = "/work"
+          }
 
           # No read_only_root_filesystem/non-root here (unlike most
           # other modules' containers) -- this container's filesystem is
@@ -178,6 +224,15 @@ resource "kubernetes_deployment_v1" "github_runner" {
               cpu    = "200m"
               memory = "256Mi"
             }
+          }
+
+          volume_mount {
+            name       = "actions-runner-install"
+            mount_path = "/actions-runner"
+          }
+          volume_mount {
+            name       = "work"
+            mount_path = "/work"
           }
         }
 
@@ -215,10 +270,31 @@ resource "kubernetes_deployment_v1" "github_runner" {
             name       = "docker-data"
             mount_path = "/var/lib/docker"
           }
+          # Same two paths, same absolute mount points as the runner
+          # container above -- this is what actually fixes the
+          # container: job bind-mount failure: the daemon (this
+          # container) now has the real files at the paths it's asked
+          # to bind-mount from.
+          volume_mount {
+            name       = "actions-runner-install"
+            mount_path = "/actions-runner"
+          }
+          volume_mount {
+            name       = "work"
+            mount_path = "/work"
+          }
         }
 
         volume {
           name = "docker-data"
+          empty_dir {}
+        }
+        volume {
+          name = "actions-runner-install"
+          empty_dir {}
+        }
+        volume {
+          name = "work"
           empty_dir {}
         }
       }
