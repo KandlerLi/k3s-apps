@@ -164,21 +164,29 @@ code doesn't need touching.
   node -- contained to `k3s-node-2` alone. Runner image is the
   community `myoung34/github-runner`, not a hand-rolled entrypoint --
   its own registration/deregistration logic on container start/stop
-  replaces the drift/busy-safety Ansible asserts the VM-based role
-  needs specifically because *that's* a persistent systemd service
-  Ansible reapplies idempotently. Registration is additive, not a
-  switch (unlike Alertmanager's notification target list): GitHub
-  Actions runners sharing the same labels just pool capacity, so the
-  new runners register and start serving real jobs alongside the old
-  VM's runners with zero interruption risk, repository by repository,
-  until every one is proven and the old VM is decommissioned. That
-  same pooling has one known, bounded rough edge during the rollout
-  window (see the module's own header comment): a workflow run whose
-  own jobs split across the old VM and this module's runner can
-  occasionally fail a workspace-cleanup step over a cross-machine uid
-  mismatch neither side controls -- a re-run usually lands both jobs
-  on the same runner and succeeds, and the whole class of failure
-  disappears permanently once the old VM is decommissioned.
+  replaces the drift/busy-safety Ansible asserts the old VM-based
+  role needed specifically because *that* was a persistent systemd
+  service Ansible reapplied idempotently. Rolled out additively, not
+  as a switch (unlike Alertmanager's notification target list): the
+  new runners registered and started serving real jobs alongside the
+  old VM's own runners with zero interruption risk, repository by
+  repository, GitHub pooling capacity across both since they shared
+  labels -- confirmed live with a real successful `Checks` run on
+  every repository, `home-infra` itself included, before the old VM's
+  runners were deregistered and **the VM itself decommissioned
+  entirely, 2026-08-31** (`ansible/roles/github_runner` and its two
+  driving playbooks deleted outright from `home-infra`, not reshaped --
+  nothing on the homeserver depended on that role for host
+  prerequisites once the VM was gone). That additive pooling window
+  did surface one real, since-resolved regression along the way: a
+  first cut at fixing a `container:` job step's own permission race
+  used a continuously-polling `chmod -R 0777 /work` sidecar container,
+  which turned out to actively fight `home-infra`'s own
+  `checks.yml` (its `chmod o-w "$GITHUB_WORKSPACE"` security step,
+  re-widened moments later by the poll loop) -- confirmed live, then
+  replaced entirely by the runner container's own `umask 000` instead,
+  which fixes the same race at the actual point files get created,
+  no polling and nothing left to fight a later legitimate `chmod`.
 - `moved.tf` -- records the 2026-08-30 restructure from flat root-level
   resources into modules, so `terraform plan` recognizes each resource's
   new address as the same object rather than proposing a
