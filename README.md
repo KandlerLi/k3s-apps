@@ -187,11 +187,6 @@ code doesn't need touching.
   replaced entirely by the runner container's own `umask 000` instead,
   which fixes the same race at the actual point files get created,
   no polling and nothing left to fight a later legitimate `chmod`.
-- `moved.tf` -- records the 2026-08-30 restructure from flat root-level
-  resources into modules, so `terraform plan` recognizes each resource's
-  new address as the same object rather than proposing a
-  destroy+recreate. Safe to delete once a plan against the current state
-  comes back clean.
 - `secrets.sops.yml` / `.sops.yaml` -- this repo's own sops vault, same
   PGP key as `home-infra`'s. Holds only `nextcloud_tools_app_password`
   -- every other secret this repo's modules need is read straight out
