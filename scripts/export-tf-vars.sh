@@ -14,7 +14,7 @@ _export_tf_vars_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
 if output="$(python3 "${_export_tf_vars_script_dir}/print_tf_var_exports.py")"; then
   eval "${output}"
-  echo "Exported TF_VAR_* for: deluge_web_password, home_agent_ghcr_token, home_agent_openai_api_key, grafana_admin_password, blocky_postgres_password, nextcloud_tools_app_password, alertmanager_ses_smtp_username, alertmanager_ses_smtp_password, github_runner_github_token, shared_ingress_auth_password_hash"
+  echo "Exported TF_VAR_* for: deluge_web_password, home_agent_ghcr_token, home_agent_openai_api_key, grafana_admin_password, blocky_postgres_password, nextcloud_tools_app_password, alertmanager_ses_smtp_username, alertmanager_ses_smtp_password, github_runner_github_token, shared_ingress_auth_password_hash, k3s_ingress_acme_dns01_access_key_id, k3s_ingress_acme_dns01_secret_access_key"
 else
   echo "export-tf-vars.sh: failed, see error above -- nothing was exported" >&2
 fi

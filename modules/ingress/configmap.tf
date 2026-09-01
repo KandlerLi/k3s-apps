@@ -49,12 +49,27 @@ resource "kubernetes_config_map_v1" "ingress_static_config" {
           directory: /etc/traefik/dynamic
           watch: true
 
+      # dnsChallenge, not tlsChallenge (the original shared_ingress role's
+      # own choice) -- deliberately switched during this migration.
+      # TLS-ALPN-01 always validates against the domain's real port 443,
+      # so it ties cert issuance to the exact moment 80/443 get cut over
+      # to k3s, with no way to rehearse it safely first. DNS-01 decouples
+      # the two entirely: this Traefik can issue and renew real
+      # production certs against jkandler.de's own Route53 zone at any
+      # time, with no port ever touched -- proven and stable well before
+      # the real DNAT cutover, not discovered live during it. Credentials
+      # (lego's own route53 provider reads AWS_ACCESS_KEY_ID/
+      # AWS_SECRET_ACCESS_KEY/AWS_HOSTED_ZONE_ID/AWS_REGION from the
+      # environment, not from this file) come from dyndns's own
+      # traefik-acme-dns01 IAM user -- see main.tf's container env.
       certificatesResolvers:
         letsencrypt:
           acme:
             email: "julian.kandler@outlook.com"
             storage: /letsencrypt/acme.json
-            tlsChallenge: {}
+            dnsChallenge:
+              provider: route53
+              delayBeforeCheck: 0
 
       log:
         level: INFO

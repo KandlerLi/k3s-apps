@@ -71,6 +71,42 @@ resource "kubernetes_deployment_v1" "ingress" {
             "--configFile=/etc/traefik/traefik.yml",
           ]
 
+          # lego's own route53 provider (the ACME DNS-01 challenge --
+          # see configmap.tf's own comment) reads all of these directly
+          # from the environment. AWS_HOSTED_ZONE_ID/AWS_REGION are
+          # non-secret (dyndns's own public jkandler.de zone ID, same
+          # region dyndns itself deploys into) so they're literals here
+          # rather than SOPS secrets -- passing AWS_HOSTED_ZONE_ID
+          # explicitly also skips lego's own route53:ListHostedZonesByName
+          # zone-lookup call entirely, matching the IAM user's own
+          # deliberately narrow policy (see dyndns's own main.tf).
+          env {
+            name  = "AWS_HOSTED_ZONE_ID"
+            value = "Z07879811I86VC8PAL8HX"
+          }
+          env {
+            name  = "AWS_REGION"
+            value = "eu-central-1"
+          }
+          env {
+            name = "AWS_ACCESS_KEY_ID"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.ingress_acme_dns01_credentials.metadata[0].name
+                key  = "AWS_ACCESS_KEY_ID"
+              }
+            }
+          }
+          env {
+            name = "AWS_SECRET_ACCESS_KEY"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.ingress_acme_dns01_credentials.metadata[0].name
+                key  = "AWS_SECRET_ACCESS_KEY"
+              }
+            }
+          }
+
           port {
             name           = "web"
             container_port = 80

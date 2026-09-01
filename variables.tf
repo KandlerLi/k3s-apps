@@ -125,3 +125,24 @@ variable "shared_ingress_auth_password_hash" {
   type        = string
   sensitive   = true
 }
+
+variable "k3s_ingress_acme_dns01_access_key_id" {
+  description = <<-EOT
+    Same value as home-infra's k3s_ingress_acme_dns01_access_key_id
+    SOPS secret. See modules/ingress's own variable of the same name.
+    Pass via TF_VAR_k3s_ingress_acme_dns01_access_key_id at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "k3s_ingress_acme_dns01_secret_access_key" {
+  description = <<-EOT
+    Same value as home-infra's k3s_ingress_acme_dns01_secret_access_key
+    SOPS secret. See modules/ingress's own variable of the same name.
+    Pass via TF_VAR_k3s_ingress_acme_dns01_secret_access_key at apply
+    time.
+  EOT
+  type        = string
+  sensitive   = true
+}

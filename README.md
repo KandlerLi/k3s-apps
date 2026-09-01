@@ -213,7 +213,16 @@ code doesn't need touching.
   for a bare IP. A small PVC persists `/letsencrypt/acme.json` across
   Pod restarts (unlike Alertmanager's/Grafana's own "start fresh, no
   PVC" choice) -- losing it would mean re-issuing every certificate
-  every time, a real, avoidable rate-limit risk. Public traffic
+  every time, a real, avoidable rate-limit risk. ACME uses DNS-01, not
+  the original role's own TLS-ALPN-01 -- TLS-ALPN-01 always validates
+  against the domain's real port 443, tying cert issuance to the exact
+  moment 80/443 get cut over, with no way to rehearse it safely first.
+  DNS-01 decouples the two entirely (real certs issued and renewed
+  against `jkandler.de`'s own Route53 zone with no port ever touched),
+  via lego's own route53 provider and a dedicated, narrowly-scoped IAM
+  user (`dyndns`'s own `traefik-acme-dns01`, `route53:
+  ChangeResourceRecordSets`/`GetChange` on that one zone only). Public
+  traffic
   actually reaching this Service at all still needs `home-infra`'s
   own new `k3s_ingress_forward` role (iptables DNAT on the
   homeserver, since the k3s VM's network is deliberately unreachable

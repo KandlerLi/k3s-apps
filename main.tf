@@ -53,7 +53,9 @@ module "github_runner" {
 module "ingress" {
   source = "./modules/ingress"
 
-  shared_ingress_auth_password_hash = var.shared_ingress_auth_password_hash
+  shared_ingress_auth_password_hash        = var.shared_ingress_auth_password_hash
+  k3s_ingress_acme_dns01_access_key_id     = var.k3s_ingress_acme_dns01_access_key_id
+  k3s_ingress_acme_dns01_secret_access_key = var.k3s_ingress_acme_dns01_secret_access_key
 
   # Every backend it routes to by Service name -- a plain string
   # inside a ConfigMap's own YAML content, not a real Terraform

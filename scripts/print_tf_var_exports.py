@@ -80,6 +80,16 @@ SECRET_SOURCES = [
         "shared_ingress_auth_password_hash",
         "shared_ingress_auth_password_hash",
     ),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "k3s_ingress_acme_dns01_access_key_id",
+        "k3s_ingress_acme_dns01_access_key_id",
+    ),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "k3s_ingress_acme_dns01_secret_access_key",
+        "k3s_ingress_acme_dns01_secret_access_key",
+    ),
 ]
 
 
