@@ -123,6 +123,57 @@ locals {
   }
 }
 
+# Confirmed live (2026-08-31): a `container:` job's own OIDC credential
+# step (aws-actions/configure-aws-credentials) hung for exactly ~90s
+# (its own configured action-timeout-s) on its first request, 100%
+# reproducible across multiple Pods, then succeeded near-instantly on
+# retry -- a path-MTU black hole, not flakiness. Caught it directly via
+# a live tcpdump capture during an actual stall: the server sends its
+# response fragmented, the client's own kernel SACKs receiving bytes
+# 2849:5178 while never receiving bytes 1:2849 at all, and then dead
+# silence for the rest of the timeout window -- not one retransmission
+# attempt ever arrives. Root cause: the Pod's own eth0 (flannel's VXLAN
+# overlay, which correctly accounts for encapsulation overhead) sits at
+# MTU 1450, but dind's own *inner* Docker-in-Docker bridge networks --
+# where every `container:` job step actually runs -- were still at
+# Docker's own untouched default of 1500, with no way to know about the
+# outer network's lower ceiling.
+#
+# A first attempt at this fix used only daemon.json's own "mtu" key --
+# confirmed live via the same tcpdump technique that this was
+# insufficient: it only changes the *default* bridge network (docker0),
+# and GitHub's own runner creates a fresh custom network per job
+# (confirmed in dind's own logs: "github_network_<hash>"), which never
+# inherits that default at all -- confirmed live via a repeat capture
+# that the job container's own SYN still advertised mss 1460 (the
+# untouched MTU-1500 value) even after the first fix was live.
+# "default-network-opts" is Docker's own documented mechanism for
+# exactly this gap: it sets the default driver options -- including
+# mtu -- for every bridge network the daemon creates from then on,
+# custom ones included, without needing each `docker network create`
+# call to pass its own --opt (which isn't ours to control here; the
+# runner's own internals issue those calls). A daemon.json file, not a
+# --mtu command/args override -- dockerd reads this automatically
+# regardless of how it's invoked, so this doesn't need to touch (or
+# risk diverging from) the image's own default entrypoint/CMD the way
+# overriding command/args would.
+resource "kubernetes_config_map_v1" "github_runner_dind_daemon_config" {
+  metadata {
+    name = "github-runner-dind-daemon-config"
+  }
+
+  data = {
+    "daemon.json" = jsonencode({
+      mtu = 1450
+      default-network-opts = {
+        bridge = {
+          "com.docker.network.driver.mtu" = "1450"
+        }
+      }
+    })
+  }
+}
+
 resource "kubernetes_deployment_v1" "github_runner" {
   for_each = local.github_runner_repositories_by_id
 
@@ -380,6 +431,19 @@ resource "kubernetes_deployment_v1" "github_runner" {
             name       = "docker-socket"
             mount_path = "/var/run"
           }
+          # See this file's own header comment on
+          # kubernetes_config_map_v1.github_runner_dind_daemon_config
+          # for why this exists: without it, this daemon's own internal
+          # bridge networks default to MTU 1500, silently black-holing
+          # any container: job step's own outbound HTTPS response
+          # bodies once they cross into this Pod's real MTU-1450
+          # network.
+          volume_mount {
+            name       = "dind-daemon-config"
+            mount_path = "/etc/docker/daemon.json"
+            sub_path   = "daemon.json"
+            read_only  = true
+          }
         }
 
         volume {
@@ -397,6 +461,12 @@ resource "kubernetes_deployment_v1" "github_runner" {
         volume {
           name = "docker-socket"
           empty_dir {}
+        }
+        volume {
+          name = "dind-daemon-config"
+          config_map {
+            name = kubernetes_config_map_v1.github_runner_dind_daemon_config.metadata[0].name
+          }
         }
       }
     }
