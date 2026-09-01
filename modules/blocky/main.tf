@@ -35,6 +35,22 @@ resource "kubernetes_deployment_v1" "blocky" {
   spec {
     replicas = 1
 
+    # Confirmed live (2026-09-01): the default RollingUpdate strategy
+    # -- maxUnavailable rounding to 0 at replicas=1 -- creates the new
+    # Pod before terminating the old one. Both land on the same node,
+    # and the PVC below uses local-path (a hostPath wrapper with no
+    # real CSI attach/detach exclusivity, unlike a genuine
+    # ReadWriteOnce-enforcing driver), so both Pods' Postgres sidecars
+    # briefly mounted the exact same underlying data directory at
+    # once -- two concurrent, uncoordinated postgres processes writing
+    # to the same files, which corrupted the WAL ("invalid record
+    # length") and lost the log_entries table entirely, more than
+    # once. Recreate guarantees the old Pod (and its data directory
+    # lock) is fully gone before a new one starts.
+    strategy {
+      type = "Recreate"
+    }
+
     selector {
       match_labels = {
         app = "blocky"
