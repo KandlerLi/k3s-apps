@@ -34,6 +34,13 @@ module "grafana" {
 
   grafana_admin_password   = var.grafana_admin_password
   blocky_postgres_password = var.blocky_postgres_password
+
+  # blocky-svc:5432, referenced as a plain string in this module's own
+  # datasources.yaml.tftpl (same convention modules/ingress's own
+  # dynamic.yml.j2 uses for every backend it routes to), not a live
+  # Terraform reference -- explicit here since nothing else would
+  # infer the ordering.
+  depends_on = [module.blocky]
 }
 
 module "alertmanager" {
@@ -41,6 +48,12 @@ module "alertmanager" {
 
   alertmanager_ses_smtp_username = var.alertmanager_ses_smtp_username
   alertmanager_ses_smtp_password = var.alertmanager_ses_smtp_password
+}
+
+module "blocky" {
+  source = "./modules/blocky"
+
+  blocky_postgres_password = var.blocky_postgres_password
 }
 
 module "github_runner" {

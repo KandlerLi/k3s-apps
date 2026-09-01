@@ -64,7 +64,9 @@ variable "grafana_admin_password" {
 variable "blocky_postgres_password" {
   description = <<-EOT
     Same value as home-infra's blocky_postgres_password SOPS secret --
-    used by Grafana's blocky-postgresql datasource. Pass via
+    used by both Grafana's blocky-postgresql datasource and
+    modules/blocky's own Postgres instance (the same database, now
+    that Blocky itself also runs in the cluster). Pass via
     TF_VAR_blocky_postgres_password at apply time.
   EOT
   type        = string

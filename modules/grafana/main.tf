@@ -1,12 +1,14 @@
 # Grafana -- Phase 1 of moving home-infra's `monitoring` role into k3s
-# (see infra's plan doc). Prometheus/Alertmanager/the exporters/Blocky
-# all stay on the homeserver (node_exporter and cAdvisor report *this
-# physical host's* own hardware/Docker daemon, blackbox_exporter and
-# Blocky are LAN-facing -- none of that makes sense running anywhere
-# else), reached here over the additive 192.168.101.1 listeners
-# home-infra's blocky and monitoring roles now expose (see
-# blocky_postgres_k3s_bind_address / monitoring_prometheus_k3s_bind_
-# address).
+# (see infra's plan doc). Prometheus stays on the homeserver
+# permanently (node_exporter/cAdvisor report *this physical host's*
+# own hardware/Docker daemon, so moving Prometheus itself would
+# monitor the wrong thing), reached over the additive 192.168.101.1
+# listener monitoring_prometheus_k3s_bind_address exposes. Blocky
+# used to be LAN-facing-only for the same reason, but moved into the
+# cluster too once home-infra's own k3s_ingress_forward DNAT relay
+# made that viable (see modules/blocky) -- its own Postgres datasource
+# below now reaches modules/blocky's own in-cluster Service directly,
+# not an additive homeserver-side listener any more.
 #
 # No PVC, deliberately -- everything Grafana needs (datasources,
 # dashboard provider, the five dashboard JSONs) is provisioned from
