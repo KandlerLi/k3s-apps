@@ -103,14 +103,24 @@ resource "kubernetes_deployment_v1" "grafana" {
             value = "false"
           }
 
+          # memory bumped from 320Mi (confirmed live 2026-09-01:
+          # OOMKilled repeatedly, exit code 137, well before the
+          # Deployment's own liveness probe ever got a chance to pass
+          # -- Grafana 13's unified storage layer builds an in-memory
+          # bleve index for folders/dashboards/playlists/etc. on every
+          # startup, and a fresh Pod was already sitting at 202Mi
+          # immediately after boot before that indexing work even
+          # finished). The node has plenty of headroom (83% of its own
+          # memory limits allocated cluster-wide at the time this was
+          # raised, nowhere near capacity).
           resources {
             requests = {
               cpu    = "100m"
-              memory = "192Mi"
+              memory = "256Mi"
             }
             limits = {
               cpu    = "300m"
-              memory = "320Mi"
+              memory = "512Mi"
             }
           }
 
