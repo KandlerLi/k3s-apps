@@ -250,6 +250,20 @@ resource "kubernetes_service_v1" "blocky" {
 
   spec {
     type = "LoadBalancer"
+    # Confirmed live (2026-09-01), the moment real LAN DNS traffic
+    # started flowing through k3s_ingress_forward's own DNAT relay:
+    # kube-proxy's default externalTrafficPolicy (Cluster) masquerades
+    # the original client's source IP when routing Service traffic to
+    # a Pod, replacing it with a cluster-internal address (10.42.0.1)
+    # before Blocky ever sees it -- its own query log lost every real
+    # LAN client's identity, the exact thing that log exists to
+    # capture. Local is safe here specifically because Blocky's own
+    # Pod and this Service's LoadBalancer IP are both pinned to
+    # k3s-node-1 (single replica, no node_selector needed elsewhere in
+    # this module) -- no risk of dropping traffic that arrived at a
+    # node with no local endpoint, the one real tradeoff Local usually
+    # carries.
+    external_traffic_policy = "Local"
 
     selector = {
       app = "blocky"
