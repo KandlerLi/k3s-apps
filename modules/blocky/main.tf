@@ -133,9 +133,27 @@ resource "kubernetes_deployment_v1" "blocky" {
           }
         }
 
-        container {
+        # A native sidecar (restart_policy = "Always" on an
+        # init_container -- KEP-753, GA), not a regular container.
+        # Confirmed live (2026-09-01): as two ordinary containers with
+        # no ordering guarantee between them, Blocky started fast
+        # enough to attempt its own Postgres connection *before*
+        # Postgres finished its one-time initdb (data page checksums,
+        # subdirectories, bootstrap script -- genuinely several
+        # seconds on first run), exhausted its own fixed 3-attempt
+        # retry budget, and permanently fell back to console-only
+        # query logging for that Pod's entire lifetime -- Blocky never
+        # retries the writer again afterward, so the query_log table
+        # was never even created, and Grafana's own blocky-postgres
+        # dashboard stayed empty. A native sidecar starts before the
+        # Pod's main containers and blocks them from starting at all
+        # until its own readiness_probe below first succeeds, removing
+        # the race entirely rather than just tolerating it faster.
+        init_container {
           name  = "postgres"
           image = "postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73"
+
+          restart_policy = "Always"
 
           port {
             name           = "postgres"
