@@ -9,12 +9,14 @@
 #
 # Blocky and Postgres share one Pod, not two -- the most faithful
 # translation of the Docker deployment's own network_mode: host
-# (Postgres reachable only via 127.0.0.1, which a shared Pod network
-# namespace reproduces exactly, no config changes needed to
-# queryLog.target). Unlike the Docker version, Blocky's own DNS/HTTP
+# (Blocky's own queryLog.target still connects via 127.0.0.1, which a
+# shared Pod network namespace reproduces exactly, no config changes
+# needed there). Unlike the Docker version, Blocky's own DNS/HTTP
 # ports don't need to bind a specific host IP any more -- external
 # reachability is controlled entirely by the Service + DNAT relay now,
-# not by which interface Blocky binds inside its own Pod.
+# not by which interface Blocky binds inside its own Pod. Postgres
+# itself binds 0.0.0.0, not loopback-only -- see its own init_container
+# block below for why that's required, not a relaxation.
 #
 # Blocky's own image declares USER 100 (confirmed directly against the
 # GHCR registry's own image config, not assumed) -- security_context
@@ -182,14 +184,20 @@ resource "kubernetes_deployment_v1" "blocky" {
             }
           }
 
-          # Loopback-only by its own listen_addresses (matching the
-          # Docker deployment's own security boundary exactly) -- safe
-          # to share a Pod network namespace with Blocky specifically
-          # because nothing else in that namespace can reach it either
-          # way. No k3s_bind_address-style widening needed any more:
-          # Grafana reaches this Pod's own Postgres through the
-          # in-cluster Service below instead of an additive host-network
-          # exception, now that both live in the same cluster.
+          # 0.0.0.0, not 127.0.0.1 -- confirmed live (2026-09-01):
+          # loopback-only broke the exact thing blocky-svc's own
+          # postgres port exists for. A Kubernetes Service is not a
+          # network namespace trick; it DNATs to the Pod's real IP,
+          # which nothing outside this Pod can ever reach if Postgres
+          # only listens on 127.0.0.1 -- Grafana got a flat "connection
+          # refused" on every query. The access boundary here is
+          # correctly the Service's own scope (only reachable from
+          # inside the cluster, same as every other backend this
+          # module or modules/grafana talks to) plus the official
+          # image's own password-required pg_hba.conf default, not
+          # which interface postgres itself binds -- Blocky's own
+          # connection over 127.0.0.1 (this Pod's shared network
+          # namespace) keeps working unchanged either way.
           #
           # args, not command: Kubernetes' own container.command
           # replaces the image's ENTRYPOINT (Docker's docker-
@@ -203,7 +211,7 @@ resource "kubernetes_deployment_v1" "blocky" {
           # entrypoint in charge and passes this flag through to it,
           # the same way `docker run postgres -c listen_addresses=...`
           # does.
-          args = ["-c", "listen_addresses=127.0.0.1"]
+          args = ["-c", "listen_addresses=0.0.0.0"]
 
           resources {
             requests = {
