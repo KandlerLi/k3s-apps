@@ -57,6 +57,24 @@ resource "kubernetes_deployment_v1" "ingress" {
         labels = {
           app = "ingress"
         }
+
+        # Every one of these three sources is mounted below via
+        # sub_path (static-config/dynamic-config/users), and
+        # Kubernetes never live-propagates a ConfigMap/Secret change
+        # into a sub_path mount -- only a real Pod recreation picks up
+        # new content. Confirmed live (2026-09-02): rotating the
+        # Basic Auth password updated the Secret object fine, but the
+        # running Pod kept serving the old hash until a manual
+        # `kubectl rollout restart` was run. These checksums make
+        # that automatic: changing any of the three sources changes
+        # the pod template itself, so Kubernetes rolls a fresh Pod on
+        # its own -- exactly when, and only when, one of them
+        # actually changes.
+        annotations = {
+          "checksum/static-config"  = sha256(kubernetes_config_map_v1.ingress_static_config.data["traefik.yml"])
+          "checksum/dynamic-config" = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["routes.yml"])
+          "checksum/users"          = sha256(kubernetes_secret_v1.ingress_users.data["users"])
+        }
       }
 
       spec {
