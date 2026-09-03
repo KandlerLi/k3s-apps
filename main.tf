@@ -56,13 +56,6 @@ module "blocky" {
   blocky_postgres_password = var.blocky_postgres_password
 }
 
-module "github_runner" {
-  source = "./modules/github_runner"
-
-  github_runner_github_token = var.github_runner_github_token
-  github_runner_repositories = var.github_runner_repositories
-}
-
 module "ingress" {
   source = "./modules/ingress"
 

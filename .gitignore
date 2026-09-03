@@ -2,6 +2,12 @@
 *.tfstate
 *.tfstate.backup
 *.tfstate.lock.info
+# Terraform state contains real secret values in plaintext (every
+# kubernetes_secret_v1's own data) -- never committed. This is where
+# ad hoc pre-migration backups get copied to (see the 2026-09-03
+# bootstrap/app root split), not just the standard *.tfstate* names
+# above.
+.state-backups/
 crash.log
 crash.*.log
 override.tf

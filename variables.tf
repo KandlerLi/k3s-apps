@@ -93,31 +93,6 @@ variable "alertmanager_ses_smtp_password" {
   sensitive   = true
 }
 
-variable "github_runner_github_token" {
-  description = <<-EOT
-    Same value as home-infra's github_runner_github_token SOPS secret
-    (the VM-based role's own PAT). See modules/github_runner's own
-    variable of the same name. Pass via TF_VAR_github_runner_github_token
-    at apply time.
-  EOT
-  type        = string
-  sensitive   = true
-}
-
-variable "github_runner_repositories" {
-  description = <<-EOT
-    Loaded from this repo's own repositories.auto.tfvars.json
-    (Terraform auto-loads it) -- see modules/github_runner's own
-    variable of the same name for where that file comes from. No
-    default here: if that file is ever missing, this should fail loudly
-    rather than silently apply zero runners.
-  EOT
-  type = list(object({
-    id         = string
-    repository = string
-  }))
-}
-
 variable "shared_ingress_auth_password_hash" {
   description = <<-EOT
     Same bcrypt hash as home-infra's shared_ingress_auth_password_hash

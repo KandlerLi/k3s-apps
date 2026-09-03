@@ -119,7 +119,9 @@
 
 locals {
   github_runner_repositories_by_id = {
-    for repo in var.github_runner_repositories : repo.id => repo
+    for repo in var.github_runner_repositories : repo.id => merge(repo, {
+      service_account_name = try(var.github_runner_service_accounts[repo.id], null)
+    })
   }
 }
 
@@ -198,8 +200,17 @@ resource "kubernetes_deployment_v1" "github_runner" {
       }
 
       spec {
-        # Neither container talks to the Kubernetes API.
-        automount_service_account_token = false
+        # Every repo except one gets the old behaviour: neither
+        # container talks to the Kubernetes API at all. k3s-apps' own
+        # entry gets a real ServiceAccount name via
+        # var.github_runner_service_accounts (see variables.tf), which
+        # flips this on and mounts that ServiceAccount's token into
+        # every container in the Pod -- including the "runner"
+        # container itself, so a job step with no container: key (see
+        # k3s-apps' own checks.yml/apply.yml) sees it automatically,
+        # the same way any in-cluster process would.
+        automount_service_account_token = each.value.service_account_name != null
+        service_account_name            = each.value.service_account_name
 
         node_selector = {
           "kubernetes.io/hostname" = "k3s-node-2"

@@ -1,42 +1,12 @@
-# Statically-provisioned NFS storage for Open WebUI's own data --
-# same "real, already-live data through NFS, not disposable storage
-# this cluster owns" shape as Deluge's own storage.tf, and the same
-# storage_class_name = "local-path" quirk-workaround (see that file's
-# own comment for the full explanation: an empty "" storage class gets
-# silently rewritten to "local-path" by k3s's DefaultStorageClass
-# admission controller regardless of what's written here, so both the
-# PV and PVC have to say "local-path" explicitly for them to bind).
-#
-# reclaim_policy = "Retain" for the same reason as Deluge's -- deleting
-# this PVC must never be able to touch the real accounts/chat history
-# underneath it.
-#
-# Single PV, not split like Deluge's downloads/config -- home-infra's
-# own open-webui container only ever had one bind mount
-# (open_webui_data_dir -> /app/backend/data), covering the sqlite
-# database, WEBUI_SECRET_KEY_FILE, and the HOME subdirectory together.
-
-resource "kubernetes_persistent_volume_v1" "open_webui_data" {
-  metadata {
-    name = "open-webui-data-pv"
-  }
-
-  spec {
-    capacity = {
-      storage = "5Gi"
-    }
-    access_modes                     = ["ReadWriteMany"]
-    persistent_volume_reclaim_policy = "Retain"
-    storage_class_name               = "local-path"
-
-    persistent_volume_source {
-      nfs {
-        server = "192.168.101.1"
-        path   = "/var/lib/open-webui"
-      }
-    }
-  }
-}
+# The kubernetes_persistent_volume_v1 this PVC binds to
+# (open-webui-data-pv -- NFS-backed, storage_class_name = "local-path",
+# reclaim_policy = "Retain") now lives in bootstrap/storage.tf, not
+# here -- moved 2026-09-03, same reasoning as modules/deluge's own
+# identical change: PersistentVolume is cluster-scoped and this
+# module is applied by this repo's CI pipeline under a namespace-scoped
+# Role that deliberately can't touch it. volume_name below references
+# that PV by its stable name string rather than a Terraform attribute,
+# since the two roots have separate state now.
 
 resource "kubernetes_persistent_volume_claim_v1" "open_webui_data" {
   metadata {
@@ -46,7 +16,7 @@ resource "kubernetes_persistent_volume_claim_v1" "open_webui_data" {
   spec {
     access_modes       = ["ReadWriteMany"]
     storage_class_name = "local-path"
-    volume_name        = kubernetes_persistent_volume_v1.open_webui_data.metadata[0].name
+    volume_name        = "open-webui-data-pv"
 
     resources {
       requests = {

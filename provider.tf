@@ -1,8 +1,5 @@
-# Deliberately no S3 backend yet, unlike every other Terraform repo in
-# this homelab -- that would need AWS credentials wherever this runs,
-# for no real benefit yet. State stays local for now; move to a remote
-# backend once this pattern is trusted enough to matter if the local
-# copy is lost.
+# Gained a real S3 backend 2026-09-03 (see versions.tf) once this root
+# started being applied by CI -- see that file's own comment for why.
 provider "kubernetes" {
   # NOTE: the kubernetes provider does NOT read the standard KUBECONFIG
   # environment variable the way kubectl does -- confirmed against its
