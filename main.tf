@@ -1,8 +1,11 @@
-# Root module: wires the two workload modules together. Each module is
-# self-contained (its own resources, its own files/ where relevant) so a
-# third service can be added the same way -- a new modules/<service>/
-# directory plus a module block here -- without touching an existing
-# one's code.
+# Root module (the "app" half of this repo -- see bootstrap/ for the
+# other): wires this cluster's own workload modules together. Each
+# module is self-contained (its own resources, its own files/ where
+# relevant) so a new one can be added the same way -- a new
+# modules/<service>/ directory plus a module block here -- without
+# touching an existing one's code. This root is now CI-applied (see
+# .github/workflows/), gated on the production environment's reviewer
+# approval before a real apply runs.
 
 module "landing_page" {
   source = "./modules/landing_page"
