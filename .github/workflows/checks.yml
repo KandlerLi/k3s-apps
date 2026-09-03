@@ -7,8 +7,8 @@ name: Checks
 # filesystem namespace, so they automatically see the k3s-apps-ci
 # ServiceAccount token Kubernetes mounts into the Pod -- no volume-mount
 # plumbing needed to get it into a job-specific container the way AWS
-# repos need for other things. See bootstrap/main.tf and
-# bootstrap/modules/github_runner's own comments for the ServiceAccount
+# repos need for other things. See the separate k3s-bootstrap repo's
+# own main.tf and modules/github_runner comments for the ServiceAccount
 # itself and how it's wired onto this repo's own runner Deployment.
 #
 # Still needs AWS OIDC credentials, though -- found live (2026-09-03):

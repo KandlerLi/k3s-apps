@@ -1,11 +1,14 @@
-# Root module (the "app" half of this repo -- see bootstrap/ for the
-# other): wires this cluster's own workload modules together. Each
+# Root module: wires this cluster's own workload modules together. Each
 # module is self-contained (its own resources, its own files/ where
 # relevant) so a new one can be added the same way -- a new
 # modules/<service>/ directory plus a module block here -- without
 # touching an existing one's code. This root is now CI-applied (see
 # .github/workflows/), gated on the production environment's reviewer
-# approval before a real apply runs.
+# approval before a real apply runs. The self-hosted runner itself and
+# the cluster-scoped PVs this root's own PVCs bind to live in the
+# separate, local-only k3s-bootstrap repo instead -- originally a
+# bootstrap/ subdirectory of this same repo, extracted into its own
+# standalone repo alongside repo-infra/terraform-state (2026-09-03).
 
 module "landing_page" {
   source = "./modules/landing_page"

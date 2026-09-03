@@ -19,10 +19,10 @@
 #   self-hosted runner living inside this same cluster): the standard
 #   in-cluster auth triple (host + token + CA, read from the
 #   ServiceAccount token Kubernetes automatically mounts into any Pod
-#   with automount_service_account_token enabled -- see
-#   bootstrap/main.tf's own k3s-apps-ci ServiceAccount and
-#   bootstrap/modules/github_runner's own wiring of it onto this repo's
-#   runner Deployment specifically). Confirmed live (2026-09-03) that
+#   with automount_service_account_token enabled -- see the separate
+#   k3s-bootstrap repo's own main.tf for the k3s-apps-ci ServiceAccount
+#   and its modules/github_runner for the wiring of it onto this repo's
+#   own runner Deployment specifically). Confirmed live (2026-09-03) that
 #   Terraform's own conditional expressions short-circuit file() in the
 #   untaken branch -- a bogus path in the *other* branch doesn't error
 #   here, so this is safe to leave as the unconditional default rather
