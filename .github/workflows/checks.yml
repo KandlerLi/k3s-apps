@@ -1,8 +1,8 @@
 name: Checks
 
 # No container: key, unlike every AWS-family repo's own checks.yml/
-# apply.yml -- this repo needs no AWS CLI/OIDC tooling at all, and
-# running steps directly on the runner's own host (not inside a nested
+# apply.yml -- this repo needs no Docker image at all, and running
+# steps directly on the runner's own host (not inside a nested
 # docker:dind container) means they share the runner Pod's own
 # filesystem namespace, so they automatically see the k3s-apps-ci
 # ServiceAccount token Kubernetes mounts into the Pod -- no volume-mount
@@ -10,6 +10,13 @@ name: Checks
 # repos need for other things. See bootstrap/main.tf and
 # bootstrap/modules/github_runner's own comments for the ServiceAccount
 # itself and how it's wired onto this repo's own runner Deployment.
+#
+# Still needs AWS OIDC credentials, though -- found live (2026-09-03):
+# this root's own Terraform *state* lives in S3 (see versions.tf), an
+# entirely separate concern from the in-cluster ServiceAccount, which
+# only covers the kubernetes provider's own actions. repo-infra's own
+# aws_policies.tf has a k3s-apps entry scoped to exactly its state key,
+# nothing more -- this repo manages zero real AWS resources.
 
 on:
   pull_request:
@@ -50,7 +57,11 @@ jobs:
     needs: validate
     runs-on: [self-hosted, home, debian]
     timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
     env:
+      AWS_REGION: eu-central-1
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "false"
       # Selects the in-cluster auth branch in provider.tf -- see that
@@ -76,6 +87,39 @@ jobs:
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "1.16.0"
+
+      - name: Verify plan configuration
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          AWS_PLAN_ROLE_ARN: ${{ vars.AWS_PLAN_ROLE_ARN }}
+        run: |
+          if [ -z "$AWS_ACCOUNT_ID" ]; then
+            echo "::error::Missing repository variable AWS_ACCOUNT_ID"
+            exit 1
+          fi
+          if [ -z "$AWS_PLAN_ROLE_ARN" ]; then
+            echo "::error::Missing repository variable AWS_PLAN_ROLE_ARN"
+            exit 1
+          fi
+
+      - name: Configure read-only AWS credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          role-session-name: GitHubPlan-${{ github.run_id }}
+          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          # See gha-common's own terraform-checks.yml for the original,
+          # confirmed-live OIDC connection hang this guards against --
+          # that one was root-caused to dind's own *inner* bridge
+          # network defaulting to MTU 1500, which doesn't apply here
+          # (no container: job, no nested dind at all, so this
+          # container already sees the Pod's real MTU-1450 overlay
+          # directly). Kept anyway as a cheap, general escape hatch --
+          # the action's own maintainers added it for self-hosted-
+          # runner OIDC hangs broadly, not only that one specific
+          # cause, and an untriggered timeout costs nothing.
+          action-timeout-s: "90"
 
       - name: Initialize Terraform
         run: terraform init -input=false
