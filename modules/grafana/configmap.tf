@@ -27,7 +27,7 @@ resource "kubernetes_config_map_v1" "grafana_dashboard_provider" {
 # Vendored copies of home-infra's own ansible/roles/monitoring/files/
 # dashboards/*.json -- canonical originals stay there, same "sync a
 # copy in, diff to confirm identical" pattern as nextcloud_tools_
-# service.py. All five, unconditionally: unlike that role's own
+# service.py. All six, unconditionally: unlike that role's own
 # Blocky-conditional loop, this module has no non-Blocky mode to
 # support -- Blocky stays enabled and host-bound regardless.
 resource "kubernetes_config_map_v1" "grafana_dashboards" {
