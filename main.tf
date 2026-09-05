@@ -14,6 +14,10 @@ module "landing_page" {
   source = "./modules/landing_page"
 }
 
+module "kubernetes_dashboard" {
+  source = "./modules/kubernetes_dashboard"
+}
+
 module "deluge" {
   source = "./modules/deluge"
 
@@ -74,6 +78,7 @@ module "ingress" {
   # reference, so this has to be explicit rather than inferred.
   depends_on = [
     module.landing_page,
+    module.kubernetes_dashboard,
     module.deluge,
     module.home_agent,
     module.open_webui,

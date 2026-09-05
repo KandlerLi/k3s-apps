@@ -164,6 +164,15 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               - home-chain
             tls:
               certResolver: letsencrypt
+          kubernetes-dashboard:
+            rule: "Host(`k8s.jkandler.de`)"
+            entryPoints:
+              - websecure
+            service: kubernetes-dashboard
+            middlewares:
+              - kubernetes-dashboard-chain
+            tls:
+              certResolver: letsencrypt
           apex-redirect:
             rule: "Host(`jkandler.de`)"
             entryPoints:
@@ -205,6 +214,11 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               passHostHeader: true
               servers:
                 - url: "http://landing-page-svc:80"
+          kubernetes-dashboard:
+            loadBalancer:
+              passHostHeader: true
+              servers:
+                - url: "http://kubernetes-dashboard-svc:80"
 
         middlewares:
           nextcloud-secure-headers:
@@ -334,6 +348,30 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
                 - home-rate-limit
                 - home-request-limit
                 - home-security-headers
+          kubernetes-dashboard-rate-limit:
+            rateLimit:
+              average: 120
+              period: 1m
+              burst: 240
+          kubernetes-dashboard-request-limit:
+            buffering:
+              maxRequestBodyBytes: 1048576
+              memRequestBodyBytes: 1048576
+          kubernetes-dashboard-security-headers:
+            headers:
+              contentTypeNosniff: true
+              frameDeny: true
+              referrerPolicy: no-referrer
+              permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+              stsSeconds: 31536000
+              stsIncludeSubdomains: false
+          kubernetes-dashboard-chain:
+            chain:
+              middlewares:
+                - shared-auth
+                - kubernetes-dashboard-rate-limit
+                - kubernetes-dashboard-request-limit
+                - kubernetes-dashboard-security-headers
           apex-redirect:
             redirectRegex:
               regex: '^https://jkandler\.de/(.*)'
