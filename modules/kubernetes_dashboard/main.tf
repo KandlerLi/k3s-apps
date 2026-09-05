@@ -36,6 +36,15 @@ resource "kubernetes_deployment_v1" "kubernetes_dashboard" {
     name = "kubernetes-dashboard"
   }
 
+  # Not inferred from a real attribute reference (nothing here reads
+  # either Secret's own data) -- explicit because the Dashboard
+  # container panics on startup if either is missing yet, so the
+  # Secrets have to exist first, not merely eventually.
+  depends_on = [
+    kubernetes_secret_v1.kubernetes_dashboard_csrf,
+    kubernetes_secret_v1.kubernetes_dashboard_key_holder,
+  ]
+
   spec {
     replicas = 1
 
