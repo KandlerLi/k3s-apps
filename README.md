@@ -24,6 +24,20 @@ code doesn't need touching.
   digest, same mount point, same real content (`files/index.html`,
   `files/style.css`, pulled from the live homeserver, not fabricated).
   Serves `home.jkandler.de` in production.
+- `modules/kubernetes_dashboard/` -- the official Kubernetes Dashboard
+  (v2.7.0, the last single-component release before v7's
+  auth/api/web split), read-only, serving `k8s.jkandler.de`. Runs in
+  `--insecure` mode (plain HTTP internally, `--enable-skip-login`) --
+  Traefik already terminates real TLS in front, and Basic Auth plus the
+  ServiceAccount's own read-only scope are the actual gates, not a
+  second self-signed-cert layer. That ServiceAccount, and every RBAC
+  object granting it anything (bound to the built-in `view`
+  ClusterRole, not `cluster-admin`), live in the separate
+  `k3s-bootstrap` repo instead -- granting RBAC is itself
+  privilege-defining, so it can't be something this CI-applied root's
+  own narrowly-scoped ServiceAccount does to itself. No
+  metrics-scraper sidecar yet (the small CPU/Memory usage graphs) --
+  not part of this first cut.
 - `modules/deluge/` -- statically-provisioned NFS storage bound to
   `home-infra`'s `nfs_server` exports (`storage.tf`), Deluge's own
   web-login Secret reproducing its salted-SHA1 scheme (`secret.tf`), and
