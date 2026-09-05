@@ -16,7 +16,8 @@ terraform {
   # cluster-scoped PVs out into their own root (its own separate S3
   # state, key k3s-bootstrap/terraform.tfstate -- originally a
   # bootstrap/ subdirectory of this same repo, later extracted into the
-  # standalone k3s-bootstrap repo alongside repo-infra/terraform-state)
+  # standalone k3s-bootstrap repo alongside terraform-state -- and, at
+  # the time, repo-infra too, since moved to its own github/ directory)
   # -- this root now gets applied by CI, which is ephemeral and can't
   # rely on a local state file the way the old fully-local setup could.
   # Same bucket, same convention every other repo in this workspace
