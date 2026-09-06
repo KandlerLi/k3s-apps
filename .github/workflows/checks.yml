@@ -71,6 +71,7 @@ jobs:
       TF_VAR_home_agent_ghcr_token: ${{ secrets.HOME_AGENT_GHCR_TOKEN }}
       TF_VAR_home_agent_openai_api_key: ${{ secrets.HOME_AGENT_OPENAI_API_KEY }}
       TF_VAR_nextcloud_tools_app_password: ${{ secrets.NEXTCLOUD_TOOLS_APP_PASSWORD }}
+      TF_VAR_sankey_export_app_password: ${{ secrets.SANKEY_EXPORT_APP_PASSWORD }}
       TF_VAR_grafana_admin_password: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
       TF_VAR_blocky_postgres_password: ${{ secrets.BLOCKY_POSTGRES_PASSWORD }}
       TF_VAR_alertmanager_ses_smtp_username: ${{ secrets.ALERTMANAGER_SES_SMTP_USERNAME }}

@@ -39,6 +39,14 @@ module "open_webui" {
   depends_on = [module.home_agent]
 }
 
+module "sankey_export" {
+  source = "./modules/sankey_export"
+
+  sankey_export_image        = var.sankey_export_image
+  sankey_export_ghcr_token   = var.home_agent_ghcr_token
+  sankey_export_app_password = var.sankey_export_app_password
+}
+
 module "grafana" {
   source = "./modules/grafana"
 
