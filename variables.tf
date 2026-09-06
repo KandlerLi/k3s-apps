@@ -52,6 +52,25 @@ variable "nextcloud_tools_app_password" {
   sensitive   = true
 }
 
+variable "sankey_export_image" {
+  description = <<-EOT
+    Full ghcr.io/kandlerli/sankey-export reference, pinned by digest.
+    See modules/sankey_export's own variable of the same name.
+  EOT
+  type        = string
+}
+
+variable "sankey_export_app_password" {
+  description = <<-EOT
+    Same value as home-infra's existing sankey_export_app_password SOPS
+    secret -- reused as-is, not a newly bootstrapped account. See
+    modules/sankey_export's own variable of the same name for why.
+    Pass via TF_VAR_sankey_export_app_password at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
 variable "grafana_admin_password" {
   description = <<-EOT
     Same value as home-infra's monitoring_grafana_admin_password SOPS
