@@ -60,6 +60,7 @@ SECRET_SOURCES = [
     (HOME_INFRA_SECRETS_FILE, "monitoring_grafana_admin_password", "grafana_admin_password"),
     (HOME_INFRA_SECRETS_FILE, "blocky_postgres_password", "blocky_postgres_password"),
     (K3S_APPS_SECRETS_FILE, "nextcloud_tools_app_password", "nextcloud_tools_app_password"),
+    (K3S_APPS_SECRETS_FILE, "sankey_export_app_password", "sankey_export_app_password"),
     (
         HOME_INFRA_SECRETS_FILE,
         "monitoring_ses_smtp_username",
