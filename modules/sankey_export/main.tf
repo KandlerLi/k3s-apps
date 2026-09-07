@@ -52,22 +52,47 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
             # /run/secrets-shaped paths).
             automount_service_account_token = false
 
-            # Confirmed live: "PermissionError: /var/lib/sankey-export/out"
-            # -- unlike emptyDir (created world-writable by kubelet),
-            # a DirectoryOrCreate hostPath is created root-owned 0755 on
-            # the node's own disk, which the non-root container UID
-            # can't write into on its own. fs_group makes kubelet
-            # recursively chgrp the mounted volume to this GID on mount
-            # (matching the container's own run_as_group below), so it
-            # becomes group-writable without needing an initContainer.
-            # home_agent's own Pod never needed this -- it only mounts
-            # emptyDir/Secret volumes, not a hostPath.
-            security_context {
-              fs_group = 10010
-            }
-
             image_pull_secrets {
               name = kubernetes_secret_v1.ghcr_pull.metadata[0].name
+            }
+
+            # Confirmed live: "PermissionError: /var/lib/sankey-export/out"
+            # -- unlike emptyDir (created world-writable by kubelet), a
+            # DirectoryOrCreate hostPath is created root-owned 0755 on
+            # the node's own disk. A pod-level fs_group was tried first
+            # (matching the pattern that fixes this for PVC-backed
+            # volumes) and confirmed live NOT to work: fsGroup-based
+            # ownership management only covers volume types kubelet
+            # itself provisions (emptyDir, CSI volumes that opt in via
+            # fsGroupPolicy) -- hostPath is explicitly excluded, kubelet
+            # never touches its ownership at all (checked directly via a
+            # debug Pod: still root:root 0755 after the "fix"). An
+            # initContainer running as root is the standard fix for
+            # exactly this gap -- it chowns the mount once before the
+            # real container starts, which needs CAP_CHOWN specifically
+            # (dropping every other capability, same least-privilege
+            # shape as the main container below).
+            init_container {
+              name    = "fix-state-dir-ownership"
+              image   = var.sankey_export_image
+              command = ["chown", "10010:10010", "/var/lib/sankey-export"]
+
+              security_context {
+                run_as_user                = 0
+                run_as_group               = 0
+                run_as_non_root            = false
+                read_only_root_filesystem  = true
+                allow_privilege_escalation = false
+                capabilities {
+                  drop = ["ALL"]
+                  add  = ["CHOWN"]
+                }
+              }
+
+              volume_mount {
+                name       = "state"
+                mount_path = "/var/lib/sankey-export"
+              }
             }
 
             container {
