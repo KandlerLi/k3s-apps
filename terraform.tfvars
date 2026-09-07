@@ -12,4 +12,4 @@ home_agent_image = "ghcr.io/kandlerli/home-agent@sha256:9682debdbde477e11b0a9078
 # workflow's "Print pushed image digest" step output -- unlike
 # home_agent, this image's source/build live here, not in home-infra;
 # see containers/sankey-export/ and that workflow's own comment).
-sankey_export_image = "ghcr.io/kandlerli/sankey-export@sha256:c635edeaedfb6ac9628d3a7a11785f1adda23a1368d46751ddae1905b46b7f2a"
+sankey_export_image = "ghcr.io/kandlerli/sankey-export@sha256:625721a73a546ab3700a0c4f1f87835193fce740f7743233f0f8308a8726c5fc"
