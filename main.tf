@@ -8,7 +8,9 @@
 # the cluster-scoped PVs this root's own PVCs bind to live in the
 # separate, local-only k3s-bootstrap repo instead -- originally a
 # bootstrap/ subdirectory of this same repo, extracted into its own
-# standalone repo alongside repo-infra/terraform-state (2026-09-03).
+# standalone repo alongside terraform-state (2026-09-03; repo-infra
+# was there too at the time, since moved to its own github/ directory
+# on 2026-09-05).
 
 module "landing_page" {
   source = "./modules/landing_page"
