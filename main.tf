@@ -16,6 +16,10 @@ module "landing_page" {
   source = "./modules/landing_page"
 }
 
+module "kubernetes_dashboard" {
+  source = "./modules/kubernetes_dashboard"
+}
+
 module "deluge" {
   source = "./modules/deluge"
 
@@ -35,6 +39,14 @@ module "open_webui" {
   source = "./modules/open_webui"
 
   depends_on = [module.home_agent]
+}
+
+module "sankey_export" {
+  source = "./modules/sankey_export"
+
+  sankey_export_image        = var.sankey_export_image
+  sankey_export_ghcr_token   = var.home_agent_ghcr_token
+  sankey_export_app_password = var.sankey_export_app_password
 }
 
 module "grafana" {
@@ -76,6 +88,7 @@ module "ingress" {
   # reference, so this has to be explicit rather than inferred.
   depends_on = [
     module.landing_page,
+    module.kubernetes_dashboard,
     module.deluge,
     module.home_agent,
     module.open_webui,
