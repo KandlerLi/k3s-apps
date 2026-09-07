@@ -97,11 +97,25 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
                 value = "/var/lib/sankey-export/last-etag"
               }
 
-              # Same memory/CPU ceiling as the old systemd unit's own
-              # MemoryMax=768M/CPUQuota=100% (see home-infra's
-              # sankey_export role defaults) -- rendering with a real
-              # headless Chromium is the expensive part.
+              # Ceiling matches the old systemd unit's own
+              # MemoryMax=768M/CPUQuota=100% (rendering with a real
+              # headless Chromium is the expensive part), but requests
+              # stay low -- this Job bursts for a few seconds once a
+              # minute, not continuously, and setting limits alone
+              # would default requests to match them (Guaranteed QoS),
+              # reserving a full CPU against the node's schedulable
+              # capacity around the clock. Confirmed live: the k3s VM's
+              # 2 vCPU budget only had ~120m of request headroom left
+              # once every other module's own request was accounted
+              # for -- 1000m alone failed to schedule at all ("0/2
+              # nodes are available: 1 Insufficient cpu"), the exact
+              # same class of bug home_agent's own main.tf already
+              # documents fixing.
               resources {
+                requests = {
+                  memory = "128Mi"
+                  cpu    = "100m"
+                }
                 limits = {
                   memory = "768Mi"
                   cpu    = "1000m"
