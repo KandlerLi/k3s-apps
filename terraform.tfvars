@@ -8,6 +8,8 @@
 home_agent_image = "ghcr.io/kandlerli/home-agent@sha256:9682debdbde477e11b0a907838582656ed7bb3f78bbc03121abc1ea48b21e0ce"
 
 # Same reasoning as home_agent_image above -- update by hand after each
-# meaningful build (see home-infra's build-sankey-export.yml workflow's
-# own "Print pushed image digest" step output).
+# meaningful build (see this repo's own build-sankey-export.yml
+# workflow's "Print pushed image digest" step output -- unlike
+# home_agent, this image's source/build live here, not in home-infra;
+# see containers/sankey-export/ and that workflow's own comment).
 sankey_export_image = "ghcr.io/kandlerli/sankey-export@sha256:c635edeaedfb6ac9628d3a7a11785f1adda23a1368d46751ddae1905b46b7f2a"
