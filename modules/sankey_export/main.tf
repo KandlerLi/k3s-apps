@@ -52,6 +52,20 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
             # /run/secrets-shaped paths).
             automount_service_account_token = false
 
+            # Confirmed live: "PermissionError: /var/lib/sankey-export/out"
+            # -- unlike emptyDir (created world-writable by kubelet),
+            # a DirectoryOrCreate hostPath is created root-owned 0755 on
+            # the node's own disk, which the non-root container UID
+            # can't write into on its own. fs_group makes kubelet
+            # recursively chgrp the mounted volume to this GID on mount
+            # (matching the container's own run_as_group below), so it
+            # becomes group-writable without needing an initContainer.
+            # home_agent's own Pod never needed this -- it only mounts
+            # emptyDir/Secret volumes, not a hostPath.
+            security_context {
+              fs_group = 10010
+            }
+
             image_pull_secrets {
               name = kubernetes_secret_v1.ghcr_pull.metadata[0].name
             }
