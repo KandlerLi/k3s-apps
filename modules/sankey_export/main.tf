@@ -119,9 +119,22 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
                 name  = "SANKEY_EXPORT_APP_PASSWORD_FILE"
                 value = "/etc/sankey-export/app-password"
               }
+              # Nextcloud shares don't preserve the sharer's own path for
+              # the recipient -- confirmed live via `occ share:list
+              # --recipient=sankey-export`: source-path
+              # "/admin/files/Documents/Finanzen" but target-path
+              # "/Shared/Finanzen". The dedicated account's WebDAV root
+              # sees it at Shared/Finanzen, not Documents/Finanzen (the
+              # role's own defaults/main.yml default -- overridden in
+              # home-infra's own group_vars/all/main.yml, which this
+              # value was copied from without checking against the
+              # override; confirmed live, the first two real runs both
+              # got "Workbook not found" at Documents/Finanzen/...,
+              # while home-infra's own systemd copy kept succeeding
+              # using this same Shared/Finanzen value the whole time).
               env {
                 name  = "SANKEY_EXPORT_REMOTE_DIR"
-                value = "Documents/Finanzen"
+                value = "Shared/Finanzen"
               }
               env {
                 name  = "SANKEY_EXPORT_WORKBOOK_NAME"
