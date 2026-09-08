@@ -254,27 +254,27 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
             chain:
               middlewares:
                 - nextcloud-secure-headers
-          # Not currently referenced by any chain -- kept defined as
-          # the fast rollback path (swap authelia-forward-auth back to
-          # this in one chain, no rebuild) if Authelia's own storage
-          # issue (see authelia-forward-auth's own comment below)
-          # recurs after the 2026-09-08 re-cutover.
+          # Back to being the actual auth for all five chains as of
+          # 2026-09-08 -- rolled back a second time, this time not for
+          # the earlier SQLite data-loss issue (still unresolved, see
+          # PARKED.md, but unrelated to this) but because k3s-apps#23
+          # (OIDC SSO for Grafana/Open WebUI) added new
+          # identity_providers.oidc secrets that hadn't actually been
+          # synced from home-infra's SOPS through to GitHub Actions yet
+          # (needs github/repo-infra's own separate local apply) --
+          # Authelia crash-looped on empty client_secret/issuer-key
+          # values, taking every one of these five chains down with it
+          # (all correctly proxied through Authelia at the time, so all
+          # genuinely broken, not a false alarm). Re-cut over once
+          # that's actually fixed and Authelia's Pod is confirmed
+          # healthy again -- don't just merge the fix PR and assume.
           shared-auth:
             basicAuth:
               usersFile: /etc/traefik/users
               realm: Home Infrastructure
               removeHeader: true
-          # Re-cut over 2026-09-08 (same day as the original cutover
-          # and its rollback -- see PARKED.md's own detailed writeup)
-          # after real, deliberate load testing (sequential and
-          # concurrent failed logins, a triggered regulation ban)
-          # failed to reproduce the SQLite data-loss issue that
-          # triggered the rollback -- treated as a real possible
-          # one-time fluke rather than a confirmed recurring bug, not
-          # worth continuing to block production auth on indefinitely.
-          # If it recurs, the fix is the same known ~5-minute drill
-          # (recreate db.sqlite3, possibly re-enroll TOTP) that resolved
-          # it both times before, or fall back to shared-auth above.
+          # Not currently referenced by any chain -- see shared-auth's
+          # own comment above for why. Kept defined, not deleted.
           # Response headers match Authelia's own documented Traefik
           # integration exactly (the four Remote-* headers its
           # forward-auth endpoint sends back once a request is
@@ -320,7 +320,7 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           agent-chain:
             chain:
               middlewares:
-                - authelia-forward-auth
+                - shared-auth
                 - agent-rate-limit
                 - agent-request-limit
                 - agent-security-headers
@@ -359,7 +359,7 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           deluge-chain:
             chain:
               middlewares:
-                - authelia-forward-auth
+                - shared-auth
                 - deluge-rate-limit
                 - deluge-request-limit
                 - deluge-security-headers
@@ -383,7 +383,7 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           grafana-chain:
             chain:
               middlewares:
-                - authelia-forward-auth
+                - shared-auth
                 - grafana-rate-limit
                 - grafana-request-limit
                 - grafana-security-headers
@@ -407,7 +407,7 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           home-chain:
             chain:
               middlewares:
-                - authelia-forward-auth
+                - shared-auth
                 - home-rate-limit
                 - home-request-limit
                 - home-security-headers
@@ -431,7 +431,7 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           kubernetes-dashboard-chain:
             chain:
               middlewares:
-                - authelia-forward-auth
+                - shared-auth
                 - kubernetes-dashboard-rate-limit
                 - kubernetes-dashboard-request-limit
                 - kubernetes-dashboard-security-headers
