@@ -75,14 +75,26 @@ resource "kubernetes_deployment_v1" "authelia" {
             container_port = 9091
           }
 
+          # Bumped 2026-09-08, right after the five-chain cutover
+          # (PARKED.md): confirmed live via `kubectl get pod -o
+          # jsonpath='{.status.containerStatuses[0].lastState}'` --
+          # exitCode 137, reason OOMKilled, repeatedly, within minutes
+          # of the cutover applying. 256Mi was sized against the portal
+          # alone (auth.jkandler.de, effectively single-request manual
+          # testing); the cutover instantly multiplied real traffic --
+          # every one of the five newly-gated services' own background
+          # polling (Grafana's /api/live/ws and /api/login/ping,
+          # Kubernetes Dashboard's refresh, etc.) now calls
+          # /api/authz/forward-auth continuously, not just on a real
+          # page load.
           resources {
             requests = {
               cpu    = "20m"
-              memory = "64Mi"
+              memory = "128Mi"
             }
             limits = {
               cpu    = "500m"
-              memory = "256Mi"
+              memory = "512Mi"
             }
           }
 
