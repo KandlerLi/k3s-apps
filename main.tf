@@ -76,6 +76,17 @@ module "blocky" {
   blocky_postgres_password = var.blocky_postgres_password
 }
 
+module "authelia" {
+  source = "./modules/authelia"
+
+  authelia_session_secret            = var.authelia_session_secret
+  authelia_storage_encryption_key    = var.authelia_storage_encryption_key
+  authelia_reset_password_jwt_secret = var.authelia_reset_password_jwt_secret
+  authelia_admin_password_hash       = var.authelia_admin_password_hash
+  alertmanager_ses_smtp_username     = var.alertmanager_ses_smtp_username
+  alertmanager_ses_smtp_password     = var.alertmanager_ses_smtp_password
+}
+
 module "ingress" {
   source = "./modules/ingress"
 
@@ -93,5 +104,6 @@ module "ingress" {
     module.home_agent,
     module.open_webui,
     module.grafana,
+    module.authelia,
   ]
 }
