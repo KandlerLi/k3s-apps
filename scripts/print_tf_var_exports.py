@@ -107,6 +107,32 @@ SECRET_SOURCES = [
         "authelia_admin_password_hash",
         "authelia_admin_password_hash",
     ),
+    (HOME_INFRA_SECRETS_FILE, "authelia_oidc_hmac_secret", "authelia_oidc_hmac_secret"),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "authelia_oidc_issuer_private_key",
+        "authelia_oidc_issuer_private_key",
+    ),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "authelia_oidc_grafana_client_secret_hash",
+        "authelia_oidc_grafana_client_secret_hash",
+    ),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "authelia_oidc_openwebui_client_secret_hash",
+        "authelia_oidc_openwebui_client_secret_hash",
+    ),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "authelia_oidc_grafana_client_secret",
+        "authelia_oidc_grafana_client_secret",
+    ),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "authelia_oidc_openwebui_client_secret",
+        "authelia_oidc_openwebui_client_secret",
+    ),
 ]
 
 

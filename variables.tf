@@ -167,3 +167,74 @@ variable "authelia_admin_password_hash" {
   type        = string
   sensitive   = true
 }
+
+variable "authelia_oidc_hmac_secret" {
+  description = <<-EOT
+    Same value as home-infra's authelia_oidc_hmac_secret SOPS secret.
+    See modules/authelia's own variable of the same name. Pass via
+    TF_VAR_authelia_oidc_hmac_secret at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "authelia_oidc_issuer_private_key" {
+  description = <<-EOT
+    Same value as home-infra's authelia_oidc_issuer_private_key SOPS
+    secret. See modules/authelia's own variable of the same name. Pass
+    via TF_VAR_authelia_oidc_issuer_private_key at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "authelia_oidc_grafana_client_secret_hash" {
+  description = <<-EOT
+    Same value as home-infra's
+    authelia_oidc_grafana_client_secret_hash SOPS secret. See
+    modules/authelia's own variable of the same name. Pass via
+    TF_VAR_authelia_oidc_grafana_client_secret_hash at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "authelia_oidc_openwebui_client_secret_hash" {
+  description = <<-EOT
+    Same value as home-infra's
+    authelia_oidc_openwebui_client_secret_hash SOPS secret. See
+    modules/authelia's own variable of the same name. Pass via
+    TF_VAR_authelia_oidc_openwebui_client_secret_hash at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "authelia_oidc_grafana_client_secret" {
+  description = <<-EOT
+    Plaintext OIDC client secret Grafana itself presents to Authelia's
+    token endpoint -- the hash of this same value is what Authelia's
+    own config actually verifies against (authelia_oidc_grafana_client_secret_hash
+    above); this is the other half of that pair, consumed by
+    modules/grafana instead. Same value as home-infra's
+    authelia_oidc_grafana_client_secret SOPS secret. Pass via
+    TF_VAR_authelia_oidc_grafana_client_secret at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "authelia_oidc_openwebui_client_secret" {
+  description = <<-EOT
+    Plaintext OIDC client secret Open WebUI itself presents to
+    Authelia's token endpoint -- the hash of this same value is what
+    Authelia's own config actually verifies against
+    (authelia_oidc_openwebui_client_secret_hash above); this is the
+    other half of that pair, consumed by modules/open_webui instead.
+    Same value as home-infra's authelia_oidc_openwebui_client_secret
+    SOPS secret. Pass via TF_VAR_authelia_oidc_openwebui_client_secret
+    at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}

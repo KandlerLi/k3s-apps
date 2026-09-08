@@ -103,6 +103,76 @@ resource "kubernetes_deployment_v1" "grafana" {
             value = "false"
           }
 
+          # OIDC SSO against Authelia (modules/authelia's own
+          # identity_providers.oidc), added 2026-09-08 -- native login
+          # (GF_SECURITY_ADMIN_* above) stays enabled as a fallback,
+          # this only adds a "Sign in with Authelia" option alongside
+          # it. Group->role mapping matches Authelia's own documented
+          # Grafana integration guide: the "admins" group (the only
+          # group that exists today, see modules/authelia's own
+          # users_database.yml) becomes Grafana Admin, everyone else
+          # defaults to Viewer.
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_ENABLED"
+            value = "true"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_NAME"
+            value = "Authelia"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_CLIENT_ID"
+            value = "grafana"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE"
+            value = "/run/secrets/oidc/grafana_oidc_client_secret"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_SCOPES"
+            value = "openid profile email groups"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_EMPTY_SCOPES"
+            value = "false"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_AUTH_URL"
+            value = "https://auth.jkandler.de/api/oidc/authorization"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_TOKEN_URL"
+            value = "https://auth.jkandler.de/api/oidc/token"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_API_URL"
+            value = "https://auth.jkandler.de/api/oidc/userinfo"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH"
+            value = "preferred_username"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_GROUPS_ATTRIBUTE_PATH"
+            value = "groups"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH"
+            value = "name"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_USE_PKCE"
+            value = "true"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH"
+            value = "contains(groups[*], 'admins') && 'Admin' || 'Viewer'"
+          }
+          env {
+            name  = "GF_AUTH_GENERIC_OAUTH_AUTH_STYLE"
+            value = "InHeader"
+          }
+
           # memory bumped from 320Mi (confirmed live 2026-09-01:
           # OOMKilled repeatedly, exit code 137, well before the
           # Deployment's own liveness probe ever got a chance to pass
@@ -161,6 +231,14 @@ resource "kubernetes_deployment_v1" "grafana" {
             mount_path = "/run/secrets"
             read_only  = true
           }
+          # A distinct directory from "admin-password" above -- two
+          # Secret-backed volumes can't both mount directly at the same
+          # /run/secrets path.
+          volume_mount {
+            name       = "oidc-client-secret"
+            mount_path = "/run/secrets/oidc"
+            read_only  = true
+          }
           volume_mount {
             name       = "data"
             mount_path = "/var/lib/grafana"
@@ -217,6 +295,12 @@ resource "kubernetes_deployment_v1" "grafana" {
           name = "admin-password"
           secret {
             secret_name = kubernetes_secret_v1.grafana_admin_password.metadata[0].name
+          }
+        }
+        volume {
+          name = "oidc-client-secret"
+          secret {
+            secret_name = kubernetes_secret_v1.grafana_oidc_client_secret.metadata[0].name
           }
         }
         volume {

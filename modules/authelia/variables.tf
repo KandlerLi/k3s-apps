@@ -74,3 +74,61 @@ variable "alertmanager_ses_smtp_password" {
   type        = string
   sensitive   = true
 }
+
+variable "authelia_oidc_hmac_secret" {
+  description = <<-EOT
+    Random, opaque signing secret for Authelia's own OIDC provider
+    (config's identity_providers.oidc.hmac_secret) -- pure random
+    noise, not a password anyone types or needs to remember. Generated
+    with: authelia crypto rand --length 64 --charset alphanumeric.
+    Same value as home-infra's authelia_oidc_hmac_secret SOPS secret.
+    Pass via TF_VAR_authelia_oidc_hmac_secret at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "authelia_oidc_issuer_private_key" {
+  description = <<-EOT
+    RSA private key (PEM, 4096-bit) Authelia's OIDC provider signs
+    tokens with (config's identity_providers.oidc.jwks). Generated
+    with: authelia crypto pair rsa generate -b 4096. Same value as
+    home-infra's authelia_oidc_issuer_private_key SOPS secret. Pass
+    via TF_VAR_authelia_oidc_issuer_private_key at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "authelia_oidc_grafana_client_secret_hash" {
+  description = <<-EOT
+    pbkdf2-sha512 hash of Grafana's own OIDC client secret (config's
+    identity_providers.oidc.clients[].client_secret for the "grafana"
+    client) -- only the hash lives here, the plaintext goes to
+    modules/grafana's own variable of a similar name instead, since
+    that's the side that actually presents it. Generated together
+    with: authelia crypto hash generate pbkdf2 --variant sha512
+    --random --random.length 64 --random.charset alphanumeric. Same
+    value as home-infra's authelia_oidc_grafana_client_secret_hash
+    SOPS secret. Pass via
+    TF_VAR_authelia_oidc_grafana_client_secret_hash at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "authelia_oidc_openwebui_client_secret_hash" {
+  description = <<-EOT
+    pbkdf2-sha512 hash of Open WebUI's own OIDC client secret (config's
+    identity_providers.oidc.clients[].client_secret for the
+    "open-webui" client) -- only the hash lives here, the plaintext
+    goes to modules/open_webui's own variable of a similar name
+    instead, since that's the side that actually presents it.
+    Generated the same way as the Grafana client secret hash above.
+    Same value as home-infra's
+    authelia_oidc_openwebui_client_secret_hash SOPS secret. Pass via
+    TF_VAR_authelia_oidc_openwebui_client_secret_hash at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}

@@ -52,6 +52,83 @@ resource "kubernetes_secret_v1" "authelia_config" {
               - 'k8s.jkandler.de'
             policy: two_factor
 
+      # OIDC provider, added 2026-09-08 -- lets Grafana and Open WebUI
+      # authenticate against Authelia directly (a real "Sign in with
+      # Authelia" button, not just the ingress-level forwardAuth gate
+      # in front of them) instead of each keeping its own separate
+      # native login. Native login stays enabled on both apps as a
+      # fallback -- this adds SSO as an option, doesn't remove the
+      # existing path, matching the same defense-in-depth instinct as
+      # keeping shared-auth defined after the ingress cutover.
+      identity_providers:
+        oidc:
+          hmac_secret: '${var.authelia_oidc_hmac_secret}'
+          jwks:
+            - key_id: 'main'
+              algorithm: 'RS256'
+              use: 'sig'
+              # A double-quoted, single-physical-line scalar with
+              # escaped \n sequences -- not a YAML literal block
+              # scalar (key: |), deliberately. Confirmed live (locally,
+              # against the real interpolation): combining Terraform's
+              # own heredoc dedent with a multi-line interpolated
+              # value produces genuinely inconsistent per-line
+              # indentation (the PEM's first line landed at a
+              # different column than every line after it), which a
+              # YAML block scalar would then fold into the parsed
+              # value as stray literal whitespace, corrupting the key.
+              # replace()+escaped-\n sidesteps the whole class of bug
+              # -- one physical line has no indentation to get wrong,
+              # and round-trips byte-for-byte through a real YAML
+              # parser (verified with a standalone test before using
+              # this here).
+              key: "${replace(var.authelia_oidc_issuer_private_key, "\n", "\\n")}"
+          clients:
+            - client_id: 'grafana'
+              client_name: 'Grafana'
+              client_secret: '${var.authelia_oidc_grafana_client_secret_hash}'
+              public: false
+              authorization_policy: 'two_factor'
+              require_pkce: true
+              pkce_challenge_method: 'S256'
+              redirect_uris:
+                - 'https://grafana.jkandler.de/login/generic_oauth'
+              scopes:
+                - 'openid'
+                - 'profile'
+                - 'groups'
+                - 'email'
+              response_types:
+                - 'code'
+              grant_types:
+                - 'authorization_code'
+              token_endpoint_auth_method: 'client_secret_basic'
+              # Grafana's own documented claims-hydration limitation --
+              # Authelia's own Grafana integration guide recommends
+              # unsigned (plain JSON) responses specifically for this
+              # client, not a general requirement for every client.
+              access_token_signed_response_alg: 'none'
+              userinfo_signed_response_alg: 'none'
+            - client_id: 'open-webui'
+              client_name: 'Open WebUI'
+              client_secret: '${var.authelia_oidc_openwebui_client_secret_hash}'
+              public: false
+              authorization_policy: 'two_factor'
+              require_pkce: true
+              pkce_challenge_method: 'S256'
+              redirect_uris:
+                - 'https://ai.jkandler.de/oauth/oidc/callback'
+              scopes:
+                - 'openid'
+                - 'profile'
+                - 'groups'
+                - 'email'
+              response_types:
+                - 'code'
+              grant_types:
+                - 'authorization_code'
+              token_endpoint_auth_method: 'client_secret_basic'
+
       session:
         secret: '${var.authelia_session_secret}'
         cookies:

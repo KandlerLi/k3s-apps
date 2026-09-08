@@ -36,6 +36,8 @@ module "home_agent" {
 module "open_webui" {
   source = "./modules/open_webui"
 
+  authelia_oidc_openwebui_client_secret = var.authelia_oidc_openwebui_client_secret
+
   depends_on = [module.home_agent]
 }
 
@@ -50,8 +52,9 @@ module "sankey_export" {
 module "grafana" {
   source = "./modules/grafana"
 
-  grafana_admin_password   = var.grafana_admin_password
-  blocky_postgres_password = var.blocky_postgres_password
+  grafana_admin_password              = var.grafana_admin_password
+  blocky_postgres_password            = var.blocky_postgres_password
+  authelia_oidc_grafana_client_secret = var.authelia_oidc_grafana_client_secret
 
   # blocky-svc:5432, referenced as a plain string in this module's own
   # datasources.yaml.tftpl (same convention modules/ingress's own
@@ -77,12 +80,16 @@ module "blocky" {
 module "authelia" {
   source = "./modules/authelia"
 
-  authelia_session_secret            = var.authelia_session_secret
-  authelia_storage_encryption_key    = var.authelia_storage_encryption_key
-  authelia_reset_password_jwt_secret = var.authelia_reset_password_jwt_secret
-  authelia_admin_password_hash       = var.authelia_admin_password_hash
-  alertmanager_ses_smtp_username     = var.alertmanager_ses_smtp_username
-  alertmanager_ses_smtp_password     = var.alertmanager_ses_smtp_password
+  authelia_session_secret                    = var.authelia_session_secret
+  authelia_storage_encryption_key            = var.authelia_storage_encryption_key
+  authelia_reset_password_jwt_secret         = var.authelia_reset_password_jwt_secret
+  authelia_admin_password_hash               = var.authelia_admin_password_hash
+  alertmanager_ses_smtp_username             = var.alertmanager_ses_smtp_username
+  alertmanager_ses_smtp_password             = var.alertmanager_ses_smtp_password
+  authelia_oidc_hmac_secret                  = var.authelia_oidc_hmac_secret
+  authelia_oidc_issuer_private_key           = var.authelia_oidc_issuer_private_key
+  authelia_oidc_grafana_client_secret_hash   = var.authelia_oidc_grafana_client_secret_hash
+  authelia_oidc_openwebui_client_secret_hash = var.authelia_oidc_openwebui_client_secret_hash
 }
 
 module "ingress" {
