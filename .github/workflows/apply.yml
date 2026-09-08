@@ -45,6 +45,12 @@ jobs:
       TF_VAR_authelia_storage_encryption_key: ${{ secrets.AUTHELIA_STORAGE_ENCRYPTION_KEY }}
       TF_VAR_authelia_reset_password_jwt_secret: ${{ secrets.AUTHELIA_RESET_PASSWORD_JWT_SECRET }}
       TF_VAR_authelia_admin_password_hash: ${{ secrets.AUTHELIA_ADMIN_PASSWORD_HASH }}
+      TF_VAR_authelia_oidc_hmac_secret: ${{ secrets.AUTHELIA_OIDC_HMAC_SECRET }}
+      TF_VAR_authelia_oidc_issuer_private_key: ${{ secrets.AUTHELIA_OIDC_ISSUER_PRIVATE_KEY }}
+      TF_VAR_authelia_oidc_grafana_client_secret_hash: ${{ secrets.AUTHELIA_OIDC_GRAFANA_CLIENT_SECRET_HASH }}
+      TF_VAR_authelia_oidc_openwebui_client_secret_hash: ${{ secrets.AUTHELIA_OIDC_OPENWEBUI_CLIENT_SECRET_HASH }}
+      TF_VAR_authelia_oidc_grafana_client_secret: ${{ secrets.AUTHELIA_OIDC_GRAFANA_CLIENT_SECRET }}
+      TF_VAR_authelia_oidc_openwebui_client_secret: ${{ secrets.AUTHELIA_OIDC_OPENWEBUI_CLIENT_SECRET }}
 
     steps:
       - name: Check out repository

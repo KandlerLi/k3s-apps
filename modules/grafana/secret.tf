@@ -21,6 +21,21 @@ resource "kubernetes_secret_v1" "grafana_admin_password" {
   type = "Opaque"
 }
 
+# Mounted at /run/secrets/grafana_oidc_client_secret via
+# GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE -- same "_FILE suffix, not
+# a raw env var" convention as grafana_admin_password above.
+resource "kubernetes_secret_v1" "grafana_oidc_client_secret" {
+  metadata {
+    name = "grafana-oidc-client-secret"
+  }
+
+  data = {
+    "grafana_oidc_client_secret" = var.authelia_oidc_grafana_client_secret
+  }
+
+  type = "Opaque"
+}
+
 # A Secret, not a ConfigMap, because the rendered file carries
 # blocky_postgres_password in plaintext -- matching home-infra's own
 # no_log: true on the equivalent Ansible task. Grafana just reads every
