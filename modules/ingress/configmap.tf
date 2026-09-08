@@ -182,18 +182,14 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               - apex-redirect
             tls:
               certResolver: letsencrypt
-          # Additive only, 2026-09-08: stands the portal up at
-          # auth.jkandler.de so a real login + TOTP enrollment can be
-          # verified end-to-end before anything live is repointed at
-          # it. authelia-chain deliberately carries no auth middleware
-          # of its own (bypass) -- Authelia's own access_control
-          # already marks this exact hostname bypass
+          # Stands the portal up at auth.jkandler.de -- added 2026-09-08
+          # as a deliberately additive first step (see git history),
+          # confirmed live with a real login + TOTP enrollment before
+          # the cutover below ever happened. authelia-chain carries no
+          # auth middleware of its own (bypass) -- Authelia's own
+          # access_control already marks this exact hostname bypass
           # (modules/authelia/secret.tf), and the portal has to be
           # reachable unauthenticated or nobody could ever log in.
-          # None of the five shared-auth-gated chains below reference
-          # the authelia-forward-auth middleware yet -- that's the
-          # deliberate, separate cutover step from the parked plan
-          # (PARKED.md), not part of this apply.
           auth:
             rule: "Host(`auth.jkandler.de`)"
             entryPoints:
@@ -258,17 +254,26 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
             chain:
               middlewares:
                 - nextcloud-secure-headers
+          # Kept defined (not deleted) after the 2026-09-08 cutover
+          # below, deliberately -- a fast rollback for each of the five
+          # chains that used to reference this is just swapping
+          # authelia-forward-auth back to shared-auth in that one
+          # chain, no rebuild needed, as long as this stays here.
+          # Remove for real only once Authelia's own auth has actually
+          # been running those chains for a while without issue.
           shared-auth:
             basicAuth:
               usersFile: /etc/traefik/users
               realm: Home Infrastructure
               removeHeader: true
-          # Defined but not yet referenced by any of the five chains
-          # below -- see the auth router's own comment above. Response
-          # headers match Authelia's own documented Traefik
-          # integration exactly (the four Remote-* headers its
-          # forward-auth endpoint sends back once a request is
-          # authenticated).
+          # The actual auth for all five of agent-chain/deluge-chain/
+          # grafana-chain/home-chain/kubernetes-dashboard-chain as of
+          # 2026-09-08 -- replaces shared-auth (Basic Auth) in each,
+          # after a real login + TOTP enrollment was confirmed working
+          # against the auth.jkandler.de portal above. Response headers
+          # match Authelia's own documented Traefik integration exactly
+          # (the four Remote-* headers its forward-auth endpoint sends
+          # back once a request is authenticated).
           authelia-forward-auth:
             forwardAuth:
               address: "http://authelia-svc:9091/api/authz/forward-auth"
@@ -310,7 +315,7 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           agent-chain:
             chain:
               middlewares:
-                - shared-auth
+                - authelia-forward-auth
                 - agent-rate-limit
                 - agent-request-limit
                 - agent-security-headers
@@ -349,7 +354,7 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           deluge-chain:
             chain:
               middlewares:
-                - shared-auth
+                - authelia-forward-auth
                 - deluge-rate-limit
                 - deluge-request-limit
                 - deluge-security-headers
@@ -373,7 +378,7 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           grafana-chain:
             chain:
               middlewares:
-                - shared-auth
+                - authelia-forward-auth
                 - grafana-rate-limit
                 - grafana-request-limit
                 - grafana-security-headers
@@ -397,7 +402,7 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           home-chain:
             chain:
               middlewares:
-                - shared-auth
+                - authelia-forward-auth
                 - home-rate-limit
                 - home-request-limit
                 - home-security-headers
@@ -421,7 +426,7 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           kubernetes-dashboard-chain:
             chain:
               middlewares:
-                - shared-auth
+                - authelia-forward-auth
                 - kubernetes-dashboard-rate-limit
                 - kubernetes-dashboard-request-limit
                 - kubernetes-dashboard-security-headers
