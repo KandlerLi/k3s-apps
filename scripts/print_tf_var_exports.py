@@ -17,7 +17,8 @@ Two sources, both decrypted via `sops -d` (never written back out here):
 - home-infra's own secrets.sops.yml, for the secrets every module here
   shares with home-infra's own Ansible-managed deployment of the same
   service (Deluge's web password, home_agent's GHCR/OpenAI credentials,
-  Grafana's admin password, Blocky's Postgres password).
+  Grafana's admin password, Blocky's Postgres password, Authelia's own
+  session/storage/reset-password secrets and admin password hash).
 - this repo's own secrets.sops.yml, for nextcloud_tools_app_password --
   deliberately NOT in home-infra's vault, since it's a separate,
   independently-revocable app password for this k3s copy (see
@@ -90,6 +91,22 @@ SECRET_SOURCES = [
         HOME_INFRA_SECRETS_FILE,
         "k3s_ingress_acme_dns01_secret_access_key",
         "k3s_ingress_acme_dns01_secret_access_key",
+    ),
+    (HOME_INFRA_SECRETS_FILE, "authelia_session_secret", "authelia_session_secret"),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "authelia_storage_encryption_key",
+        "authelia_storage_encryption_key",
+    ),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "authelia_reset_password_jwt_secret",
+        "authelia_reset_password_jwt_secret",
+    ),
+    (
+        HOME_INFRA_SECRETS_FILE,
+        "authelia_admin_password_hash",
+        "authelia_admin_password_hash",
     ),
 ]
 

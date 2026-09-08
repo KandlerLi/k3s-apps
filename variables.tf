@@ -142,3 +142,43 @@ variable "k3s_ingress_acme_dns01_secret_access_key" {
   type        = string
   sensitive   = true
 }
+
+variable "authelia_session_secret" {
+  description = <<-EOT
+    Same value as home-infra's authelia_session_secret SOPS secret.
+    See modules/authelia's own variable of the same name. Pass via
+    TF_VAR_authelia_session_secret at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "authelia_storage_encryption_key" {
+  description = <<-EOT
+    Same value as home-infra's authelia_storage_encryption_key SOPS
+    secret. See modules/authelia's own variable of the same name. Pass
+    via TF_VAR_authelia_storage_encryption_key at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "authelia_reset_password_jwt_secret" {
+  description = <<-EOT
+    Same value as home-infra's authelia_reset_password_jwt_secret SOPS
+    secret. See modules/authelia's own variable of the same name. Pass
+    via TF_VAR_authelia_reset_password_jwt_secret at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "authelia_admin_password_hash" {
+  description = <<-EOT
+    Same value as home-infra's authelia_admin_password_hash SOPS
+    secret. See modules/authelia's own variable of the same name. Pass
+    via TF_VAR_authelia_admin_password_hash at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}

@@ -182,6 +182,27 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               - apex-redirect
             tls:
               certResolver: letsencrypt
+          # Additive only, 2026-09-08: stands the portal up at
+          # auth.jkandler.de so a real login + TOTP enrollment can be
+          # verified end-to-end before anything live is repointed at
+          # it. authelia-chain deliberately carries no auth middleware
+          # of its own (bypass) -- Authelia's own access_control
+          # already marks this exact hostname bypass
+          # (modules/authelia/secret.tf), and the portal has to be
+          # reachable unauthenticated or nobody could ever log in.
+          # None of the five shared-auth-gated chains below reference
+          # the authelia-forward-auth middleware yet -- that's the
+          # deliberate, separate cutover step from the parked plan
+          # (PARKED.md), not part of this apply.
+          auth:
+            rule: "Host(`auth.jkandler.de`)"
+            entryPoints:
+              - websecure
+            service: authelia
+            middlewares:
+              - authelia-chain
+            tls:
+              certResolver: letsencrypt
 
         services:
           nextcloud:
@@ -219,6 +240,11 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               passHostHeader: true
               servers:
                 - url: "http://kubernetes-dashboard-svc:80"
+          authelia:
+            loadBalancer:
+              passHostHeader: true
+              servers:
+                - url: "http://authelia-svc:9091"
 
         middlewares:
           nextcloud-secure-headers:
@@ -237,6 +263,33 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               usersFile: /etc/traefik/users
               realm: Home Infrastructure
               removeHeader: true
+          # Defined but not yet referenced by any of the five chains
+          # below -- see the auth router's own comment above. Response
+          # headers match Authelia's own documented Traefik
+          # integration exactly (the four Remote-* headers its
+          # forward-auth endpoint sends back once a request is
+          # authenticated).
+          authelia-forward-auth:
+            forwardAuth:
+              address: "http://authelia-svc:9091/api/authz/forward-auth"
+              trustForwardHeader: true
+              authResponseHeaders:
+                - Remote-User
+                - Remote-Groups
+                - Remote-Email
+                - Remote-Name
+          authelia-security-headers:
+            headers:
+              contentTypeNosniff: true
+              frameDeny: true
+              referrerPolicy: no-referrer
+              permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+              stsSeconds: 31536000
+              stsIncludeSubdomains: false
+          authelia-chain:
+            chain:
+              middlewares:
+                - authelia-security-headers
           agent-rate-limit:
             rateLimit:
               average: 10
