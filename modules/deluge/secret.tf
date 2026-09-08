@@ -36,11 +36,26 @@ locals {
       format = 1
     }),
     jsonencode({
-      enabled_plugins          = []
-      default_daemon           = ""
-      pwd_salt                 = random_id.deluge_web_pwd_salt.hex
-      pwd_sha1                 = local.deluge_web_pwd_sha1
-      session_timeout          = 3600
+      enabled_plugins = []
+      default_daemon  = ""
+      pwd_salt        = random_id.deluge_web_pwd_salt.hex
+      pwd_sha1        = local.deluge_web_pwd_sha1
+      # Deluge has no "no login required" mode -- confirmed directly
+      # against its own auth.py source (deluge-torrent/deluge on
+      # GitHub): check_password() has no bypass, no special password
+      # value, no config flag to skip it. What IS real: its own
+      # session cookie refreshes on every request while active
+      # (make_expires(session_timeout) re-runs per valid request, see
+      # auth.py's _clean_sessions()/get_session_id()), so this is a
+      # sliding idle-timeout, not a fixed re-login schedule. Bumped
+      # from the 3600s (1 hour) default to a year, 2026-09-08, now
+      # that Authelia gates torrent.jkandler.de with real MFA'd
+      # session auth in front of this -- a long-lived Deluge-internal
+      # session is low risk (anyone who could reach this login page at
+      # all has already passed Authelia), and this makes Deluge's own
+      # login effectively one-time in practice without literally
+      # disabling auth, which isn't possible.
+      session_timeout          = 31536000
       sessions                 = {}
       sidebar_show_zero        = false
       sidebar_multiple_filters = true
