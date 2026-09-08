@@ -86,8 +86,24 @@ resource "kubernetes_deployment_v1" "authelia" {
             }
           }
 
+          # read_only_root_filesystem deliberately NOT set (defaults to
+          # false) -- confirmed live, 2026-09-08: with it true, the
+          # container crash-loops with only a generic "Errors occurred
+          # performing startup checks" fatal and no further detail, even
+          # at log.level: debug. Isolated via a throwaway debug Pod with
+          # the exact same volumes: relocating both the SQLite path and
+          # the users_database.yml path to already-writable locations
+          # didn't help, but dropping only this one security_context
+          # field (keeping run_as_non_root/run_as_user 65534/capabilities
+          # drop ALL exactly as below) let it start cleanly and log
+          # "Startup complete" -- so it's writing somewhere on its own
+          # root filesystem at startup that isn't /data, /config, or
+          # /tmp, and this minimal scratch-based image ships no
+          # debugging tools (no strace, no shell utilities beyond
+          # busybox) to pin down exactly where. Unlike
+          # modules/ingress's own Traefik container, this image isn't
+          # built for a fully read-only root.
           security_context {
-            read_only_root_filesystem  = true
             allow_privilege_escalation = false
             run_as_non_root            = true
             run_as_user                = 65534
