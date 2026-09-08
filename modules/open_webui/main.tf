@@ -124,6 +124,52 @@ resource "kubernetes_deployment_v1" "open_webui" {
             name  = "WEBUI_AUTH_COOKIE_SAME_SITE"
             value = "strict"
           }
+          # OIDC SSO against Authelia (modules/authelia's own
+          # identity_providers.oidc), added 2026-09-08 -- native login
+          # (ENABLE_LOGIN_FORM above) stays enabled as a fallback, this
+          # only adds a "Sign in with Authelia" option alongside it.
+          # OAUTH_MERGE_ACCOUNTS_BY_EMAIL matches Authelia's own
+          # documented Open WebUI integration guide -- reuses any
+          # existing native account with the same email rather than
+          # creating a duplicate.
+          env {
+            name  = "ENABLE_OAUTH_SIGNUP"
+            value = "True"
+          }
+          env {
+            name  = "OAUTH_MERGE_ACCOUNTS_BY_EMAIL"
+            value = "True"
+          }
+          env {
+            name  = "OAUTH_PROVIDER_NAME"
+            value = "Authelia"
+          }
+          env {
+            name  = "OAUTH_CLIENT_ID"
+            value = "open-webui"
+          }
+          env {
+            name = "OAUTH_CLIENT_SECRET"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.open_webui_oidc_client_secret.metadata[0].name
+                key  = "OAUTH_CLIENT_SECRET"
+              }
+            }
+          }
+          env {
+            name  = "OPENID_PROVIDER_URL"
+            value = "https://auth.jkandler.de/.well-known/openid-configuration"
+          }
+          env {
+            name  = "OAUTH_SCOPES"
+            value = "openid email profile groups"
+          }
+          env {
+            name  = "OAUTH_CODE_CHALLENGE_METHOD"
+            value = "S256"
+          }
+
           env {
             name  = "ENABLE_OLLAMA_API"
             value = "False"
