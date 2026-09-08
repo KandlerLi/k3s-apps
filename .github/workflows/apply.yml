@@ -30,7 +30,6 @@ jobs:
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "false"
       TF_VAR_in_cluster: "true"
-      TF_VAR_deluge_web_password: ${{ secrets.DELUGE_WEB_PASSWORD }}
       TF_VAR_home_agent_ghcr_token: ${{ secrets.HOME_AGENT_GHCR_TOKEN }}
       TF_VAR_home_agent_openai_api_key: ${{ secrets.HOME_AGENT_OPENAI_API_KEY }}
       TF_VAR_nextcloud_tools_app_password: ${{ secrets.NEXTCLOUD_TOOLS_APP_PASSWORD }}

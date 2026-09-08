@@ -22,8 +22,6 @@ module "kubernetes_dashboard" {
 
 module "deluge" {
   source = "./modules/deluge"
-
-  deluge_web_password = var.deluge_web_password
 }
 
 module "home_agent" {
