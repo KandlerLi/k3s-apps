@@ -90,6 +90,7 @@ module "authelia" {
   authelia_oidc_issuer_private_key           = var.authelia_oidc_issuer_private_key
   authelia_oidc_grafana_client_secret_hash   = var.authelia_oidc_grafana_client_secret_hash
   authelia_oidc_openwebui_client_secret_hash = var.authelia_oidc_openwebui_client_secret_hash
+  authelia_oidc_nextcloud_client_secret_hash = var.authelia_oidc_nextcloud_client_secret_hash
 }
 
 module "ingress" {

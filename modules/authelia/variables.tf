@@ -132,3 +132,22 @@ variable "authelia_oidc_openwebui_client_secret_hash" {
   type        = string
   sensitive   = true
 }
+
+variable "authelia_oidc_nextcloud_client_secret_hash" {
+  description = <<-EOT
+    pbkdf2-sha512 hash of Nextcloud's own OIDC client secret (config's
+    identity_providers.oidc.clients[].client_secret for the
+    "nextcloud" client) -- only the hash lives here. Unlike Grafana/
+    Open WebUI, the matching plaintext never flows through this repo
+    at all -- Nextcloud AIO runs on the homeserver
+    (infra/home-infra's own nextcloud_aio role), not in k3s, so the
+    plaintext goes straight into home-infra's own SOPS vault for
+    Ansible to read directly, no TF_VAR_/CI wiring needed for that
+    side. Generated the same way as the Grafana/Open WebUI client
+    secret hashes. Same value as home-infra's
+    authelia_oidc_nextcloud_client_secret_hash SOPS secret. Pass via
+    TF_VAR_authelia_oidc_nextcloud_client_secret_hash at apply time.
+  EOT
+  type        = string
+  sensitive   = true
+}

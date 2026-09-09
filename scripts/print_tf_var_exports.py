@@ -125,6 +125,11 @@ SECRET_SOURCES = [
     ),
     (
         HOME_INFRA_SECRETS_FILE,
+        "authelia_oidc_nextcloud_client_secret_hash",
+        "authelia_oidc_nextcloud_client_secret_hash",
+    ),
+    (
+        HOME_INFRA_SECRETS_FILE,
         "authelia_oidc_grafana_client_secret",
         "authelia_oidc_grafana_client_secret",
     ),

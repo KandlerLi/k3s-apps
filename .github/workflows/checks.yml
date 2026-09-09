@@ -86,6 +86,7 @@ jobs:
       TF_VAR_authelia_oidc_issuer_private_key: ${{ secrets.AUTHELIA_OIDC_ISSUER_PRIVATE_KEY }}
       TF_VAR_authelia_oidc_grafana_client_secret_hash: ${{ secrets.AUTHELIA_OIDC_GRAFANA_CLIENT_SECRET_HASH }}
       TF_VAR_authelia_oidc_openwebui_client_secret_hash: ${{ secrets.AUTHELIA_OIDC_OPENWEBUI_CLIENT_SECRET_HASH }}
+      TF_VAR_authelia_oidc_nextcloud_client_secret_hash: ${{ secrets.AUTHELIA_OIDC_NEXTCLOUD_CLIENT_SECRET_HASH }}
       TF_VAR_authelia_oidc_grafana_client_secret: ${{ secrets.AUTHELIA_OIDC_GRAFANA_CLIENT_SECRET }}
       TF_VAR_authelia_oidc_openwebui_client_secret: ${{ secrets.AUTHELIA_OIDC_OPENWEBUI_CLIENT_SECRET }}
 

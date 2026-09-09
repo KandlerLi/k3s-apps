@@ -52,14 +52,18 @@ resource "kubernetes_secret_v1" "authelia_config" {
               - 'k8s.jkandler.de'
             policy: two_factor
 
-      # OIDC provider, added 2026-09-08 -- lets Grafana and Open WebUI
-      # authenticate against Authelia directly (a real "Sign in with
-      # Authelia" button, not just the ingress-level forwardAuth gate
-      # in front of them) instead of each keeping its own separate
-      # native login. Native login stays enabled on both apps as a
-      # fallback -- this adds SSO as an option, doesn't remove the
-      # existing path, matching the same defense-in-depth instinct as
-      # keeping shared-auth defined after the ingress cutover.
+      # OIDC provider, added 2026-09-08 -- lets Grafana, Open WebUI, and
+      # (2026-09-09) Nextcloud authenticate against Authelia directly (a
+      # real "Sign in with Authelia" button, not just the ingress-level
+      # forwardAuth gate already in front of Grafana/the agent
+      # API/torrent/home/k8s-dashboard) instead of each keeping only
+      # its own separate native login. Grafana and Open WebUI have
+      # since had native login disabled entirely (see their own
+      # modules) once it was confirmed live that it silently skipped
+      # Authelia's own MFA requirement -- Nextcloud deliberately keeps
+      # native login enabled, since it may have other real accounts
+      # (family, other technical users) not necessarily tied to this
+      # same Authelia identity.
       identity_providers:
         oidc:
           hmac_secret: '${var.authelia_oidc_hmac_secret}'
@@ -158,6 +162,37 @@ resource "kubernetes_secret_v1" "authelia_config" {
               grant_types:
                 - 'authorization_code'
               token_endpoint_auth_method: 'client_secret_basic'
+            - client_id: 'nextcloud'
+              client_name: 'Nextcloud'
+              client_secret: '${var.authelia_oidc_nextcloud_client_secret_hash}'
+              public: false
+              authorization_policy: 'two_factor'
+              claims_policy: 'groups_in_id_token'
+              require_pkce: true
+              pkce_challenge_method: 'S256'
+              redirect_uris:
+                - 'https://nextcloud.jkandler.de/apps/user_oidc/code'
+              scopes:
+                - 'openid'
+                - 'profile'
+                - 'groups'
+                - 'email'
+              response_types:
+                - 'code'
+              grant_types:
+                - 'authorization_code'
+              # Nextcloud's own documented client_secret_post
+              # requirement (its own user_oidc app's own integration
+              # guide) -- different from Grafana/Open WebUI's
+              # client_secret_basic above, confirmed against Authelia's
+              # own official Nextcloud integration guide, not assumed
+              # to match the other two.
+              token_endpoint_auth_method: 'client_secret_post'
+              # Same unsigned-response pattern as Grafana's own client
+              # -- Authelia's own Nextcloud integration guide
+              # recommends this too.
+              access_token_signed_response_alg: 'none'
+              userinfo_signed_response_alg: 'none'
 
       session:
         secret: '${var.authelia_session_secret}'
