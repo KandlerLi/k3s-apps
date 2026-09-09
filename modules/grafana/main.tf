@@ -124,10 +124,10 @@ resource "kubernetes_deployment_v1" "grafana" {
             name  = "GF_AUTH_GENERIC_OAUTH_CLIENT_ID"
             value = "grafana"
           }
-          env {
-            name  = "GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE"
-            value = "/run/secrets/oidc/grafana_oidc_client_secret"
-          }
+          # client_secret deliberately NOT set here -- see the mounted
+          # grafana.ini (secret.tf's own comment) for why
+          # GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE doesn't actually
+          # work for this specific setting.
           env {
             name  = "GF_AUTH_GENERIC_OAUTH_SCOPES"
             value = "openid profile email groups"
@@ -231,12 +231,16 @@ resource "kubernetes_deployment_v1" "grafana" {
             mount_path = "/run/secrets"
             read_only  = true
           }
-          # A distinct directory from "admin-password" above -- two
-          # Secret-backed volumes can't both mount directly at the same
-          # /run/secrets path.
+          # /etc/grafana/grafana.ini, the official image's own default
+          # config path (confirmed live: its own baked-in copy there is
+          # a fully-commented example file, nothing active, safe to
+          # replace outright) -- see secret.tf's own comment for why
+          # this is a real ini file, not an env var, for this one
+          # setting specifically.
           volume_mount {
             name       = "oidc-client-secret"
-            mount_path = "/run/secrets/oidc"
+            mount_path = "/etc/grafana/grafana.ini"
+            sub_path   = "grafana.ini"
             read_only  = true
           }
           volume_mount {
