@@ -83,12 +83,37 @@ resource "kubernetes_secret_v1" "authelia_config" {
               # parser (verified with a standalone test before using
               # this here).
               key: "${replace(var.authelia_oidc_issuer_private_key, "\n", "\\n")}"
+          # Confirmed live, 2026-09-09: Authelia 4.39 deliberately keeps
+          # the ID Token near-empty by default (see the "resolved" note
+          # below on why that's not itself the bug) -- real claims
+          # (groups included) live on the UserInfo response instead,
+          # confirmed correct via `authelia debug oidc claims`. Grafana
+          # is documented to fall through to UserInfo for
+          # role_attribute_path if the ID Token lacks the claim, but a
+          # confirmed, open Grafana bug (grafana/grafana#106686) means
+          # it never actually does that in practice -- role_attribute_path
+          # only ever gets evaluated against the ID Token, so groups
+          # from UserInfo are silently ignored and every login lands as
+          # Viewer regardless of real group membership. Grafana's own
+          # debug logs showed this exactly: "Groups: [admins]" correctly
+          # extracted, "Role: Viewer" anyway. Worked around here, not in
+          # Grafana (nothing to configure on that side that would fix
+          # it) -- putting groups back into the ID Token directly
+          # sidesteps Grafana's broken fallback entirely.
+          claims_policies:
+            groups_in_id_token:
+              id_token:
+                - 'groups'
+                - 'email'
+                - 'email_verified'
+                - 'preferred_username'
           clients:
             - client_id: 'grafana'
               client_name: 'Grafana'
               client_secret: '${var.authelia_oidc_grafana_client_secret_hash}'
               public: false
               authorization_policy: 'two_factor'
+              claims_policy: 'groups_in_id_token'
               require_pkce: true
               pkce_challenge_method: 'S256'
               redirect_uris:
@@ -114,6 +139,11 @@ resource "kubernetes_secret_v1" "authelia_config" {
               client_secret: '${var.authelia_oidc_openwebui_client_secret_hash}'
               public: false
               authorization_policy: 'two_factor'
+              # Not confirmed broken for Open WebUI the way it is for
+              # Grafana (grafana/grafana#106686), but applying the same
+              # policy here too is harmless and pre-empts hitting the
+              # same class of issue.
+              claims_policy: 'groups_in_id_token'
               require_pkce: true
               pkce_challenge_method: 'S256'
               redirect_uris:
