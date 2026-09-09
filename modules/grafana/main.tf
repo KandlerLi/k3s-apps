@@ -102,16 +102,37 @@ resource "kubernetes_deployment_v1" "grafana" {
             name  = "GF_USERS_ALLOW_SIGN_UP"
             value = "false"
           }
+          # Confirmed live, 2026-09-09: with Authelia's own OIDC SSO
+          # working (below), native login stayed live as a deliberate
+          # fallback -- but Authelia's ingress-level gate only proves
+          # you reached a valid Authelia session (MFA required to get
+          # one); once past it, Grafana's own native login form was a
+          # second, completely independent credential that skips MFA
+          # entirely. disable_login_form alone only hides the UI --
+          # confirmed via Grafana's own community reports that the old
+          # password still works over HTTP Basic Auth even with the
+          # form hidden -- so this also disables auth.basic itself,
+          # the actual protocol-level switch, closing that gap for
+          # real rather than just hiding it. The GF_SECURITY_ADMIN_*
+          # account above still technically exists, it just can no
+          # longer log in by any means -- Authelia is now the only way
+          # in.
+          env {
+            name  = "GF_AUTH_DISABLE_LOGIN_FORM"
+            value = "true"
+          }
+          env {
+            name  = "GF_AUTH_BASIC_ENABLED"
+            value = "false"
+          }
 
           # OIDC SSO against Authelia (modules/authelia's own
-          # identity_providers.oidc), added 2026-09-08 -- native login
-          # (GF_SECURITY_ADMIN_* above) stays enabled as a fallback,
-          # this only adds a "Sign in with Authelia" option alongside
-          # it. Group->role mapping matches Authelia's own documented
-          # Grafana integration guide: the "admins" group (the only
-          # group that exists today, see modules/authelia's own
-          # users_database.yml) becomes Grafana Admin, everyone else
-          # defaults to Viewer.
+          # identity_providers.oidc), added 2026-09-08 -- now the only
+          # way to log in (see above). Group->role mapping matches
+          # Authelia's own documented Grafana integration guide: the
+          # "admins" group (the only group that exists today, see
+          # modules/authelia's own users_database.yml) becomes Grafana
+          # Admin, everyone else defaults to Viewer.
           env {
             name  = "GF_AUTH_GENERIC_OAUTH_ENABLED"
             value = "true"
