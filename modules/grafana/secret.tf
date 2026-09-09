@@ -21,16 +21,37 @@ resource "kubernetes_secret_v1" "grafana_admin_password" {
   type = "Opaque"
 }
 
-# Mounted at /run/secrets/grafana_oidc_client_secret via
-# GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE -- same "_FILE suffix, not
-# a raw env var" convention as grafana_admin_password above.
+# A real grafana.ini file, not GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE
+# -- confirmed live, 2026-09-08/09: that env var (the same "_FILE
+# suffix" convention grafana_admin_password above uses successfully)
+# left Grafana sending token_endpoint_auth_method 'none' at Authelia's
+# own token endpoint instead of 'client_secret_basic', i.e. Grafana
+# silently never actually read the secret -- Authelia's own logs
+# showed "Client authentication failed ... determined to be used
+# 'none'" on every real login attempt, and the mounted file/env var
+# both checked out fine inside the running Pod, so this isn't a wiring
+# mistake on this repo's own side. Matches a documented community
+# finding (authelia/authelia#7203) for the exact same Grafana+Authelia
+# combination: Grafana's own env-var config loader has a real gap for
+# this specific nested setting (auth.generic_oauth already has an
+# internal underscore, colliding with how GF_<section>_<key> parses
+# section names from key names) -- the fix there was the same one
+# applied here, a real grafana.ini file instead of an env var. Mounted
+# at /etc/grafana/grafana.ini, the official image's own default config
+# path, which layers underneath (not instead of) every other
+# GF_AUTH_GENERIC_OAUTH_* env var already set in main.tf -- Grafana
+# resolves each config key independently across sources, so this only
+# affects client_secret specifically.
 resource "kubernetes_secret_v1" "grafana_oidc_client_secret" {
   metadata {
     name = "grafana-oidc-client-secret"
   }
 
   data = {
-    "grafana_oidc_client_secret" = var.authelia_oidc_grafana_client_secret
+    "grafana.ini" = <<-EOT
+      [auth.generic_oauth]
+      client_secret = ${var.authelia_oidc_grafana_client_secret}
+    EOT
   }
 
   type = "Opaque"
