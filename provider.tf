@@ -44,3 +44,14 @@ provider "kubernetes" {
   cluster_ca_certificate = var.in_cluster ? file("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt") : null
   token                  = var.in_cluster ? file("/var/run/secrets/kubernetes.io/serviceaccount/token") : null
 }
+
+# Auth is ambient in both apply modes -- CI's own AWS OIDC role
+# assumption (aws-actions/configure-aws-credentials, .github/workflows/)
+# for the in-cluster case, a human's own `aws login` session otherwise
+# -- same as the S3 backend's own credential resolution above, no
+# separate config needed here. Added for secrets.tf's own
+# data "aws_secretsmanager_secret_version" reads, the
+# SOPS-to-Secrets-Manager cutover (PARKED.md).
+provider "aws" {
+  region = "eu-central-1"
+}
