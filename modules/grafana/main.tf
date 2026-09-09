@@ -86,19 +86,6 @@ resource "kubernetes_deployment_v1" "grafana" {
             name  = "GF_SERVER_ROOT_URL"
             value = "https://grafana.jkandler.de/"
           }
-          # Temporary, 2026-09-09 -- debugging why a real OIDC login
-          # isn't landing "julian" in the Admin org role despite
-          # Authelia's own `authelia debug oidc claims` confirming the
-          # groups claim (["admins"]) is present via the UserInfo
-          # endpoint. Revert once diagnosed.
-          env {
-            name  = "GF_LOG_LEVEL"
-            value = "debug"
-          }
-          env {
-            name  = "GF_LOG_FILTERS"
-            value = "oauth.generic_oauth:debug,user.sync:debug"
-          }
           env {
             name  = "GF_ANALYTICS_REPORTING_ENABLED"
             value = "false"
