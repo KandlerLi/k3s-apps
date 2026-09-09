@@ -48,6 +48,22 @@ resource "kubernetes_deployment_v1" "open_webui" {
         labels = {
           app = "open-webui"
         }
+
+        # Confirmed live, 2026-09-09: env.value_from.secret_key_ref is
+        # a read-once-at-container-start mechanism -- unlike a mounted
+        # volume, Kubernetes never refreshes it when the underlying
+        # Secret's own content changes later, and nothing else in this
+        # Deployment's pod template happens to change on a routine
+        # secret rotation either, so a stale Pod could silently keep
+        # serving an old/empty client_secret indefinitely with no
+        # rollout ever triggered. This is exactly the same class of
+        # bug modules/grafana's/modules/authelia's own checksum
+        # annotations already solve for their volume-mounted secrets,
+        # applied here to the one secretKeyRef-based value this module
+        # has.
+        annotations = {
+          "checksum/oidc-client-secret" = sha256(kubernetes_secret_v1.open_webui_oidc_client_secret.data["OAUTH_CLIENT_SECRET"])
+        }
       }
 
       spec {
@@ -84,13 +100,32 @@ resource "kubernetes_deployment_v1" "open_webui" {
             name  = "WEBUI_AUTH"
             value = "True"
           }
+          # Confirmed live, 2026-09-09: with Authelia's own OIDC SSO
+          # working (below), native login stayed enabled as a
+          # deliberate fallback -- but Authelia's ingress-level gate
+          # only proves you reached a valid Authelia session (MFA
+          # required to get one); once past it, Open WebUI's own
+          # native login/signup was a second, completely independent
+          # credential path that skipped MFA entirely.
+          # ENABLE_LOGIN_FORM=False alone only hides the UI (matches
+          # the same gap found in Grafana's own disable_login_form,
+          # see modules/grafana's identical comment) -- ENABLE_PASSWORD_AUTH=False
+          # is the actual protocol-level switch that disables password
+          # auth outright, closing that gap for real. ENABLE_SIGNUP=False
+          # stops new native accounts too, so there's no way to
+          # re-open this by creating one. Authelia is now the only way
+          # in.
           env {
             name  = "ENABLE_LOGIN_FORM"
-            value = "True"
+            value = "False"
+          }
+          env {
+            name  = "ENABLE_PASSWORD_AUTH"
+            value = "False"
           }
           env {
             name  = "ENABLE_SIGNUP"
-            value = "True"
+            value = "False"
           }
           env {
             name  = "DEFAULT_USER_ROLE"
@@ -125,13 +160,11 @@ resource "kubernetes_deployment_v1" "open_webui" {
             value = "strict"
           }
           # OIDC SSO against Authelia (modules/authelia's own
-          # identity_providers.oidc), added 2026-09-08 -- native login
-          # (ENABLE_LOGIN_FORM above) stays enabled as a fallback, this
-          # only adds a "Sign in with Authelia" option alongside it.
-          # OAUTH_MERGE_ACCOUNTS_BY_EMAIL matches Authelia's own
-          # documented Open WebUI integration guide -- reuses any
-          # existing native account with the same email rather than
-          # creating a duplicate.
+          # identity_providers.oidc), added 2026-09-08 -- now the only
+          # way to log in (see above). OAUTH_MERGE_ACCOUNTS_BY_EMAIL
+          # matches Authelia's own documented Open WebUI integration
+          # guide -- reuses any existing native account with the same
+          # email rather than creating a duplicate.
           env {
             name  = "ENABLE_OAUTH_SIGNUP"
             value = "True"
