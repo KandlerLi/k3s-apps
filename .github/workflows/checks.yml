@@ -67,28 +67,12 @@ jobs:
       # Selects the in-cluster auth branch in provider.tf -- see that
       # file's own comment for the two modes and why this is safe.
       TF_VAR_in_cluster: "true"
-      TF_VAR_home_agent_ghcr_token: ${{ secrets.HOME_AGENT_GHCR_TOKEN }}
-      TF_VAR_home_agent_openai_api_key: ${{ secrets.HOME_AGENT_OPENAI_API_KEY }}
-      TF_VAR_nextcloud_tools_app_password: ${{ secrets.NEXTCLOUD_TOOLS_APP_PASSWORD }}
-      TF_VAR_sankey_export_app_password: ${{ secrets.SANKEY_EXPORT_APP_PASSWORD }}
-      TF_VAR_grafana_admin_password: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-      TF_VAR_blocky_postgres_password: ${{ secrets.BLOCKY_POSTGRES_PASSWORD }}
-      TF_VAR_alertmanager_ses_smtp_username: ${{ secrets.ALERTMANAGER_SES_SMTP_USERNAME }}
-      TF_VAR_alertmanager_ses_smtp_password: ${{ secrets.ALERTMANAGER_SES_SMTP_PASSWORD }}
-      TF_VAR_shared_ingress_auth_password_hash: ${{ secrets.SHARED_INGRESS_AUTH_PASSWORD_HASH }}
-      TF_VAR_k3s_ingress_acme_dns01_access_key_id: ${{ secrets.K3S_INGRESS_ACME_DNS01_ACCESS_KEY_ID }}
-      TF_VAR_k3s_ingress_acme_dns01_secret_access_key: ${{ secrets.K3S_INGRESS_ACME_DNS01_SECRET_ACCESS_KEY }}
-      TF_VAR_authelia_session_secret: ${{ secrets.AUTHELIA_SESSION_SECRET }}
-      TF_VAR_authelia_storage_encryption_key: ${{ secrets.AUTHELIA_STORAGE_ENCRYPTION_KEY }}
-      TF_VAR_authelia_reset_password_jwt_secret: ${{ secrets.AUTHELIA_RESET_PASSWORD_JWT_SECRET }}
-      TF_VAR_authelia_admin_password_hash: ${{ secrets.AUTHELIA_ADMIN_PASSWORD_HASH }}
-      TF_VAR_authelia_oidc_hmac_secret: ${{ secrets.AUTHELIA_OIDC_HMAC_SECRET }}
-      TF_VAR_authelia_oidc_issuer_private_key: ${{ secrets.AUTHELIA_OIDC_ISSUER_PRIVATE_KEY }}
-      TF_VAR_authelia_oidc_grafana_client_secret_hash: ${{ secrets.AUTHELIA_OIDC_GRAFANA_CLIENT_SECRET_HASH }}
-      TF_VAR_authelia_oidc_openwebui_client_secret_hash: ${{ secrets.AUTHELIA_OIDC_OPENWEBUI_CLIENT_SECRET_HASH }}
-      TF_VAR_authelia_oidc_nextcloud_client_secret_hash: ${{ secrets.AUTHELIA_OIDC_NEXTCLOUD_CLIENT_SECRET_HASH }}
-      TF_VAR_authelia_oidc_grafana_client_secret: ${{ secrets.AUTHELIA_OIDC_GRAFANA_CLIENT_SECRET }}
-      TF_VAR_authelia_oidc_openwebui_client_secret: ${{ secrets.AUTHELIA_OIDC_OPENWEBUI_CLIENT_SECRET }}
+      # No more TF_VAR_<secret> lines -- secrets.tf reads them directly
+      # from AWS Secrets Manager now (the SOPS-to-Secrets-Manager
+      # cutover, PARKED.md). This plan role needs GetSecretValue too,
+      # not just apply's (unlike aws/dyndns's own metadata-only plan
+      # role) -- jsondecode() at plan time needs the real value to
+      # compute a diff. See repo-infra's own aws_policies.tf.
 
     steps:
       - name: Check out repository

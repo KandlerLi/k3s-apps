@@ -28,15 +28,15 @@ module "home_agent" {
   source = "./modules/home_agent"
 
   home_agent_image             = var.home_agent_image
-  home_agent_ghcr_token        = var.home_agent_ghcr_token
-  home_agent_openai_api_key    = var.home_agent_openai_api_key
-  nextcloud_tools_app_password = var.nextcloud_tools_app_password
+  home_agent_ghcr_token        = local.home_infra_home_agent["home_agent_ghcr_token"]
+  home_agent_openai_api_key    = local.home_infra_home_agent["home_agent_openai_api_key"]
+  nextcloud_tools_app_password = local.home_infra_home_agent["nextcloud_tools_app_password"]
 }
 
 module "open_webui" {
   source = "./modules/open_webui"
 
-  authelia_oidc_openwebui_client_secret = var.authelia_oidc_openwebui_client_secret
+  authelia_oidc_openwebui_client_secret = local.home_infra_open_webui["authelia_oidc_openwebui_client_secret"]
 
   depends_on = [module.home_agent]
 }
@@ -45,16 +45,16 @@ module "sankey_export" {
   source = "./modules/sankey_export"
 
   sankey_export_image        = var.sankey_export_image
-  sankey_export_ghcr_token   = var.home_agent_ghcr_token
-  sankey_export_app_password = var.sankey_export_app_password
+  sankey_export_ghcr_token   = local.home_infra_home_agent["home_agent_ghcr_token"]
+  sankey_export_app_password = local.k3s_apps_sankey_export["sankey_export_app_password"]
 }
 
 module "grafana" {
   source = "./modules/grafana"
 
-  grafana_admin_password              = var.grafana_admin_password
-  blocky_postgres_password            = var.blocky_postgres_password
-  authelia_oidc_grafana_client_secret = var.authelia_oidc_grafana_client_secret
+  grafana_admin_password              = local.home_infra_grafana["monitoring_grafana_admin_password"]
+  blocky_postgres_password            = local.home_infra_blocky["blocky_postgres_password"]
+  authelia_oidc_grafana_client_secret = local.home_infra_grafana["authelia_oidc_grafana_client_secret"]
 
   # blocky-svc:5432, referenced as a plain string in this module's own
   # datasources.yaml.tftpl (same convention modules/ingress's own
@@ -67,38 +67,38 @@ module "grafana" {
 module "alertmanager" {
   source = "./modules/alertmanager"
 
-  alertmanager_ses_smtp_username = var.alertmanager_ses_smtp_username
-  alertmanager_ses_smtp_password = var.alertmanager_ses_smtp_password
+  alertmanager_ses_smtp_username = local.home_infra_monitoring["monitoring_ses_smtp_username"]
+  alertmanager_ses_smtp_password = local.home_infra_monitoring["monitoring_ses_smtp_password"]
 }
 
 module "blocky" {
   source = "./modules/blocky"
 
-  blocky_postgres_password = var.blocky_postgres_password
+  blocky_postgres_password = local.home_infra_blocky["blocky_postgres_password"]
 }
 
 module "authelia" {
   source = "./modules/authelia"
 
-  authelia_session_secret                    = var.authelia_session_secret
-  authelia_storage_encryption_key            = var.authelia_storage_encryption_key
-  authelia_reset_password_jwt_secret         = var.authelia_reset_password_jwt_secret
-  authelia_admin_password_hash               = var.authelia_admin_password_hash
-  alertmanager_ses_smtp_username             = var.alertmanager_ses_smtp_username
-  alertmanager_ses_smtp_password             = var.alertmanager_ses_smtp_password
-  authelia_oidc_hmac_secret                  = var.authelia_oidc_hmac_secret
-  authelia_oidc_issuer_private_key           = var.authelia_oidc_issuer_private_key
-  authelia_oidc_grafana_client_secret_hash   = var.authelia_oidc_grafana_client_secret_hash
-  authelia_oidc_openwebui_client_secret_hash = var.authelia_oidc_openwebui_client_secret_hash
-  authelia_oidc_nextcloud_client_secret_hash = var.authelia_oidc_nextcloud_client_secret_hash
+  authelia_session_secret                    = local.home_infra_authelia["authelia_session_secret"]
+  authelia_storage_encryption_key            = local.home_infra_authelia["authelia_storage_encryption_key"]
+  authelia_reset_password_jwt_secret         = local.home_infra_authelia["authelia_reset_password_jwt_secret"]
+  authelia_admin_password_hash               = local.home_infra_authelia["authelia_admin_password_hash"]
+  alertmanager_ses_smtp_username             = local.home_infra_monitoring["monitoring_ses_smtp_username"]
+  alertmanager_ses_smtp_password             = local.home_infra_monitoring["monitoring_ses_smtp_password"]
+  authelia_oidc_hmac_secret                  = local.home_infra_authelia["authelia_oidc_hmac_secret"]
+  authelia_oidc_issuer_private_key           = local.home_infra_authelia["authelia_oidc_issuer_private_key"]
+  authelia_oidc_grafana_client_secret_hash   = local.home_infra_authelia["authelia_oidc_grafana_client_secret_hash"]
+  authelia_oidc_openwebui_client_secret_hash = local.home_infra_authelia["authelia_oidc_openwebui_client_secret_hash"]
+  authelia_oidc_nextcloud_client_secret_hash = local.home_infra_authelia["authelia_oidc_nextcloud_client_secret_hash"]
 }
 
 module "ingress" {
   source = "./modules/ingress"
 
-  shared_ingress_auth_password_hash        = var.shared_ingress_auth_password_hash
-  k3s_ingress_acme_dns01_access_key_id     = var.k3s_ingress_acme_dns01_access_key_id
-  k3s_ingress_acme_dns01_secret_access_key = var.k3s_ingress_acme_dns01_secret_access_key
+  shared_ingress_auth_password_hash        = local.home_infra_ingress["shared_ingress_auth_password_hash"]
+  k3s_ingress_acme_dns01_access_key_id     = local.home_infra_ingress["k3s_ingress_acme_dns01_access_key_id"]
+  k3s_ingress_acme_dns01_secret_access_key = local.home_infra_ingress["k3s_ingress_acme_dns01_secret_access_key"]
 
   # Every backend it routes to by Service name -- a plain string
   # inside a ConfigMap's own YAML content, not a real Terraform
