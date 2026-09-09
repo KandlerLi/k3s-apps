@@ -242,18 +242,23 @@ code doesn't need touching.
   homeserver, since the k3s VM's network is deliberately unreachable
   from the LAN otherwise) -- see that role's own README, and the plan
   in `home-infra`'s own history for the full staged rollout sequence.
-- `secrets.sops.yml` / `.sops.yaml` -- this repo's own sops vault, same
-  PGP key as `home-infra`'s. Holds only `nextcloud_tools_app_password`
-  -- every other secret this repo's modules need is read straight out
-  of `home-infra`'s own vault instead of duplicated here (see
-  `scripts/export-tf-vars.sh`).
-- `scripts/export-tf-vars.sh` (thin wrapper around
-  `scripts/print_tf_var_exports.py`) -- decrypts and exports every
-  `TF_VAR_*` secret in one `source` instead of typing each
-  `TF_VAR_...="$(sops -d ...)"` by hand. See "Running it from your
-  laptop" below.
+- `secrets.tf` -- reads every secret this repo's modules need straight
+  from AWS Secrets Manager at plan/apply time (`data
+  "aws_secretsmanager_secret_version"` + `jsondecode`), not a
+  `TF_VAR_*` a human or CI has to supply. Replaced the old
+  `secrets.sops.yml` / `scripts/export-tf-vars.sh` flow entirely
+  2026-09-09 (the SOPS-to-Secrets-Manager cutover, `PARKED.md`) -- both
+  are gone, including this repo's own separate SOPS vault.
+  `nextcloud_tools_app_password` moved into the shared
+  `home-infra/home-agent` Secrets Manager group alongside
+  `home_agent_ghcr_token`/`home_agent_openai_api_key` -- it's still a
+  separate, independently-revocable app password for this k3s copy
+  (see `modules/home_agent/variables.tf`), just no longer kept in a
+  physically separate vault to express that; the AWS-side grouping is
+  by owning repo/service now, not by revocability.
 - `terraform.tfvars` -- `home_agent_image`'s pinned digest. Not a
-  secret, tracked directly rather than exported like the values above.
+  secret, tracked directly rather than read from Secrets Manager like
+  the values above.
 
 ## Running it from your laptop
 
@@ -276,36 +281,26 @@ is exactly what the tunnel above fakes -- so it works unmodified):
 scp -o ProxyJump=julian@192.168.178.100 ansible@192.168.101.10:/etc/rancher/k3s/k3s.yaml ~/.kube/k3s-node-1.yaml
 ```
 
-Then, with the tunnel still open in its own terminal (assumes
-`home-infra` is checked out as a sibling directory -- set
-`HOME_INFRA_DIR` if yours lives somewhere else):
+Then, with the tunnel still open in its own terminal:
 
 ```
 git clone https://github.com/KandlerLi/k3s-apps.git
 cd k3s-apps
 terraform init
-source scripts/export-tf-vars.sh
 terraform plan
 terraform apply
 ```
 
-`scripts/export-tf-vars.sh` decrypts every `TF_VAR_*` secret this
-repo's modules need and exports them into your current shell --
-`deluge_web_password`, `home_agent_ghcr_token`,
-`home_agent_openai_api_key`, `grafana_admin_password`,
-`blocky_postgres_password`, and `github_runner_github_token` come from
-home-infra's own `secrets.sops.yml` (the same value already applied
-there);
-`nextcloud_tools_app_password` comes from this repo's own
-`secrets.sops.yml` -- deliberately not in home-infra's vault, since
-it's a separate, independently-revocable app password for this k3s
-copy (see `modules/home_agent/variables.tf`). Fill that one in once via
-`sops secrets.sops.yml` before the first apply; it starts out as a
-`CHANGE_ME` placeholder, and the script refuses to export it
-unfilled rather than silently passing that placeholder through.
-`home_agent_image` isn't a secret -- it's just a pinned public digest
-string, tracked directly in this repo's own `terraform.tfvars`
-instead, updated by hand after each meaningful `home-agent` build.
+No secrets export step needed any more -- `secrets.tf` reads every
+secret this repo's modules need straight from AWS Secrets Manager, the
+same way `terraform init`/`plan`/`apply` already need AWS credentials
+for the S3 state backend below. Your own `aws login` session (the
+`julian` operator identity) already has read access to every secret
+group this repo touches (`bootstrap/terraform-state`'s own
+`operator.tf`). `home_agent_image` isn't a secret -- it's just a
+pinned public digest string, tracked directly in this repo's own
+`terraform.tfvars` instead, updated by hand after each meaningful
+`home-agent` build.
 
 No `KUBECONFIG=...` prefix needed for the `terraform` commands above --
 unlike `kubectl`, the `kubernetes` provider does **not** read that
@@ -315,11 +310,11 @@ of this file assumed it did, which silently fell back to querying
 `config_path` straight at `~/.kube/k3s-node-1.yaml` instead, so it isn't
 dependent on how you invoke the shell.
 
-State is local (`terraform.tfstate`, gitignored) -- there's no S3
-backend like every other Terraform repo in this homelab uses, because
-that would mean putting AWS credentials on your laptop's local runs for
-no real benefit yet. Move to a remote backend later if/when this
-cluster holds something worth protecting against that file being lost.
+State is remote (`versions.tf`'s own `backend "s3"` block, same
+`jkandler-terraform-state` bucket every other Terraform repo in this
+homelab uses) -- moved off local state 2026-09-03, once this repo
+started being applied by CI as well as locally; CI is ephemeral and
+can't rely on a local state file the way a laptop-only setup could.
 
 ## Relationship to the Ansible-managed originals
 
