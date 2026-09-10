@@ -8,7 +8,7 @@
 # first, on the homeserver:
 #
 #   docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:add \
-#     --user sankey-export --name "rotate-$(date +%F)"
+#     --name "rotate-$(date +%F)" -- sankey-export
 #
 # then run this with the printed token:
 #
@@ -122,7 +122,9 @@ else
   echo "  kubectl get pods -l app=sankey-export --sort-by=.metadata.creationTimestamp"
 fi
 cat <<'EOF'
-  docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:list --user sankey-export
-  # delete every entry EXCEPT the one you just minted for this rotation:
-  docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:delete --user sankey-export <OLD_ID>
+  docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:list sankey-export
+  # then delete every entry EXCEPT the one you just minted for this
+  # rotation -- if the arg order below is rejected, run the command with
+  # --help; occ prints its own usage (as it does for :add):
+  docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:delete <OLD_ID> sankey-export
 EOF
