@@ -10,10 +10,12 @@
 #   docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:add \
 #     --name "rotate-$(date +%F)" -- sankey-export
 #
-# then run this with the printed token:
+# then give it the printed token. Default is a silent prompt -- nothing
+# echoed, nothing in shell history:
 #
-#   scripts/rotate-sankey-export-app-password.sh 'the-new-token'
-#   scripts/rotate-sankey-export-app-password.sh -   # read token from stdin
+#   scripts/rotate-sankey-export-app-password.sh          # prompts silently
+#   scripts/rotate-sankey-export-app-password.sh -        # read from a pipe
+#   scripts/rotate-sankey-export-app-password.sh 'token'  # arg (lands in history)
 #
 # It merges the token into the k3s-apps/sankey-export secret
 # (put-secret-value -- the blessed out-of-band write for these
@@ -49,24 +51,35 @@ cleanup() {
     pkill -f "${tunnel_pattern}" || true
   fi
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 fail() {
   echo "rotate-sankey-export-app-password: $1" >&2
   exit 1
 }
 
-[ $# -eq 1 ] || fail "usage: $(basename "$0") <new-token>|-"
+[ $# -le 1 ] || fail "usage: $(basename "$0") [<new-token>|-]"
 command -v jq >/dev/null || fail "jq not found"
 command -v aws >/dev/null || fail "aws not found"
 command -v terraform >/dev/null || fail "terraform not found"
 command -v kubectl >/dev/null || fail "kubectl not found"
 command -v ssh >/dev/null || fail "ssh not found"
 
-new_token="$1"
-if [ "${new_token}" = "-" ]; then
-  new_token="$(cat)"
-fi
+arg="${1:--prompt}"
+case "${arg}" in
+  -prompt)
+    # silent read -- not echoed, not in shell history (the command has
+    # no token argument). Paste + Enter.
+    read -rsp "paste the new sankey-export token (input hidden): " new_token
+    echo >&2
+    ;;
+  -)
+    new_token="$(cat)"
+    ;;
+  *)
+    new_token="${arg}"
+    ;;
+esac
 new_token="${new_token#"${new_token%%[![:space:]]*}"}" # ltrim
 new_token="${new_token%"${new_token##*[![:space:]]}"}" # rtrim
 [ -n "${new_token}" ] || fail "empty token"
