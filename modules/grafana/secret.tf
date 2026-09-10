@@ -1,3 +1,16 @@
+# Grafana's local admin account can no longer log in by any means --
+# GF_AUTH_DISABLE_LOGIN_FORM + GF_AUTH_BASIC_ENABLED=false in main.tf,
+# Authelia OIDC is the only way in. So this password is inert: it isn't
+# a shared secret any more (dropped from the home-infra/grafana Secrets
+# Manager group 2026-09-10), just a value Grafana needs *some* file for.
+# A throwaway random_password rather than a fixed placeholder, so if
+# those two GF_AUTH_* switches are ever rolled back by accident there's
+# still no known-value admin login. Nothing reads it; not an output.
+resource "random_password" "grafana_admin" {
+  length  = 40
+  special = false
+}
+
 # Mounted at /run/secrets/grafana_admin_password via
 # GF_SECURITY_ADMIN_PASSWORD__FILE -- same "_FILE suffix, not a raw env
 # var" convention as home-infra's own Grafana deployment and this
@@ -15,7 +28,7 @@ resource "kubernetes_secret_v1" "grafana_admin_password" {
   # anyway (silently falling back to the default admin/admin login)
   # instead of failing loudly, which is what made it easy to miss.
   data = {
-    "grafana_admin_password" = var.grafana_admin_password
+    "grafana_admin_password" = random_password.grafana_admin.result
   }
 
   type = "Opaque"

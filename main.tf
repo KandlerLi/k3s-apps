@@ -52,7 +52,6 @@ module "sankey_export" {
 module "grafana" {
   source = "./modules/grafana"
 
-  grafana_admin_password              = local.home_infra_grafana["monitoring_grafana_admin_password"]
   blocky_postgres_password            = local.home_infra_blocky["blocky_postgres_password"]
   authelia_oidc_grafana_client_secret = local.home_infra_grafana["authelia_oidc_grafana_client_secret"]
 
