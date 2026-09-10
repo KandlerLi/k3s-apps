@@ -136,20 +136,23 @@ terraform init -input=false >/dev/null
 terraform apply
 
 echo "==> waiting for the next sankey-export CronJob run to finish (up to 3 min)"
+# The pod list is sorted here in `sort`, not via kubectl --sort-by: the
+# latter throws "the server rejected our request for an unknown reason"
+# against this k3s version. Newest pod = last line.
 deadline=$(( $(date +%s) + 180 ))
 last_seen=""
 while [ "$(date +%s)" -lt "${deadline}" ]; do
   newest="$(kubectl get pods -l app=sankey-export \
-    --sort-by=.metadata.creationTimestamp \
-    -o jsonpath='{range .items[-1:]}{.metadata.name}{" "}{.status.phase}{end}' 2>/dev/null || true)"
+    -o jsonpath='{range .items[*]}{.metadata.creationTimestamp}{"\t"}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}' \
+    2>/dev/null | sort | tail -n1 | cut -f2,3 || true)"
   if [ -n "${newest}" ] && [ "${newest}" != "${last_seen}" ]; then
     echo "    ${newest}"
     last_seen="${newest}"
   fi
   case "${newest}" in
-    *" Succeeded") echo "==> new token works -- the CronJob completed."; ok=1; break ;;
-    *" Failed")    echo "==> newest run FAILED -- check its logs before revoking anything:"; \
-                   echo "    kubectl logs $(echo "${newest}" | cut -d' ' -f1)"; ok=0; break ;;
+    *$'\t'"Succeeded") echo "==> new token works -- the CronJob completed."; ok=1; break ;;
+    *$'\t'"Failed")    echo "==> newest run FAILED -- check its logs before revoking anything:"; \
+                       echo "    kubectl logs $(echo "${newest}" | cut -f1)"; ok=0; break ;;
   esac
   sleep 5
 done
@@ -160,7 +163,8 @@ if [ "${ok}" = "1" ]; then
   echo "Rotation applied and verified. Now revoke the OLD token on the homeserver:"
 else
   echo "Could not confirm a successful run in time. Check the CronJob before revoking:"
-  echo "  kubectl get pods -l app=sankey-export --sort-by=.metadata.creationTimestamp"
+  echo "  kubectl get pods -l app=sankey-export -o wide   # newest by AGE"
+  echo "  kubectl logs -l app=sankey-export --tail=30"
 fi
 cat <<'EOF'
   docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:list sankey-export
