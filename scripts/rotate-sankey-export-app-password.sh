@@ -23,16 +23,33 @@
 # old token. It never touches the old token itself -- both stay valid
 # until you delete the old one, so there's no blackout window.
 #
-# Needs, none of which it sets up: an `aws login` session with
+# Needs, which it does NOT set up: an `aws login` session with
 # PutSecretValue on k3s-apps/sankey-export (julian's own operator
-# identity has it), the SSH tunnel + kubeconfig `terraform apply` here
-# already needs (see README's "Running it from your laptop"), and `jq`.
+# identity has it), a working kubeconfig at ~/.kube/k3s-node-1.yaml (the
+# one-time scp in README's "Running it from your laptop"), and `jq`.
+#
+# What it DOES set up: the SSH tunnel to the k3s apiserver -- same
+# pattern as bootstrap/k3s-bootstrap's own roll-out.sh: if one is
+# already open it's left alone, if this script opens it the script
+# closes it again on exit.
 
 set -euo pipefail
 
 secret_id="k3s-apps/sankey-export"
 json_key="sankey_export_app_password"
 region="eu-central-1"
+tunnel_pattern="ssh.*-L 6443:192.168.101.10:6443"
+
+tmp=""
+tunnel_started_by_this_script=0
+cleanup() {
+  [ -n "${tmp}" ] && rm -f "${tmp}"
+  if [ "${tunnel_started_by_this_script}" -eq 1 ]; then
+    echo "==> closing the SSH tunnel this script started"
+    pkill -f "${tunnel_pattern}" || true
+  fi
+}
+trap cleanup EXIT
 
 fail() {
   echo "rotate-sankey-export-app-password: $1" >&2
@@ -43,6 +60,8 @@ fail() {
 command -v jq >/dev/null || fail "jq not found"
 command -v aws >/dev/null || fail "aws not found"
 command -v terraform >/dev/null || fail "terraform not found"
+command -v kubectl >/dev/null || fail "kubectl not found"
+command -v ssh >/dev/null || fail "ssh not found"
 
 new_token="$1"
 if [ "${new_token}" = "-" ]; then
@@ -62,6 +81,16 @@ cd "${repo_root}"
 # terraform reads its own kubeconfig from provider.tf's config_path; kubectl
 # (used only for the post-apply CronJob check) needs to be told the same one.
 export KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/k3s-node-1.yaml}"
+[ -f "${KUBECONFIG}" ] || fail "${KUBECONFIG} not found -- see README's 'Running it from your laptop'"
+
+if pgrep -f "${tunnel_pattern}" >/dev/null 2>&1; then
+  echo "==> SSH tunnel already open, leaving it alone"
+else
+  echo "==> starting SSH tunnel to the k3s apiserver"
+  ssh -f -N -L 6443:192.168.101.10:6443 julian@192.168.178.100
+  tunnel_started_by_this_script=1
+  sleep 1
+fi
 
 echo "==> reading the current ${secret_id} value"
 current_json="$(aws secretsmanager get-secret-value \
@@ -78,8 +107,7 @@ fi
 
 new_json="$(echo "${current_json}" | jq --arg k "${json_key}" --arg v "${new_token}" '.[$k] = $v')"
 
-tmp="$(mktemp)"
-trap 'rm -f "${tmp}"' EXIT
+tmp="$(mktemp)"  # removed by cleanup() on EXIT
 printf '%s' "${new_json}" > "${tmp}"
 
 echo "==> writing the new token into ${secret_id}"
