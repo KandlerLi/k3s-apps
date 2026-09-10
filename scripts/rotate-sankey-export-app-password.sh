@@ -180,8 +180,7 @@ else
 fi
 cat <<'EOF'
   docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:list sankey-export
-  # then delete every entry EXCEPT the one you just minted for this
-  # rotation -- if the arg order below is rejected, run the command with
-  # --help; occ prints its own usage (as it does for :add):
-  docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:delete <OLD_ID> sankey-export
+  # then delete every id EXCEPT the one you just minted for this rotation
+  # (note: :delete takes <uid> then <id>, the opposite order from :add):
+  docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:delete sankey-export <OLD_ID>
 EOF
