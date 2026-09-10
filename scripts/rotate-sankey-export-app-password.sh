@@ -59,6 +59,10 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(dirname "${script_dir}")"
 cd "${repo_root}"
 
+# terraform reads its own kubeconfig from provider.tf's config_path; kubectl
+# (used only for the post-apply CronJob check) needs to be told the same one.
+export KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/k3s-node-1.yaml}"
+
 echo "==> reading the current ${secret_id} value"
 current_json="$(aws secretsmanager get-secret-value \
   --secret-id "${secret_id}" --region "${region}" \
