@@ -1,13 +1,3 @@
-variable "grafana_admin_password" {
-  description = <<-EOT
-    Grafana's own admin login password. Same value as home-infra's
-    monitoring_grafana_admin_password SOPS secret -- pass it via
-    TF_VAR_grafana_admin_password at apply time, never given a default.
-  EOT
-  type        = string
-  sensitive   = true
-}
-
 variable "blocky_postgres_password" {
   description = <<-EOT
     Password for the blocky-postgresql datasource's read access to
