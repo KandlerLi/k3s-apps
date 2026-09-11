@@ -58,22 +58,31 @@ resource "kubernetes_deployment_v1" "ingress" {
           app = "ingress"
         }
 
-        # Both of these sources are mounted below via sub_path
-        # (static-config/dynamic-config), and Kubernetes never
-        # live-propagates a ConfigMap/Secret change into a sub_path
-        # mount -- only a real Pod recreation picks up new content.
-        # Confirmed live (2026-09-02, back when a third source --
-        # the now-retired Basic Auth users file -- was mounted the
-        # same way): rotating that password updated the Secret object
-        # fine, but the running Pod kept serving the old hash until a
-        # manual `kubectl rollout restart` was run. These checksums
-        # make that automatic: changing either source changes the pod
-        # template itself, so Kubernetes rolls a fresh Pod on its own
-        # -- exactly when, and only when, one of them actually
-        # changes.
+        # static-config/dynamic-config are mounted below via sub_path,
+        # and acme-dns01-credentials is consumed via
+        # env.valueFrom.secretKeyRef -- two different mechanisms, but
+        # Kubernetes never live-propagates either kind of update into
+        # an already-running container: a sub_path mount only picks up
+        # new ConfigMap/Secret content on a real Pod recreation, and
+        # secretKeyRef env vars are read once at container start and
+        # never refreshed at all. Confirmed live (2026-09-02, back when
+        # a third sub_path source -- the now-retired Basic Auth users
+        # file -- was mounted the same way): rotating that password
+        # updated the Secret object fine, but the running Pod kept
+        # serving the old hash until a manual `kubectl rollout restart`
+        # was run. checksum/acme-dns01-credentials was added
+        # 2026-09-11 after the same gap bit a real ACME key rotation --
+        # the Secret updated fine, but the already-running Pod kept
+        # using the just-deleted IAM key in memory until a manual
+        # restart, caught and fixed by hand only because it was being
+        # watched for at the time. These checksums make it automatic:
+        # changing any of the three sources changes the pod template
+        # itself, so Kubernetes rolls a fresh Pod on its own -- exactly
+        # when, and only when, one of them actually changes.
         annotations = {
-          "checksum/static-config"  = sha256(kubernetes_config_map_v1.ingress_static_config.data["traefik.yml"])
-          "checksum/dynamic-config" = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["routes.yml"])
+          "checksum/static-config"          = sha256(kubernetes_config_map_v1.ingress_static_config.data["traefik.yml"])
+          "checksum/dynamic-config"         = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["routes.yml"])
+          "checksum/acme-dns01-credentials" = sha256(jsonencode(kubernetes_secret_v1.ingress_acme_dns01_credentials.data))
         }
       }
 
