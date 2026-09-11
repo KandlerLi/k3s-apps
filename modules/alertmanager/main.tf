@@ -49,6 +49,21 @@ resource "kubernetes_deployment_v1" "alertmanager" {
         labels = {
           app = "alertmanager"
         }
+
+        # alertmanager_config is mounted as a whole directory (no
+        # sub_path -- see below), so unlike modules/ingress's own
+        # sub_path mounts, kubelet *does* eventually sync a changed
+        # Secret into it (~60-90s). Whether Alertmanager itself then
+        # actually reloads a changed config.file live wasn't confirmed
+        # either way, so rather than depend on that plus an
+        # unspecified sync delay, this checksum forces the same
+        # deterministic, immediate Pod recreation every other Secret
+        # consumer in this repo already gets -- added 2026-09-11
+        # ahead of a real SES SMTP credential rotation, not found live
+        # the hard way this time.
+        annotations = {
+          "checksum/config" = sha256(kubernetes_secret_v1.alertmanager_config.data["alertmanager.yml"])
+        }
       }
 
       spec {
