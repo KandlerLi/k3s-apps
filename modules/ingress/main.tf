@@ -58,22 +58,22 @@ resource "kubernetes_deployment_v1" "ingress" {
           app = "ingress"
         }
 
-        # Every one of these three sources is mounted below via
-        # sub_path (static-config/dynamic-config/users), and
-        # Kubernetes never live-propagates a ConfigMap/Secret change
-        # into a sub_path mount -- only a real Pod recreation picks up
-        # new content. Confirmed live (2026-09-02): rotating the
-        # Basic Auth password updated the Secret object fine, but the
-        # running Pod kept serving the old hash until a manual
-        # `kubectl rollout restart` was run. These checksums make
-        # that automatic: changing any of the three sources changes
-        # the pod template itself, so Kubernetes rolls a fresh Pod on
-        # its own -- exactly when, and only when, one of them
-        # actually changes.
+        # Both of these sources are mounted below via sub_path
+        # (static-config/dynamic-config), and Kubernetes never
+        # live-propagates a ConfigMap/Secret change into a sub_path
+        # mount -- only a real Pod recreation picks up new content.
+        # Confirmed live (2026-09-02, back when a third source --
+        # the now-retired Basic Auth users file -- was mounted the
+        # same way): rotating that password updated the Secret object
+        # fine, but the running Pod kept serving the old hash until a
+        # manual `kubectl rollout restart` was run. These checksums
+        # make that automatic: changing either source changes the pod
+        # template itself, so Kubernetes rolls a fresh Pod on its own
+        # -- exactly when, and only when, one of them actually
+        # changes.
         annotations = {
           "checksum/static-config"  = sha256(kubernetes_config_map_v1.ingress_static_config.data["traefik.yml"])
           "checksum/dynamic-config" = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["routes.yml"])
-          "checksum/users"          = sha256(kubernetes_secret_v1.ingress_users.data["users"])
         }
       }
 
@@ -179,12 +179,6 @@ resource "kubernetes_deployment_v1" "ingress" {
             read_only  = true
           }
           volume_mount {
-            name       = "users"
-            mount_path = "/etc/traefik/users"
-            sub_path   = "users"
-            read_only  = true
-          }
-          volume_mount {
             name       = "acme"
             mount_path = "/letsencrypt"
           }
@@ -225,12 +219,6 @@ resource "kubernetes_deployment_v1" "ingress" {
           name = "dynamic-config"
           config_map {
             name = kubernetes_config_map_v1.ingress_dynamic_config.metadata[0].name
-          }
-        }
-        volume {
-          name = "users"
-          secret {
-            secret_name = kubernetes_secret_v1.ingress_users.metadata[0].name
           }
         }
         volume {

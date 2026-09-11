@@ -95,7 +95,6 @@ module "authelia" {
 module "ingress" {
   source = "./modules/ingress"
 
-  shared_ingress_auth_password_hash        = local.home_infra_ingress["shared_ingress_auth_password_hash"]
   k3s_ingress_acme_dns01_access_key_id     = local.home_infra_ingress["k3s_ingress_acme_dns01_access_key_id"]
   k3s_ingress_acme_dns01_secret_access_key = local.home_infra_ingress["k3s_ingress_acme_dns01_secret_access_key"]
 
