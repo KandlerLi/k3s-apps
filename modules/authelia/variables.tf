@@ -36,10 +36,8 @@ variable "authelia_reset_password_jwt_secret" {
 variable "authelia_admin_password_hash" {
   description = <<-EOT
     Argon2id hash of Julian's own Authelia login password (the file
-    authentication_backend's users_database.yml) -- same
-    plaintext-stays-in-the-password-manager, only-the-hash-in-SOPS
-    convention as home-infra's shared_ingress_auth_password_hash.
-    Generated with:
+    authentication_backend's users_database.yml) -- plaintext stays in
+    the password manager, only the hash lives here. Generated with:
       docker run --rm authelia/authelia:4.39.22 \
         authelia crypto hash generate argon2 --password '<password>'
     Same value as home-infra's authelia_admin_password_hash SOPS

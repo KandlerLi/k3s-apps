@@ -254,16 +254,6 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
             chain:
               middlewares:
                 - nextcloud-secure-headers
-          # Not currently referenced by any chain -- kept defined as
-          # the fast rollback path (swap authelia-forward-auth back to
-          # this in one chain, no rebuild) if Authelia's own storage
-          # issue (see authelia-forward-auth's own comment below)
-          # recurs after the 2026-09-08 re-cutover.
-          shared-auth:
-            basicAuth:
-              usersFile: /etc/traefik/users
-              realm: Home Infrastructure
-              removeHeader: true
           # Re-cut over 2026-09-08 (same day as the original cutover
           # and its rollback -- see PARKED.md's own detailed writeup)
           # after real, deliberate load testing (sequential and
@@ -274,8 +264,15 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           # worth continuing to block production auth on indefinitely.
           # If it recurs, the fix is the same known ~5-minute drill
           # (recreate db.sqlite3, possibly re-enroll TOTP) that resolved
-          # it both times before, or fall back to shared-auth above.
-          # Response headers match Authelia's own documented Traefik
+          # it both times before -- see BACKLOG.md's own tracked item.
+          # The shared-auth Basic Auth middleware that used to serve as
+          # an instant one-line rollback for this was deliberately
+          # retired 2026-09-11 (the underlying ingress/password Secrets
+          # Manager keys were dead weight once every chain had actually
+          # held stable on forward-auth for days) -- there is no
+          # equivalent instant fallback any more; recovery is the
+          # drill above or a slower rebuild of the old middleware from
+          # git history. Response headers match Authelia's own documented Traefik
           # integration exactly (the four Remote-* headers its
           # forward-auth endpoint sends back once a request is
           # authenticated).
