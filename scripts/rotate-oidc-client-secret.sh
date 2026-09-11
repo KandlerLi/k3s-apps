@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # Rotate an Authelia OIDC client secret pair: Authelia holds a pbkdf2
 # hash (home-infra/authelia), the client holds the matching plaintext
-# (its own Secrets Manager group). Covers grafana and openwebui --
-# both Terraform-consumed, one `terraform apply` rolls Authelia and the
-# client Deployment together, in sync. nextcloud is NOT handled here --
-# its plaintext flows through infra/home-infra's own Ansible, not
-# Terraform (see rotate-secrets.md's Category C for that procedure).
+# (its own Secrets Manager group). Covers grafana, openwebui, and
+# nextcloud -- grafana/openwebui are both Terraform-consumed, one
+# `terraform apply` rolls Authelia and the client Deployment together,
+# in sync. nextcloud is different: Nextcloud AIO runs on the
+# homeserver, not k3s, so after the same terraform apply (which only
+# rolls Authelia's own side here) this also re-runs
+# infra/home-infra's site.yml -- confirmed live 2026-09-11 that this
+# step is real, not just a formality: ansible/roles/nextcloud_aio/
+# tasks/oidc.yml's `occ user_oidc:provider --clientsecret=...` is a
+# genuine upsert into Nextcloud's own database, unlike
+# home-infra/monitoring's SES creds turning out to be assert-only.
 #
 # Generate a fresh plaintext + its hash together first, in one command
 # (prints both):
@@ -18,6 +24,7 @@
 #
 #   scripts/rotate-oidc-client-secret.sh grafana
 #   scripts/rotate-oidc-client-secret.sh openwebui
+#   scripts/rotate-oidc-client-secret.sh nextcloud
 #
 # Prompts silently for each value in turn -- nothing echoed, nothing in
 # shell history. Rejects an obviously-swapped pair (Authelia's own
@@ -29,7 +36,13 @@
 # (julian's own operator identity has both), a working kubeconfig at
 # ~/.kube/k3s-node-1.yaml. Opens the SSH tunnel to the k3s apiserver
 # itself (same pattern as bootstrap/k3s-bootstrap's own roll-out.sh):
-# leaves an already-open one alone, closes one it started.
+# leaves an already-open one alone, closes one it started. For
+# nextcloud specifically, also needs infra/home-infra checked out as
+# this repo's own sibling (../home-infra, the fixed layout every
+# script in this workspace already assumes) with its own .venv set up,
+# and will prompt interactively for your sudo password
+# (--ask-become-pass) -- run this one yourself, in your own terminal,
+# not via an agent session.
 
 set -euo pipefail
 
@@ -42,7 +55,7 @@ fail() {
   exit 1
 }
 
-[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|openwebui>"
+[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|openwebui|nextcloud>"
 client="$1"
 case "$client" in
   grafana)
@@ -51,8 +64,11 @@ case "$client" in
   openwebui)
     client_secret_id="home-infra/open-webui"
     ;;
+  nextcloud)
+    client_secret_id="home-infra/nextcloud"
+    ;;
   *)
-    fail "usage: $(basename "$0") <grafana|openwebui>"
+    fail "usage: $(basename "$0") <grafana|openwebui|nextcloud>"
     ;;
 esac
 hash_key="authelia_oidc_${client}_client_secret_hash"
@@ -138,12 +154,40 @@ aws secretsmanager put-secret-value --secret-id "${client_secret_id}" --region "
   --secret-string "file://${tmp_client}" --query VersionId --output text >/dev/null \
   || fail "put-secret-value for ${client_secret_id} failed"
 
-echo "==> terraform apply (rolls Authelia + ${client} together, in sync)"
-echo "    review the plan -- it should touch only Authelia's own Secret and ${client}'s own Secret"
+if [ "${client}" = "nextcloud" ]; then
+  echo "==> terraform apply (rolls Authelia's own side only -- nextcloud has no k3s Deployment)"
+  echo "    review the plan -- it should touch only Authelia's own Secret"
+else
+  echo "==> terraform apply (rolls Authelia + ${client} together, in sync)"
+  echo "    review the plan -- it should touch only Authelia's own Secret and ${client}'s own Secret"
+fi
 terraform init -input=false >/dev/null
 terraform apply
 
-cat <<EOF
+if [ "${client}" = "nextcloud" ]; then
+  home_infra_dir="${repo_root}/../home-infra"
+  [ -d "${home_infra_dir}" ] || fail "expected infra/home-infra as a sibling of this repo at ${home_infra_dir}, not found"
+  [ -x "${home_infra_dir}/.venv/bin/ansible-playbook" ] || fail "${home_infra_dir}/.venv/bin/ansible-playbook not found -- set up its venv first"
+
+  echo "==> re-running infra/home-infra's site.yml so Nextcloud's own occ config picks up the new plaintext"
+  echo "    (this is a real upsert, not a formality -- ansible/roles/nextcloud_aio/tasks/oidc.yml's own occ user_oidc:provider call)"
+  ( cd "${home_infra_dir}" && ./.venv/bin/ansible-playbook ansible/playbooks/site.yml --ask-become-pass )
+
+  cat <<EOF
+
+Done. This can't be verified automatically -- it's a browser OIDC login
+flow. Confirm for real:
+  1. Sign out of Nextcloud if signed in.
+  2. "Sign in with Authelia" on Nextcloud -- must reach a real Authelia
+     login/consent screen and land back in Nextcloud authenticated.
+  3. If it fails, the two values are still both in Secrets Manager, in
+     Authelia's live Kubernetes Secret, and in Nextcloud's own occ
+     config from the site.yml run above -- re-check you pasted the
+     plaintext and hash from the SAME generation command, not two
+     different runs (the pair only matches if generated together).
+EOF
+else
+  cat <<EOF
 
 Done. This can't be verified automatically -- it's a browser OIDC login
 flow. Confirm for real:
@@ -155,3 +199,4 @@ flow. Confirm for real:
      and hash from the SAME generation command, not from two different
      runs (the pair only matches if generated together).
 EOF
+fi
