@@ -1,0 +1,76 @@
+name: Rotate blocky_postgres_password
+
+# The only secret in this workspace rotated unattended -- see
+# scripts/rotate-blocky-postgres-password.sh's own header comment for
+# why this one specifically is judged safe. Runs on the same
+# self-hosted runner apply.yml uses, since blocky-svc is only
+# reachable from inside the cluster.
+
+on:
+  schedule:
+    # 03:17 UTC on the 1st of every month -- an arbitrary off-peak time,
+    # not aligned to any other scheduled job in this workspace.
+    - cron: "17 3 1 * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: k3s-apps-terraform
+  cancel-in-progress: false
+
+jobs:
+  rotate:
+    name: Rotate and apply
+    runs-on: [self-hosted, home, debian]
+    timeout-minutes: 20
+    environment: production
+    env:
+      AWS_REGION: eu-central-1
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      TF_VAR_in_cluster: "true"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.16.0"
+
+      # Not in gha-common's own shared CI image -- this workflow is the
+      # only thing in this repo that needs a Postgres client at all.
+      - name: Install postgresql-client
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Verify deployment configuration
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+        run: |
+          if [ -z "$AWS_ACCOUNT_ID" ]; then
+            echo "::error::Missing repository variable AWS_ACCOUNT_ID"
+            exit 1
+          fi
+          if [ -z "$AWS_ROLE_ARN" ]; then
+            echo "::error::Missing repository variable AWS_ROLE_ARN"
+            exit 1
+          fi
+
+      - name: Configure short-lived AWS credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-session-name: GitHubActions-${{ github.run_id }}
+          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          action-timeout-s: "90"
+
+      - name: Rotate blocky_postgres_password
+        run: ./scripts/rotate-blocky-postgres-password.sh
