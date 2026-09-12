@@ -28,7 +28,7 @@ module "home_agent" {
   source = "./modules/home_agent"
 
   home_agent_image             = var.home_agent_image
-  home_agent_ghcr_token        = local.home_infra_home_agent["home_agent_ghcr_token"]
+  home_agent_ghcr_token        = local.k3s_apps_ghcr_pull_token["token"]
   home_agent_openai_api_key    = local.home_infra_home_agent["home_agent_openai_api_key"]
   nextcloud_tools_app_password = local.home_infra_home_agent["nextcloud_tools_app_password"]
 }
@@ -45,7 +45,7 @@ module "sankey_export" {
   source = "./modules/sankey_export"
 
   sankey_export_image        = var.sankey_export_image
-  sankey_export_ghcr_token   = local.home_infra_home_agent["home_agent_ghcr_token"]
+  sankey_export_ghcr_token   = local.k3s_apps_ghcr_pull_token["token"]
   sankey_export_app_password = local.k3s_apps_sankey_export["sankey_export_app_password"]
 }
 

@@ -53,13 +53,26 @@ data "aws_secretsmanager_secret_version" "k3s_apps_sankey_export" {
   secret_id = "k3s-apps/sankey-export"
 }
 
+# Split out of home-infra/home-agent 2026-09-12 -- a genuinely new
+# secret, not a migration. home_agent_ghcr_token was never really
+# "home-agent's own" credential: it's a single, account-scoped GitHub
+# PAT (read:packages on KandlerLi) that authorizes pulling two
+# unrelated private packages, ghcr.io/kandlerli/home-agent AND
+# ghcr.io/kandlerli/sankey-export -- filed under a name that only
+# signaled one of its two real consumers. See
+# bootstrap/secrets-manager's own k3s-apps/ghcr-pull-token module.
+data "aws_secretsmanager_secret_version" "k3s_apps_ghcr_pull_token" {
+  secret_id = "k3s-apps/ghcr-pull-token"
+}
+
 locals {
-  home_infra_authelia    = jsondecode(data.aws_secretsmanager_secret_version.home_infra_authelia.secret_string)
-  home_infra_grafana     = jsondecode(data.aws_secretsmanager_secret_version.home_infra_grafana.secret_string)
-  home_infra_open_webui  = jsondecode(data.aws_secretsmanager_secret_version.home_infra_open_webui.secret_string)
-  home_infra_ingress     = jsondecode(data.aws_secretsmanager_secret_version.home_infra_ingress.secret_string)
-  home_infra_home_agent  = jsondecode(data.aws_secretsmanager_secret_version.home_infra_home_agent.secret_string)
-  home_infra_monitoring  = jsondecode(data.aws_secretsmanager_secret_version.home_infra_monitoring.secret_string)
-  home_infra_blocky      = jsondecode(data.aws_secretsmanager_secret_version.home_infra_blocky.secret_string)
-  k3s_apps_sankey_export = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_sankey_export.secret_string)
+  home_infra_authelia      = jsondecode(data.aws_secretsmanager_secret_version.home_infra_authelia.secret_string)
+  home_infra_grafana       = jsondecode(data.aws_secretsmanager_secret_version.home_infra_grafana.secret_string)
+  home_infra_open_webui    = jsondecode(data.aws_secretsmanager_secret_version.home_infra_open_webui.secret_string)
+  home_infra_ingress       = jsondecode(data.aws_secretsmanager_secret_version.home_infra_ingress.secret_string)
+  home_infra_home_agent    = jsondecode(data.aws_secretsmanager_secret_version.home_infra_home_agent.secret_string)
+  home_infra_monitoring    = jsondecode(data.aws_secretsmanager_secret_version.home_infra_monitoring.secret_string)
+  home_infra_blocky        = jsondecode(data.aws_secretsmanager_secret_version.home_infra_blocky.secret_string)
+  k3s_apps_sankey_export   = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_sankey_export.secret_string)
+  k3s_apps_ghcr_pull_token = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_ghcr_pull_token.secret_string)
 }
