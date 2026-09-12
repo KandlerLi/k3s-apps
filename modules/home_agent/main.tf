@@ -44,8 +44,8 @@ resource "kubernetes_deployment_v1" "home_agent" {
         # modules/grafana, modules/alertmanager, and
         # bootstrap/k3s-bootstrap's own modules/github_runner.
         annotations = {
-          "checksum/openai-api-key"          = sha256(kubernetes_secret_v1.openai_api_key.data["openai_api_key"])
-          "checksum/nextcloud-app-password"  = sha256(kubernetes_secret_v1.nextcloud_tools_app_password.data["app-password"])
+          "checksum/openai-api-key"         = sha256(kubernetes_secret_v1.openai_api_key.data["openai_api_key"])
+          "checksum/nextcloud-app-password" = sha256(kubernetes_secret_v1.nextcloud_tools_app_password.data["app-password"])
         }
       }
 
