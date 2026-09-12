@@ -45,6 +45,26 @@ resource "kubernetes_deployment_v1" "grafana" {
         labels = {
           app = "grafana"
         }
+
+        # Found live 2026-09-12, ahead of building rotation automation
+        # for blocky_postgres_password: this Deployment had zero
+        # checksum annotations at all. grafana_oidc_client_secret is a
+        # sub_path mount (grafana.ini), which never gets even
+        # kubelet's own eventual sync; grafana_datasources
+        # (datasources.yaml, embeds blocky_postgres_password) and
+        # grafana_admin_password are whole-directory mounts, which
+        # kubelet does eventually sync (~60-90s) but Grafana's own
+        # provisioning system only reads once at startup regardless.
+        # Without these, rotating any of the three would update the
+        # Kubernetes Secret but never actually restart this Pod. Same
+        # class of gap already fixed for modules/ingress,
+        # modules/alertmanager, modules/blocky, and
+        # bootstrap/k3s-bootstrap's own modules/github_runner.
+        annotations = {
+          "checksum/oidc-client-secret" = sha256(kubernetes_secret_v1.grafana_oidc_client_secret.data["grafana.ini"])
+          "checksum/datasources"        = sha256(kubernetes_secret_v1.grafana_datasources.data["datasources.yaml"])
+          "checksum/admin-password"     = sha256(kubernetes_secret_v1.grafana_admin_password.data["grafana_admin_password"])
+        }
       }
 
       spec {
