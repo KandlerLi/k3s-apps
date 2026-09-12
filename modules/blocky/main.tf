@@ -64,6 +64,24 @@ resource "kubernetes_deployment_v1" "blocky" {
         labels = {
           app = "blocky"
         }
+
+        # Found live 2026-09-12, ahead of building rotation automation
+        # for blocky_postgres_password: config.yml is a sub_path mount
+        # (Blocky's own queryLog.target connection string), which never
+        # gets even kubelet's own eventual sync -- and
+        # blocky_postgres_credentials feeds the postgres sidecar via
+        # env_from, read once at container start. Neither Secret had a
+        # checksum annotation, so a password rotation would update
+        # Secrets Manager and the Kubernetes Secrets but never actually
+        # restart this Pod -- Blocky would keep dialing Postgres with
+        # the stale password in its already-running process
+        # indefinitely. Same class of gap already fixed for
+        # modules/ingress, modules/alertmanager, and
+        # bootstrap/k3s-bootstrap's own modules/github_runner.
+        annotations = {
+          "checksum/config"               = sha256(kubernetes_secret_v1.blocky_config.data["config.yml"])
+          "checksum/postgres-credentials" = sha256(jsonencode(kubernetes_secret_v1.blocky_postgres_credentials.data))
+        }
       }
 
       spec {
