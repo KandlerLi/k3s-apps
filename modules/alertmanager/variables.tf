@@ -1,8 +1,8 @@
 variable "alertmanager_ses_smtp_username" {
   description = <<-EOT
-    Same value as home-infra's monitoring_ses_smtp_username SOPS
-    secret. Pass via TF_VAR_alertmanager_ses_smtp_username at apply
-    time.
+    Sourced directly from AWS Secrets Manager's home-infra/monitoring
+    group (secrets.tf's
+    local.home_infra_monitoring["monitoring_ses_smtp_username"]).
   EOT
   type        = string
   sensitive   = true
@@ -10,9 +10,9 @@ variable "alertmanager_ses_smtp_username" {
 
 variable "alertmanager_ses_smtp_password" {
   description = <<-EOT
-    Same value as home-infra's monitoring_ses_smtp_password SOPS
-    secret. Pass via TF_VAR_alertmanager_ses_smtp_password at apply
-    time.
+    Sourced directly from AWS Secrets Manager's home-infra/monitoring
+    group (secrets.tf's
+    local.home_infra_monitoring["monitoring_ses_smtp_password"]).
   EOT
   type        = string
   sensitive   = true

@@ -24,8 +24,10 @@ variable "sankey_export_app_password" {
     account -- the home-infra systemd deployment is being fully retired
     once this CronJob is confirmed live, not run alongside it
     long-term, so there's no "independently revocable from a parallel
-    copy" concern the way nextcloud_tools_app_password has. Pass via
-    TF_VAR_sankey_export_app_password at apply time.
+    copy" concern the way nextcloud_tools_app_password has. Sourced
+    directly from AWS Secrets Manager's k3s-apps/sankey-export group
+    (secrets.tf's
+    local.k3s_apps_sankey_export["sankey_export_app_password"]).
   EOT
   type        = string
   sensitive   = true
