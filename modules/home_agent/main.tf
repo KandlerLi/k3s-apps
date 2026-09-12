@@ -31,6 +31,22 @@ resource "kubernetes_deployment_v1" "home_agent" {
         labels = {
           app = "home-agent"
         }
+
+        # Found live 2026-09-12, ahead of rotating
+        # home_agent_openai_api_key/nextcloud_tools_app_password: this
+        # Deployment had zero checksum annotations at all. Both Secrets
+        # are whole-directory volume mounts (not sub_path), so kubelet
+        # does eventually sync the file content on its own (~60-90s),
+        # but whether either process notices without a restart -- the
+        # same open question the alertmanager/grafana precedents found
+        # -- was never confirmed. Forces a rollout on any real rotation
+        # instead of leaving that unconfirmed, same pattern as
+        # modules/grafana, modules/alertmanager, and
+        # bootstrap/k3s-bootstrap's own modules/github_runner.
+        annotations = {
+          "checksum/openai-api-key"         = sha256(kubernetes_secret_v1.openai_api_key.data["openai_api_key"])
+          "checksum/nextcloud-app-password" = sha256(kubernetes_secret_v1.nextcloud_tools_app_password.data["app-password"])
+        }
       }
 
       spec {
