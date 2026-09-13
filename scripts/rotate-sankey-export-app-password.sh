@@ -19,7 +19,7 @@
 #
 # It merges the token into the k3s-apps/sankey-export secret
 # (put-secret-value -- the blessed out-of-band write for these
-# container-only secrets, see bootstrap/secrets-manager), runs
+# container-only secrets, see aws/secrets-manager), runs
 # `terraform apply` to roll the Kubernetes Secret, waits for the next
 # CronJob run to prove the new token works, and prints how to revoke the
 # old token. It never touches the old token itself -- both stay valid
