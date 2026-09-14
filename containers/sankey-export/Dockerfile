@@ -41,4 +41,20 @@ COPY finanzfluss_export.py ./
 # actually be able to read/execute what was just copied in.
 RUN chmod -R a+rX /app
 
+# Fixes trivy's DS-0002 -- matches the Pod's own security_context
+# (modules/sankey_export/main.tf), which already forces this UID at
+# runtime regardless of what the image defaults to. Adding it here too
+# is real defense-in-depth, not redundant: it means the image is
+# non-root even if run outside that specific Pod spec (e.g. a local
+# `docker run` for debugging). Doesn't affect the CronJob's own
+# init container, which deliberately runs as root (CAP_CHOWN only) to
+# fix hostPath ownership -- Kubernetes' own runAsUser always overrides
+# whatever USER an image sets, for any container using it.
+USER 10010
+
+# DS-0026 (no HEALTHCHECK) suppressed via .trivyignore, not inline --
+# trivy can't inline-ignore a check triggered by an instruction's
+# *absence*. A HEALTHCHECK has no meaning for a restart_policy: Never
+# CronJob Pod that's expected to run once and exit every minute, not
+# stay up as a long-running service.
 CMD ["python", "finanzfluss_export.py"]

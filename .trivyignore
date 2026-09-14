@@ -1,0 +1,7 @@
+# DS-0026: HEALTHCHECK has no meaning for containers/sankey-export's
+# Dockerfile -- it builds a restart_policy: Never CronJob Pod that's
+# expected to run once and exit every minute, not stay up as a
+# long-running service. Can't be suppressed inline (trivy doesn't
+# support inline ignores for checks triggered by an instruction's
+# absence, only ones tied to an existing line).
+DS-0026
