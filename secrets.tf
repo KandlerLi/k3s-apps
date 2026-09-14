@@ -60,7 +60,7 @@ data "aws_secretsmanager_secret_version" "k3s_apps_sankey_export" {
 # unrelated private packages, ghcr.io/kandlerli/home-agent AND
 # ghcr.io/kandlerli/sankey-export -- filed under a name that only
 # signaled one of its two real consumers. See
-# bootstrap/secrets-manager's own k3s-apps/ghcr-pull-token module.
+# aws/secrets-manager's own k3s-apps/ghcr-pull-token module.
 data "aws_secretsmanager_secret_version" "k3s_apps_ghcr_pull_token" {
   secret_id = "k3s-apps/ghcr-pull-token"
 }
