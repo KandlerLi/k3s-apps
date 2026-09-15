@@ -39,11 +39,22 @@ jobs:
   # this is never added to required_status_check_contexts the way
   # trivy-config above is. One matrix entry per pinned image this repo's
   # Terraform deploys (modules/*/main.tf) -- kept in sync by hand, same
-  # as every other digest reference in this repo (see e.g. sankey-export
-  # and home-agent's own image bump PRs): there's no automated extraction
-  # from the .tf files, so a digest bump here needs a matching edit in
-  # this matrix, in the same PR, or the scan silently drifts to scanning
-  # a stale image.
+  # as every other digest reference in this repo (see e.g. sankey-export's
+  # own image bump PRs): there's no automated extraction from the .tf
+  # files, so a digest bump here needs a matching edit in this matrix, or
+  # the scan silently drifts to scanning a stale image.
+  #
+  # home_agent_image is deliberately NOT in this matrix, unlike
+  # sankey_export_image -- found live 2026-09-15: a repo-scoped
+  # GITHUB_TOKEN only gets implicit read access to packages *that same
+  # repo* published (which is exactly why the live cluster's own
+  # image pull uses a dedicated long-lived PAT,
+  # k3s_apps_ghcr_pull_token, not GITHUB_TOKEN, for this one). home-agent
+  # is built by home-infra, not this repo, so trivy-image.yml's GHCR
+  # login here can't actually read it (GHCR returns MANIFEST_UNKNOWN,
+  # not an auth error, for a private package the caller can't see --
+  # looked like the image didn't exist at first). Scanned from
+  # home-infra's own security-scan.yml instead, where it does.
   trivy-image:
     strategy:
       fail-fast: false
@@ -69,8 +80,6 @@ jobs:
             ref: grafana/grafana:13.1.4@sha256:9be3a3ccdb06bcbb127f888b0c4c1d151837443e478887897a63a27d7b348043
           - name: k8s-dashboard
             ref: kubernetesui/dashboard:v2.7.0@sha256:2e500d29e9d5f4a086b908eb8dfe7ecac57d2ab09d65b24f588b1d449841ef93
-          - name: home-agent
-            ref: ghcr.io/kandlerli/home-agent@sha256:a8d7507b05cedee9d339166472ad3cfb5ec4c26b6e7e5797d0c22613b3c37b60
           - name: sankey-export
             ref: ghcr.io/kandlerli/sankey-export@sha256:bb43a6ee10d568affd3cbd1388af05a4bfe4274cd0880f3827fb2cb7f755e806
           # home_agent's own sidecar container -- the one image in this
