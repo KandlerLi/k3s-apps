@@ -24,6 +24,13 @@ on:
 jobs:
   trivy-config:
     uses: KandlerLi/gha-common/.github/workflows/trivy-config.yml@v0.0.9
+    # Moved to a GitHub-hosted runner 2026-09-15 -- neither scan needs AWS
+    # credentials or in-cluster access, only outbound internet, so there's
+    # no reason to keep contending with apply.yml's terraform job for this
+    # repo's single self-hosted runner replica (PARKED.md's "Trivy scan
+    # and terraform apply serialize on the same self-hosted runner").
+    with:
+      runs_on: '["ubuntu-latest"]'
     permissions:
       contents: read
 
@@ -76,6 +83,9 @@ jobs:
     with:
       image_name: ${{ matrix.name }}
       image_ref: ${{ matrix.ref }}
+      # Same reasoning as trivy-config above -- GitHub-hosted, not this
+      # repo's single self-hosted runner replica.
+      runs_on: '["ubuntu-latest"]'
     permissions:
       contents: read
       packages: read
