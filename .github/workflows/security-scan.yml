@@ -26,3 +26,56 @@ jobs:
     uses: KandlerLi/gha-common/.github/workflows/trivy-config.yml@v0.0.9
     permissions:
       contents: read
+
+  # trivy image CVE scan -- second step of the same audit. Deliberately
+  # informational only (see trivy-image.yml's own header comment), so
+  # this is never added to required_status_check_contexts the way
+  # trivy-config above is. One matrix entry per pinned image this repo's
+  # Terraform deploys (modules/*/main.tf) -- kept in sync by hand, same
+  # as every other digest reference in this repo (see e.g. sankey-export
+  # and home-agent's own image bump PRs): there's no automated extraction
+  # from the .tf files, so a digest bump here needs a matching edit in
+  # this matrix, in the same PR, or the scan silently drifts to scanning
+  # a stale image.
+  trivy-image:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: authelia
+            ref: ghcr.io/authelia/authelia:4.39.22@sha256:936134132eaf01bfa2faf85055afbc1e0cc1cc5ca4547e9c06408fd0dd784646
+          - name: blocky
+            ref: ghcr.io/0xerr0r/blocky:v0.34.0@sha256:595136fb127f4c952b621113e668c09acdcf15ac054d96ee6d4c51a76c35f5fd
+          - name: blocky-postgres
+            ref: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+          - name: alertmanager
+            ref: prom/alertmanager:v0.34.0@sha256:690c7b525f4367aa91f73e2f91c632206d32e97c6384bdbf2fb7a861b420340d
+          - name: deluge
+            ref: linuxserver/deluge:2.2.0-ls381@sha256:33a939576f7ecfc1227db1a0cb2afce030ce983e620ec9d93c956e3700e21fe9
+          - name: landing-page
+            ref: nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
+          - name: traefik
+            ref: traefik:v3.7.1@sha256:6b9cbca6fac42ab0075f5437d8dc1685cfd188626d8d515839ea94f8b6271c42
+          - name: open-webui
+            ref: ghcr.io/open-webui/open-webui:v0.11.0-slim@sha256:88da9f0e08b8ada8e40bc6d6291494e2c6775a62d24b67b0cefb74ffee4ce621
+          - name: grafana
+            ref: grafana/grafana:13.1.4@sha256:9be3a3ccdb06bcbb127f888b0c4c1d151837443e478887897a63a27d7b348043
+          - name: k8s-dashboard
+            ref: kubernetesui/dashboard:v2.7.0@sha256:2e500d29e9d5f4a086b908eb8dfe7ecac57d2ab09d65b24f588b1d449841ef93
+          - name: home-agent
+            ref: ghcr.io/kandlerli/home-agent@sha256:9682debdbde477e11b0a907838582656ed7bb3f78bbc03121abc1ea48b21e0ce
+          - name: sankey-export
+            ref: ghcr.io/kandlerli/sankey-export@sha256:bb43a6ee10d568affd3cbd1388af05a4bfe4274cd0880f3827fb2cb7f755e806
+          # home_agent's own sidecar container -- the one image in this
+          # repo NOT pinned by digest (modules/home_agent/main.tf), so
+          # this entry alone will drift to whatever :3.13-slim-bookworm
+          # resolves to on the day the scan runs, unlike every other row.
+          - name: home-agent-nextcloud-tools-sidecar
+            ref: python:3.13-slim-bookworm
+    uses: KandlerLi/gha-common/.github/workflows/trivy-image.yml@v0.0.10
+    with:
+      image_name: ${{ matrix.name }}
+      image_ref: ${{ matrix.ref }}
+    permissions:
+      contents: read
+      packages: read
