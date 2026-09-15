@@ -98,3 +98,8 @@ jobs:
     permissions:
       contents: read
       packages: read
+
+  gitleaks:
+    uses: KandlerLi/gha-common/.github/workflows/gitleaks.yml@v0.0.12
+    permissions:
+      contents: read
