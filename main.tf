@@ -49,6 +49,10 @@ module "sankey_export" {
   sankey_export_app_password = local.k3s_apps_sankey_export["sankey_export_app_password"]
 }
 
+module "node_exporter" {
+  source = "./modules/node_exporter"
+}
+
 module "grafana" {
   source = "./modules/grafana"
 
