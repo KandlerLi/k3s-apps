@@ -73,17 +73,20 @@ resource "kubernetes_cron_job_v1" "authelia_backup" {
                 }
               }
 
-              # 979:979 -- infra/home-infra's own authelia_backup role
-              # hardcodes the same uid/gid as its service account's
-              # expected value (asserted there, not just documented),
-              # so NFS's root_squash (this account is never root)
-              # writes here as an identity the homeserver side already
-              # owns the export directory as.
+              # 984:979 -- infra/home-infra's own authelia_backup role
+              # asserts these exact uid/gid values against its service
+              # account (not just documents them), so NFS's
+              # root_squash (this account is never root) writes here
+              # as an identity the homeserver side already owns the
+              # export directory as. Confirmed live 2026-09-16 uid and
+              # gid are NOT the same number here -- the account's
+              # primary group landed on a different free slot than its
+              # own uid, unlike open_webui's own uid=gid account.
               security_context {
                 read_only_root_filesystem  = true
                 allow_privilege_escalation = false
                 run_as_non_root            = true
-                run_as_user                = 979
+                run_as_user                = 984
                 run_as_group               = 979
                 capabilities {
                   drop = ["ALL"]
