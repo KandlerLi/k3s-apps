@@ -30,6 +30,13 @@ jobs:
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "false"
       TF_VAR_in_cluster: "true"
+      # Points at the runner Pod's own host_path-backed cache volume
+      # (k3s-bootstrap's modules/github_runner, mounted directly into
+      # this container -- no container: job here to bind-mount it into,
+      # unlike gha-common's terraform-checks.yml/terraform-apply.yml)
+      # so `terraform init` reuses providers already downloaded on this
+      # node instead of fetching them cold on every ephemeral runner Pod.
+      TF_PLUGIN_CACHE_DIR: /terraform-plugin-cache
       # No more TF_VAR_<secret> lines -- secrets.tf reads them directly
       # from AWS Secrets Manager now (the SOPS-to-Secrets-Manager
       # cutover, PARKED.md), via the same AWS credentials this job
