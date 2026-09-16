@@ -76,3 +76,21 @@ resource "kubernetes_secret_v1" "blocky_postgres_credentials" {
 
   type = "Opaque"
 }
+
+# postgres_exporter's own connection string -- same credentials as
+# above, same 127.0.0.1:5432 loopback-within-the-shared-Pod path
+# Blocky's own config.yml uses, just a different consumer/secret since
+# DATA_SOURCE_NAME is a single URI env var, not the separate
+# POSTGRES_USER/PASSWORD/DB keys the official postgres image's own
+# entrypoint expects.
+resource "kubernetes_secret_v1" "blocky_postgres_exporter_dsn" {
+  metadata {
+    name = "blocky-postgres-exporter-dsn"
+  }
+
+  data = {
+    DATA_SOURCE_NAME = "postgresql://blocky:${var.blocky_postgres_password}@127.0.0.1:5432/blocky_query_log?sslmode=disable"
+  }
+
+  type = "Opaque"
+}

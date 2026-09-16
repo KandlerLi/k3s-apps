@@ -169,6 +169,83 @@ resource "kubernetes_deployment_v1" "blocky" {
           }
         }
 
+        # Added 2026-09-16 to close a real, confirmed-live gap:
+        # Blocky's own query-log Postgres writer has no reconnect logic
+        # (upstream behavior, not fixable here) -- an ~18h silent
+        # logging gap after a Postgres restart mid-Pod-lifetime was
+        # found once by chance, and Blocky's own `up` metric stays
+        # green the whole time, so nothing existing would ever catch a
+        # repeat. This exporter exposes standard `pg_stat_user_tables`
+        # metrics (row insert/update/delete counts per table, no custom
+        # queries needed) so home-infra's own Prometheus can alert on
+        # "no new log_entries rows in N minutes" -- see that repo's
+        # own alert_rules.yml.j2. A regular container, not a native
+        # sidecar like postgres itself: it only needs Postgres to be
+        # reachable, not to start before it -- a transient connection
+        # error at boot is normal, tolerated, and logged, not fatal.
+        container {
+          name  = "postgres-exporter"
+          image = "quay.io/prometheuscommunity/postgres-exporter:v0.17.1@sha256:38606faa38c54787525fb0ff2fd6b41b4cfb75d455c1df294927c5f611699b17"
+
+          port {
+            name           = "metrics"
+            container_port = 9187
+          }
+
+          env_from {
+            secret_ref {
+              name = kubernetes_secret_v1.blocky_postgres_exporter_dsn.metadata[0].name
+            }
+          }
+
+          resources {
+            requests = {
+              cpu    = "10m"
+              memory = "32Mi"
+            }
+            limits = {
+              cpu    = "100m"
+              memory = "64Mi"
+            }
+          }
+
+          # The image's own config declares USER nobody (confirmed
+          # directly against the registry's own image config, same
+          # discipline Blocky's own USER 100 check above used) -- 65534
+          # is the standard nobody uid this and virtually every other
+          # minimal image use.
+          security_context {
+            read_only_root_filesystem  = true
+            allow_privilege_escalation = false
+            run_as_non_root            = true
+            run_as_user                = 65534
+            capabilities {
+              drop = ["ALL"]
+            }
+          }
+
+          readiness_probe {
+            http_get {
+              path = "/metrics"
+              port = 9187
+            }
+            initial_delay_seconds = 10
+            period_seconds        = 15
+            timeout_seconds       = 5
+            failure_threshold     = 5
+          }
+          liveness_probe {
+            http_get {
+              path = "/metrics"
+              port = 9187
+            }
+            initial_delay_seconds = 20
+            period_seconds        = 30
+            timeout_seconds       = 5
+            failure_threshold     = 5
+          }
+        }
+
         # A native sidecar (restart_policy = "Always" on an
         # init_container -- KEP-753, GA), not a regular container.
         # Confirmed live (2026-09-01): as two ordinary containers with
@@ -350,6 +427,11 @@ resource "kubernetes_service_v1" "blocky" {
       name        = "postgres"
       port        = 5432
       target_port = 5432
+    }
+    port {
+      name        = "postgres-exporter"
+      port        = 9187
+      target_port = 9187
     }
   }
 }
