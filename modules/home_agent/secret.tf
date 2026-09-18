@@ -24,10 +24,11 @@ resource "kubernetes_secret_v1" "ghcr_pull" {
   }
 }
 
-# Mounted into the home-agent container at /run/secrets, matching
+# Mounted into the home-agent container at /run/secrets/openai, matching
 # OPENAI_API_KEY_FILE's own default path in api.py -- same _FILE
 # convention home-infra's own Ansible deployment already uses, rather
-# than a raw env var.
+# than a raw env var. Now only Whisper STT (audio.py) reads this one;
+# chat moved to anthropic_api_key below 2026-09-18.
 resource "kubernetes_secret_v1" "openai_api_key" {
   metadata {
     name = "home-agent-openai-api-key"
@@ -35,6 +36,23 @@ resource "kubernetes_secret_v1" "openai_api_key" {
 
   data = {
     "openai_api_key" = var.home_agent_openai_api_key
+  }
+
+  type = "Opaque"
+}
+
+# Mounted into the home-agent container at /run/secrets/anthropic,
+# matching ANTHROPIC_API_KEY_FILE's own default path in api.py -- same
+# _FILE convention, separate mount path from openai_api_key above so
+# both Secrets can be volume-mounted whole (no sub_path) without
+# colliding.
+resource "kubernetes_secret_v1" "anthropic_api_key" {
+  metadata {
+    name = "home-agent-anthropic-api-key"
+  }
+
+  data = {
+    "anthropic_api_key" = var.home_agent_anthropic_api_key
   }
 
   type = "Opaque"

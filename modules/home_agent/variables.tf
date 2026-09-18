@@ -25,9 +25,25 @@ variable "home_agent_ghcr_token" {
 
 variable "home_agent_openai_api_key" {
   description = <<-EOT
-    Sourced directly from AWS Secrets Manager's home-infra/home-agent
-    group (secrets.tf's
+    OpenAI API key for home_agent's Whisper speech-to-text relay only
+    (audio.py) -- chat/completions moved to Anthropic 2026-09-18, see
+    home_agent_anthropic_api_key. Sourced directly from AWS Secrets
+    Manager's home-infra/home-agent group (secrets.tf's
     local.home_infra_home_agent["home_agent_openai_api_key"]).
+  EOT
+  type        = string
+  sensitive   = true
+}
+
+variable "home_agent_anthropic_api_key" {
+  description = <<-EOT
+    Anthropic API key for home_agent's own chat/tool-use calls
+    (agent.py's AnthropicMessagesProvider) -- replaced OpenAI's Responses
+    API 2026-09-18, Whisper STT stays on OpenAI (see
+    home_agent_openai_api_key). Sourced directly from AWS Secrets
+    Manager's home-infra/home-agent group (secrets.tf's
+    local.home_infra_home_agent["home_agent_anthropic_api_key"]). Never
+    given a default.
   EOT
   type        = string
   sensitive   = true

@@ -34,17 +34,18 @@ resource "kubernetes_deployment_v1" "home_agent" {
 
         # Found live 2026-09-12, ahead of rotating
         # home_agent_openai_api_key/nextcloud_tools_app_password: this
-        # Deployment had zero checksum annotations at all. Both Secrets
-        # are whole-directory volume mounts (not sub_path), so kubelet
-        # does eventually sync the file content on its own (~60-90s),
-        # but whether either process notices without a restart -- the
-        # same open question the alertmanager/grafana precedents found
-        # -- was never confirmed. Forces a rollout on any real rotation
-        # instead of leaving that unconfirmed, same pattern as
-        # modules/grafana, modules/alertmanager, and
+        # Deployment had zero checksum annotations at all. All three
+        # Secrets are whole-directory volume mounts (not sub_path), so
+        # kubelet does eventually sync the file content on its own
+        # (~60-90s), but whether either process notices without a
+        # restart -- the same open question the alertmanager/grafana
+        # precedents found -- was never confirmed. Forces a rollout on
+        # any real rotation instead of leaving that unconfirmed, same
+        # pattern as modules/grafana, modules/alertmanager, and
         # bootstrap/k3s-bootstrap's own modules/github_runner.
         annotations = {
           "checksum/openai-api-key"         = sha256(kubernetes_secret_v1.openai_api_key.data["openai_api_key"])
+          "checksum/anthropic-api-key"      = sha256(kubernetes_secret_v1.anthropic_api_key.data["anthropic_api_key"])
           "checksum/nextcloud-app-password" = sha256(kubernetes_secret_v1.nextcloud_tools_app_password.data["app-password"])
         }
       }
@@ -52,20 +53,24 @@ resource "kubernetes_deployment_v1" "home_agent" {
       spec {
         # Neither container talks to the Kubernetes API, so there's
         # nothing for the default projected serviceaccount-token volume
-        # to do here -- and it collides with the openai_api_key Secret
-        # mounted at /run/secrets below: kubelet auto-mounts the token
-        # at /var/run/secrets/kubernetes.io/serviceaccount, which
-        # aliases (/var/run -> /run) into a subdirectory of that same
-        # already-mounted path, and can't create it there (confirmed
+        # to do here -- originally turned off because it collided with
+        # the openai_api_key Secret, then mounted whole at /run/secrets:
+        # kubelet auto-mounts the token at
+        # /var/run/secrets/kubernetes.io/serviceaccount, which aliases
+        # (/var/run -> /run) into a subdirectory of that same
+        # already-mounted path, and couldn't create it there (confirmed
         # live: "mkdirat .../run/secrets/kubernetes.io: read-only file
         # system"). Not actually caused by read_only_root_filesystem
         # below, despite this comment originally blaming it -- the
         # grafana module hit the identical collision with no
         # read_only_root_filesystem set at all, from its own Secret
-        # mounted the same way at /run/secrets. Same least-privilege
-        # reasoning as the cap_drop/non-root/read-only-root baseline
-        # already applied to both containers either way -- just turning
-        # off a mount neither needs.
+        # mounted the same way at /run/secrets. The openai/anthropic key
+        # Secrets now mount at /run/secrets/openai and
+        # /run/secrets/anthropic instead (2026-09-18, split for the
+        # Anthropic key), which no longer collides -- kept off anyway,
+        # same least-privilege reasoning as the cap_drop/non-root/
+        # read-only-root baseline already applied to both containers
+        # either way, for a mount neither needs.
         automount_service_account_token = false
 
         image_pull_secrets {
@@ -78,15 +83,19 @@ resource "kubernetes_deployment_v1" "home_agent" {
 
           env {
             name  = "HOME_AGENT_MODEL"
-            value = "gpt-5.4-mini"
+            value = "claude-opus-5"
           }
           env {
             name  = "HOME_AGENT_STT_MODEL"
             value = "whisper-1"
           }
           env {
+            name  = "ANTHROPIC_API_KEY_FILE"
+            value = "/run/secrets/anthropic/anthropic_api_key"
+          }
+          env {
             name  = "OPENAI_API_KEY_FILE"
-            value = "/run/secrets/openai_api_key"
+            value = "/run/secrets/openai/openai_api_key"
           }
           env {
             name  = "NEXTCLOUD_TOOLS_SOCKET"
@@ -136,7 +145,12 @@ resource "kubernetes_deployment_v1" "home_agent" {
           }
           volume_mount {
             name       = "openai-api-key"
-            mount_path = "/run/secrets"
+            mount_path = "/run/secrets/openai"
+            read_only  = true
+          }
+          volume_mount {
+            name       = "anthropic-api-key"
+            mount_path = "/run/secrets/anthropic"
             read_only  = true
           }
           volume_mount {
@@ -262,6 +276,12 @@ resource "kubernetes_deployment_v1" "home_agent" {
           name = "openai-api-key"
           secret {
             secret_name = kubernetes_secret_v1.openai_api_key.metadata[0].name
+          }
+        }
+        volume {
+          name = "anthropic-api-key"
+          secret {
+            secret_name = kubernetes_secret_v1.anthropic_api_key.metadata[0].name
           }
         }
         volume {
