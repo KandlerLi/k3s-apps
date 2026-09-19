@@ -85,6 +85,10 @@ module "stalwart" {
   source = "./modules/stalwart"
 }
 
+module "bulwark" {
+  source = "./modules/bulwark"
+}
+
 module "authelia" {
   source = "./modules/authelia"
 
