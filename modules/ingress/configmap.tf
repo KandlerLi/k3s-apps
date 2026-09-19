@@ -199,6 +199,20 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               - authelia-chain
             tls:
               certResolver: letsencrypt
+          # Stalwart's web UI/JMAP (infra/k3s-apps' modules/stalwart), on
+          # the same mail.jkandler.de name mail clients and the server
+          # certificate will use. Deliberately no Authelia forward-auth:
+          # JMAP/webmail clients must reach Stalwart directly, and
+          # Stalwart has its own login (enable 2FA on the admin).
+          mail:
+            rule: "Host(`mail.jkandler.de`)"
+            entryPoints:
+              - websecure
+            service: mail
+            middlewares:
+              - mail-chain
+            tls:
+              certResolver: letsencrypt
 
         services:
           nextcloud:
@@ -241,6 +255,11 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               passHostHeader: true
               servers:
                 - url: "http://authelia-svc:9091"
+          mail:
+            loadBalancer:
+              passHostHeader: true
+              servers:
+                - url: "http://stalwart-internal:8080"
 
         middlewares:
           nextcloud-secure-headers:
@@ -432,6 +451,26 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
                 - kubernetes-dashboard-rate-limit
                 - kubernetes-dashboard-request-limit
                 - kubernetes-dashboard-security-headers
+          # No request-size buffering middleware here (unlike the other
+          # chains): JMAP/webmail uploads attachments.
+          mail-rate-limit:
+            rateLimit:
+              average: 120
+              period: 1m
+              burst: 240
+          mail-security-headers:
+            headers:
+              contentTypeNosniff: true
+              frameDeny: true
+              referrerPolicy: no-referrer
+              permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+              stsSeconds: 31536000
+              stsIncludeSubdomains: false
+          mail-chain:
+            chain:
+              middlewares:
+                - mail-rate-limit
+                - mail-security-headers
           apex-redirect:
             redirectRegex:
               regex: '^https://jkandler\.de/(.*)'
