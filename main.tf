@@ -81,6 +81,10 @@ module "blocky" {
   blocky_postgres_password = local.home_infra_blocky["blocky_postgres_password"]
 }
 
+module "stalwart" {
+  source = "./modules/stalwart"
+}
+
 module "authelia" {
   source = "./modules/authelia"
 
