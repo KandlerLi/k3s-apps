@@ -205,9 +205,17 @@ resource "kubernetes_deployment_v1" "home_agent" {
           # path for the recipient, confirmed live via `occ
           # share:list --recipient=home-agent`, same lesson learned for
           # sankey_export's own remote_dir.
+          #
+          # Widened 2026-09-19 from "Shared/AI Workspace" to the whole
+          # "Shared" folder: the agent now sees every folder Julian
+          # explicitly shares with the home-agent account, and nothing
+          # else. Scope and read-only vs. editable are decided per share
+          # in Nextcloud itself (owner-only, manual -- the agent's own
+          # credential can neither create nor widen shares), so this
+          # value alone grants no new access until a share exists.
           env {
             name  = "NEXTCLOUD_ALLOWED_ROOT"
-            value = "Shared/AI Workspace"
+            value = "Shared"
           }
 
           # Same over-provisioning fix as the home-agent container above --
