@@ -47,6 +47,10 @@ resource "kubernetes_deployment_v1" "home_agent" {
           "checksum/openai-api-key"         = sha256(kubernetes_secret_v1.openai_api_key.data["openai_api_key"])
           "checksum/anthropic-api-key"      = sha256(kubernetes_secret_v1.anthropic_api_key.data["anthropic_api_key"])
           "checksum/nextcloud-app-password" = sha256(kubernetes_secret_v1.nextcloud_tools_app_password.data["app-password"])
+          # A ConfigMap change alone never restarts the sidecar that
+          # mounts it, so hash its script here to force a rollout
+          # whenever files/nextcloud_tools_service.py changes.
+          "checksum/nextcloud-tools-source" = sha256(file("${path.module}/files/nextcloud_tools_service.py"))
         }
       }
 
