@@ -50,6 +50,8 @@ resource "kubernetes_secret_v1" "authelia_config" {
               - 'grafana.jkandler.de'
               - 'home.jkandler.de'
               - 'k8s.jkandler.de'
+              - 'mail.jkandler.de'
+              - 'stalwart.jkandler.de'
             policy: two_factor
 
       # OIDC provider, added 2026-09-08 -- lets Grafana, Open WebUI, and

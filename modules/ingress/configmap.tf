@@ -199,11 +199,10 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               - authelia-chain
             tls:
               certResolver: letsencrypt
-          # Stalwart's web UI/JMAP (infra/k3s-apps' modules/stalwart), on
-          # the same mail.jkandler.de name mail clients and the server
-          # certificate will use. Deliberately no Authelia forward-auth:
-          # JMAP/webmail clients must reach Stalwart directly, and
-          # Stalwart has its own login (enable 2FA on the admin).
+          # Bulwark webmail (modules/bulwark) at mail.jkandler.de, gated by
+          # Authelia like every other UI here. It calls Stalwart's JMAP
+          # endpoint straight from the browser (stalwart.jkandler.de,
+          # below), so Stalwart needs CORS enabled for this origin.
           mail:
             rule: "Host(`mail.jkandler.de`)"
             entryPoints:
@@ -211,6 +210,39 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
             service: mail
             middlewares:
               - mail-chain
+            tls:
+              certResolver: letsencrypt
+          # Stalwart's protocol endpoints -- deliberately NOT behind
+          # Authelia. JMAP calls from Bulwark's browser code, Thunderbird,
+          # CalDAV/CardDAV and phone apps can't follow an Authelia login
+          # redirect; every one of these paths has Stalwart's own
+          # authentication (the same one its IMAP/SMTP ports use).
+          stalwart-api:
+            rule: >-
+              Host(`stalwart.jkandler.de`)
+              && (PathPrefix(`/jmap`) || PathPrefix(`/.well-known`)
+              || PathPrefix(`/dav`) || PathPrefix(`/auth`)
+              || PathPrefix(`/mail/config-v1.1.xml`)
+              || PathPrefix(`/autodiscover`))
+            priority: 100
+            entryPoints:
+              - websecure
+            service: stalwart
+            middlewares:
+              - stalwart-api-chain
+            tls:
+              certResolver: letsencrypt
+          # Everything else on stalwart.jkandler.de -- the /admin and
+          # /account UIs and the management API they call -- is gated by
+          # Authelia first, then Stalwart's own login.
+          stalwart:
+            rule: "Host(`stalwart.jkandler.de`)"
+            priority: 10
+            entryPoints:
+              - websecure
+            service: stalwart
+            middlewares:
+              - stalwart-chain
             tls:
               certResolver: letsencrypt
 
@@ -256,6 +288,11 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               servers:
                 - url: "http://authelia-svc:9091"
           mail:
+            loadBalancer:
+              passHostHeader: true
+              servers:
+                - url: "http://bulwark-svc:80"
+          stalwart:
             loadBalancer:
               passHostHeader: true
               servers:
@@ -451,8 +488,8 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
                 - kubernetes-dashboard-rate-limit
                 - kubernetes-dashboard-request-limit
                 - kubernetes-dashboard-security-headers
-          # No request-size buffering middleware here (unlike the other
-          # chains): JMAP/webmail uploads attachments.
+          # No request-size buffering middleware on the mail/stalwart
+          # chains (unlike the others): JMAP/webmail uploads attachments.
           mail-rate-limit:
             rateLimit:
               average: 120
@@ -469,7 +506,26 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
           mail-chain:
             chain:
               middlewares:
+                - authelia-forward-auth
                 - mail-rate-limit
+                - mail-security-headers
+          stalwart-chain:
+            chain:
+              middlewares:
+                - authelia-forward-auth
+                - mail-rate-limit
+                - mail-security-headers
+          # Higher ceiling than the UI chains: a JMAP client polls and
+          # syncs constantly, and a phone app resyncing shouldn't trip it.
+          stalwart-api-rate-limit:
+            rateLimit:
+              average: 600
+              period: 1m
+              burst: 1200
+          stalwart-api-chain:
+            chain:
+              middlewares:
+                - stalwart-api-rate-limit
                 - mail-security-headers
           apex-redirect:
             redirectRegex:

@@ -59,12 +59,13 @@ resource "kubernetes_deployment_v1" "stalwart" {
           name  = "stalwart"
           image = "stalwartlabs/stalwart:v0.16.22@sha256:388dcb75a70727c5b551249a6d34b1f1321294852489e4fa3a4e6be698b7c4f0"
 
-          # Published base URL behind Traefik (modules/ingress' `mail`
-          # router), so redirects and JMAP session URLs use the public
-          # name instead of the internal Service address.
+          # Published base URL behind Traefik (modules/ingress'
+          # `stalwart` routers), so redirects and JMAP session URLs use
+          # the public name instead of the internal Service address.
+          # mail.jkandler.de is the webmail (modules/bulwark) now.
           env {
             name  = "STALWART_PUBLIC_URL"
-            value = "https://mail.jkandler.de"
+            value = "https://stalwart.jkandler.de"
           }
 
           port {
