@@ -5,7 +5,7 @@
 # up automatically -- update by hand after each meaningful build (see
 # home-infra's build-home-agent.yml workflow's "Print pushed image
 # digest" step output).
-home_agent_image = "ghcr.io/kandlerli/home-agent@sha256:7302d35c2f2d8691d4bcf629703f0372575aa002d1b2c00a16d2e06b4a8c2b9f"
+home_agent_image = "ghcr.io/kandlerli/home-agent@sha256:21e3928fb4e763ee754f73d2214af043e6ab146e480b930d389dd3b1d6e0b194"
 
 # Same reasoning as home_agent_image above -- update by hand after each
 # meaningful build (see this repo's own build-sankey-export.yml
