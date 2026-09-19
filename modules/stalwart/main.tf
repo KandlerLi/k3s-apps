@@ -13,9 +13,11 @@
 #
 # Image: v0.16.22, pinned by digest like every other module here.
 #
-# Sizing: the k3s nodes are memory-tight (see PARKED.md), so this is a
-# modest Burstable request with a bounded limit, not a guess at Stalwart's
-# upper range -- revisit against real usage once mail actually flows.
+# Sizing: the setup wizard's RocksDB defaults (128MB write buffers + 128MB
+# block cache) alone are ~256MB before Stalwart's own process, so the
+# original 512Mi limit sat right at the OOM line. The limit is what
+# matters (the node itself has free memory); request stays modest.
+# Revisit against real usage once mail actually flows.
 
 resource "kubernetes_deployment_v1" "stalwart" {
   metadata {
@@ -69,11 +71,11 @@ resource "kubernetes_deployment_v1" "stalwart" {
           resources {
             requests = {
               cpu    = "50m"
-              memory = "128Mi"
+              memory = "384Mi"
             }
             limits = {
               cpu    = "500m"
-              memory = "512Mi"
+              memory = "1Gi"
             }
           }
 
