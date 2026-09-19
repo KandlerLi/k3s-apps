@@ -103,23 +103,23 @@ resource "kubernetes_deployment_v1" "stalwart" {
             sub_path   = "data"
           }
 
-          readiness_probe {
+          # Deliberately only a startup probe, on 8080. Confirmed live
+          # (2026-09-19): until the bootstrap wizard is completed,
+          # Stalwart listens on 8080 only -- no SMTP listener at all --
+          # so the original readiness/liveness probes on port 25 failed
+          # forever, and the liveness probe restarted the Pod every ~3
+          # minutes (the CI apply then timed out waiting for Ready).
+          # Which ports stay open after setup isn't known yet, so a
+          # steady-state readiness/liveness probe is left for a
+          # follow-up once the real listeners are known; a wrong one
+          # here would either kill or unroute a working mail server.
+          startup_probe {
             tcp_socket {
-              port = 25
+              port = 8080
             }
-            initial_delay_seconds = 15
-            period_seconds        = 30
-            timeout_seconds       = 5
-            failure_threshold     = 5
-          }
-          liveness_probe {
-            tcp_socket {
-              port = 25
-            }
-            initial_delay_seconds = 30
-            period_seconds        = 30
-            timeout_seconds       = 5
-            failure_threshold     = 5
+            period_seconds    = 5
+            timeout_seconds   = 3
+            failure_threshold = 30
           }
         }
 
