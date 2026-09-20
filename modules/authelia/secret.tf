@@ -293,6 +293,25 @@ resource "kubernetes_secret_v1" "authelia_users" {
           email: 'julian.kandler@outlook.com'
           groups:
             - admins
+        # A second, separate Authelia identity -- purely so Stalwart's
+        # own "admin" account can SSO through Authelia too. Not
+        # "julian" reused: Stalwart's OIDC directory needs the
+        # resolved identity to match an existing Stalwart account
+        # exactly (confirmed live 2026-09-20, after both Stalwart
+        # accounts turned out to be named plainly -- "julian"/"admin",
+        # not email-shaped -- see the Stalwart-side account rename
+        # this pairs with), and Stalwart's own admin and Julian's own
+        # mailbox are different accounts. Recovery email is the same
+        # Outlook address as "julian" above -- this identity exists
+        # only to reach Stalwart's admin console, nothing else
+        # depends on it.
+        admin:
+          disabled: false
+          displayname: 'Stalwart Admin'
+          password: '${var.authelia_stalwart_admin_password_hash}'
+          email: 'julian.kandler@outlook.com'
+          groups:
+            - admins
     EOT
   }
 
