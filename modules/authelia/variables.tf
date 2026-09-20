@@ -48,6 +48,23 @@ variable "authelia_admin_password_hash" {
   sensitive   = true
 }
 
+variable "authelia_stalwart_admin_password_hash" {
+  description = <<-EOT
+    Argon2id hash of a second, separate Authelia login (username
+    "admin") used only so Stalwart's own "admin" account can SSO
+    through Authelia -- Stalwart's OIDC directory requires every
+    account it authenticates to have a matching Authelia identity;
+    "julian" already covers modules/bulwark's own account, this one
+    exists purely for Stalwart's admin account, which has no other
+    Authelia identity of its own. Generated the same way as
+    authelia_admin_password_hash above. Sourced directly from AWS
+    Secrets Manager's home-infra/authelia group (secrets.tf's
+    local.home_infra_authelia["authelia_stalwart_admin_password_hash"]).
+  EOT
+  type        = string
+  sensitive   = true
+}
+
 variable "alertmanager_ses_smtp_username" {
   description = <<-EOT
     Same SES SMTP identity Alertmanager already uses (see
