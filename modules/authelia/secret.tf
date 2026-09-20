@@ -173,6 +173,16 @@ resource "kubernetes_secret_v1" "authelia_config" {
             # underneath -- that side needs Stalwart's own directory
             # switched to its OIDC backend, a separate, deliberately
             # unverified-yet step (see modules/bulwark's own comment).
+            #
+            # redirect_uris: confirmed live (2026-09-20) the first guess
+            # here (/api/auth/callback/oidc, a generic NextAuth-style
+            # path) was wrong -- Bulwark's own frontend
+            # (app/(main)/[locale]/login/page.tsx) builds it as
+            # `$${origin}/$${locale}/auth/callback`, locale-prefixed, not
+            # a fixed API route. Authelia requires an exact match per
+            # entry, no wildcards, so this only covers the locales
+            # actually listed -- add another if a browser using a
+            # different one hits the same invalid_redirect_uri error.
             - client_id: 'bulwark'
               client_name: 'Bulwark Webmail'
               client_secret: '${var.authelia_oidc_bulwark_client_secret_hash}'
@@ -182,7 +192,8 @@ resource "kubernetes_secret_v1" "authelia_config" {
               require_pkce: true
               pkce_challenge_method: 'S256'
               redirect_uris:
-                - 'https://mail.jkandler.de/api/auth/callback/oidc'
+                - 'https://mail.jkandler.de/de/auth/callback'
+                - 'https://mail.jkandler.de/en/auth/callback'
               scopes:
                 - 'openid'
                 - 'profile'
