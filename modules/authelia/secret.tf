@@ -203,7 +203,14 @@ resource "kubernetes_secret_v1" "authelia_config" {
                 - 'code'
               grant_types:
                 - 'authorization_code'
-              token_endpoint_auth_method: 'client_secret_basic'
+              # Confirmed live (2026-09-20): Authelia's own token
+              # endpoint rejected the first real exchange attempt --
+              # "the registered client ... is configured to only
+              # support 'client_secret_basic'" -- Bulwark's own token
+              # exchange sends the client secret in the POST body, the
+              # same as Nextcloud's client below, not the Authorization
+              # header Grafana/Open WebUI use.
+              token_endpoint_auth_method: 'client_secret_post'
             - client_id: 'nextcloud'
               client_name: 'Nextcloud'
               client_secret: '${var.authelia_oidc_nextcloud_client_secret_hash}'
