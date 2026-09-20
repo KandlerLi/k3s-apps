@@ -65,6 +65,14 @@ data "aws_secretsmanager_secret_version" "k3s_apps_ghcr_pull_token" {
   secret_id = "k3s-apps/ghcr-pull-token"
 }
 
+# Bulwark webmail's own Authelia OIDC client secret (plaintext half;
+# home-infra/authelia holds the matching hash) -- a genuinely new
+# secret, not a migration. See aws/secrets-manager's own
+# k3s-apps/bulwark module.
+data "aws_secretsmanager_secret_version" "k3s_apps_bulwark" {
+  secret_id = "k3s-apps/bulwark"
+}
+
 locals {
   home_infra_authelia      = jsondecode(data.aws_secretsmanager_secret_version.home_infra_authelia.secret_string)
   home_infra_grafana       = jsondecode(data.aws_secretsmanager_secret_version.home_infra_grafana.secret_string)
@@ -75,4 +83,5 @@ locals {
   home_infra_blocky        = jsondecode(data.aws_secretsmanager_secret_version.home_infra_blocky.secret_string)
   k3s_apps_sankey_export   = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_sankey_export.secret_string)
   k3s_apps_ghcr_pull_token = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_ghcr_pull_token.secret_string)
+  k3s_apps_bulwark         = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_bulwark.secret_string)
 }

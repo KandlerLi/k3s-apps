@@ -133,6 +133,21 @@ variable "authelia_oidc_openwebui_client_secret_hash" {
   sensitive   = true
 }
 
+variable "authelia_oidc_bulwark_client_secret_hash" {
+  description = <<-EOT
+    pbkdf2-sha512 hash of Bulwark webmail's own OIDC client secret
+    (config's identity_providers.oidc.clients[].client_secret for the
+    "bulwark" client) -- only the hash lives here, the plaintext goes
+    to modules/bulwark's own variable of a similar name instead, since
+    that's the side that actually presents it. Generated the same way
+    as the Grafana client secret hash above. Sourced directly from AWS
+    Secrets Manager's home-infra/authelia group (secrets.tf's
+    local.home_infra_authelia["authelia_oidc_bulwark_client_secret_hash"]).
+  EOT
+  type        = string
+  sensitive   = true
+}
+
 variable "authelia_oidc_nextcloud_client_secret_hash" {
   description = <<-EOT
     pbkdf2-sha512 hash of Nextcloud's own OIDC client secret (config's
