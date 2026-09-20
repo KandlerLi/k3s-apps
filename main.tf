@@ -83,6 +83,9 @@ module "blocky" {
 
 module "stalwart" {
   source = "./modules/stalwart"
+
+  stalwart_ses_smtp_username = local.home_infra_monitoring["monitoring_ses_smtp_username"]
+  stalwart_ses_smtp_password = local.home_infra_monitoring["monitoring_ses_smtp_password"]
 }
 
 module "bulwark" {

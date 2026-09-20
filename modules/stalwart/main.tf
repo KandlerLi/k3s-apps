@@ -19,6 +19,28 @@
 # matters (the node itself has free memory); request stays modest.
 # Revisit against real usage once mail actually flows.
 
+# Outbound mail relay credential, exposed to Stalwart as environment
+# variables rather than typed into its own admin UI (its "Secret read
+# from environment variable" option under MTA -> Outbound -> Routes) --
+# the same SES SMTP credential aws/ses-relay's IAM policy already scopes
+# to the whole jkandler.de domain, reused here rather than typed once
+# into Stalwart's own database with no rotation path. The route/strategy
+# itself is still configured by hand in Stalwart's admin UI (like its
+# CORS and IP-allow-list settings) -- only the secret value is
+# Terraform-managed.
+resource "kubernetes_secret_v1" "stalwart_ses_smtp" {
+  metadata {
+    name = "stalwart-ses-smtp"
+  }
+
+  data = {
+    SES_SMTP_USERNAME = var.stalwart_ses_smtp_username
+    SES_SMTP_PASSWORD = var.stalwart_ses_smtp_password
+  }
+
+  type = "Opaque"
+}
+
 resource "kubernetes_deployment_v1" "stalwart" {
   metadata {
     name = "stalwart"
@@ -44,6 +66,10 @@ resource "kubernetes_deployment_v1" "stalwart" {
         labels = {
           app = "stalwart"
         }
+
+        annotations = {
+          "checksum/ses-smtp" = sha256(jsonencode(kubernetes_secret_v1.stalwart_ses_smtp.data))
+        }
       }
 
       spec {
@@ -66,6 +92,24 @@ resource "kubernetes_deployment_v1" "stalwart" {
           env {
             name  = "STALWART_PUBLIC_URL"
             value = "https://stalwart.jkandler.de"
+          }
+          env {
+            name = "SES_SMTP_USERNAME"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.stalwart_ses_smtp.metadata[0].name
+                key  = "SES_SMTP_USERNAME"
+              }
+            }
+          }
+          env {
+            name = "SES_SMTP_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.stalwart_ses_smtp.metadata[0].name
+                key  = "SES_SMTP_PASSWORD"
+              }
+            }
           }
 
           port {
