@@ -145,16 +145,19 @@ resource "kubernetes_deployment_v1" "bulwark" {
             name  = "OAUTH_ISSUER_URL"
             value = "https://auth.jkandler.de"
           }
-          # NOT set yet: Bulwark's own login form (username/password
-          # against Stalwart directly) stays available alongside the
-          # new "sign in with Authelia" button until the Stalwart-side
-          # OIDC verification above is confirmed working end-to-end --
-          # forcing it now, before that's confirmed, risks locking
-          # every account out of a mail server that's now in real use.
-          # env {
-          #   name  = "AUTO_SSO_ENABLED"
-          #   value = "true"
-          # }
+          # Confirmed live 2026-09-20 the SSO flow genuinely opens the
+          # real mailbox end-to-end (Stalwart's Authentication
+          # Directory now points at the "Authelia SSO" OIDC directory
+          # -- see the Stalwart runbook), so Bulwark's own password
+          # form is dead weight: Stalwart's internal password check is
+          # disabled while an external directory is active, the same
+          # as it is for every other account. AUTO_SSO_ENABLED skips
+          # straight to the login that actually works instead of
+          # showing a form that doesn't.
+          env {
+            name  = "AUTO_SSO_ENABLED"
+            value = "true"
+          }
           env {
             name = "OAUTH_CLIENT_SECRET"
             value_from {
