@@ -164,6 +164,35 @@ resource "kubernetes_secret_v1" "authelia_config" {
               grant_types:
                 - 'authorization_code'
               token_endpoint_auth_method: 'client_secret_basic'
+            # Bulwark webmail (infra/k3s-apps' modules/bulwark) at
+            # mail.jkandler.de -- its own OIDC login button, in addition
+            # to the ingress-level forward-auth already gating that
+            # hostname (mail-chain). This is the "sign in with Authelia"
+            # step Bulwark presents; it does NOT by itself change how
+            # Bulwark authenticates to Stalwart's JMAP endpoint
+            # underneath -- that side needs Stalwart's own directory
+            # switched to its OIDC backend, a separate, deliberately
+            # unverified-yet step (see modules/bulwark's own comment).
+            - client_id: 'bulwark'
+              client_name: 'Bulwark Webmail'
+              client_secret: '${var.authelia_oidc_bulwark_client_secret_hash}'
+              public: false
+              authorization_policy: 'two_factor'
+              claims_policy: 'groups_in_id_token'
+              require_pkce: true
+              pkce_challenge_method: 'S256'
+              redirect_uris:
+                - 'https://mail.jkandler.de/api/auth/callback/oidc'
+              scopes:
+                - 'openid'
+                - 'profile'
+                - 'groups'
+                - 'email'
+              response_types:
+                - 'code'
+              grant_types:
+                - 'authorization_code'
+              token_endpoint_auth_method: 'client_secret_basic'
             - client_id: 'nextcloud'
               client_name: 'Nextcloud'
               client_secret: '${var.authelia_oidc_nextcloud_client_secret_hash}'

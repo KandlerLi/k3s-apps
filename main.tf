@@ -90,6 +90,8 @@ module "stalwart" {
 
 module "bulwark" {
   source = "./modules/bulwark"
+
+  bulwark_oidc_client_secret = local.k3s_apps_bulwark["authelia_oidc_bulwark_client_secret"]
 }
 
 module "authelia" {
@@ -106,6 +108,7 @@ module "authelia" {
   authelia_oidc_grafana_client_secret_hash   = local.home_infra_authelia["authelia_oidc_grafana_client_secret_hash"]
   authelia_oidc_openwebui_client_secret_hash = local.home_infra_authelia["authelia_oidc_openwebui_client_secret_hash"]
   authelia_oidc_nextcloud_client_secret_hash = local.home_infra_authelia["authelia_oidc_nextcloud_client_secret_hash"]
+  authelia_oidc_bulwark_client_secret_hash   = local.home_infra_authelia["authelia_oidc_bulwark_client_secret_hash"]
 }
 
 module "ingress" {

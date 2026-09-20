@@ -35,6 +35,32 @@ resource "kubernetes_secret_v1" "bulwark_session" {
   type = "Opaque"
 }
 
+# Authelia OIDC login ("sign in with Authelia" in Bulwark's own UI).
+# This is separate from -- and does not by itself change -- the
+# forward-auth gate already in front of mail.jkandler.de
+# (modules/ingress' mail-chain): that gate gets you to Bulwark's own
+# login screen at all; this is what Bulwark's login screen itself uses.
+#
+# Deliberately NOT wired yet: whether Bulwark actually uses the
+# resulting OAuth access token to authenticate to Stalwart's JMAP
+# endpoint (OAUTHBEARER), or still expects separate mailbox
+# credentials, isn't confirmed -- and Stalwart's own directory is
+# still "internal" (the wizard's choice), not OIDC, so it can't
+# validate that token yet either. Until both sides are verified
+# end-to-end, this only adds an OIDC login *option* to Bulwark; it does
+# not complete single sign-on into the mailbox itself.
+resource "kubernetes_secret_v1" "bulwark_oidc" {
+  metadata {
+    name = "bulwark-oidc"
+  }
+
+  data = {
+    OAUTH_CLIENT_SECRET = var.bulwark_oidc_client_secret
+  }
+
+  type = "Opaque"
+}
+
 resource "kubernetes_deployment_v1" "bulwark" {
   metadata {
     name = "bulwark"
@@ -62,6 +88,7 @@ resource "kubernetes_deployment_v1" "bulwark" {
 
         annotations = {
           "checksum/session" = sha256(random_id.session.b64_std)
+          "checksum/oidc"    = sha256(jsonencode(kubernetes_secret_v1.bulwark_oidc.data))
         }
       }
 
@@ -103,6 +130,37 @@ resource "kubernetes_deployment_v1" "bulwark" {
               secret_key_ref {
                 name = kubernetes_secret_v1.bulwark_session.metadata[0].name
                 key  = "SESSION_SECRET"
+              }
+            }
+          }
+          env {
+            name  = "OAUTH_ENABLED"
+            value = "true"
+          }
+          env {
+            name  = "OAUTH_CLIENT_ID"
+            value = "bulwark"
+          }
+          env {
+            name  = "OAUTH_ISSUER_URL"
+            value = "https://auth.jkandler.de"
+          }
+          # NOT set yet: Bulwark's own login form (username/password
+          # against Stalwart directly) stays available alongside the
+          # new "sign in with Authelia" button until the Stalwart-side
+          # OIDC verification above is confirmed working end-to-end --
+          # forcing it now, before that's confirmed, risks locking
+          # every account out of a mail server that's now in real use.
+          # env {
+          #   name  = "AUTO_SSO_ENABLED"
+          #   value = "true"
+          # }
+          env {
+            name = "OAUTH_CLIENT_SECRET"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.bulwark_oidc.metadata[0].name
+                key  = "OAUTH_CLIENT_SECRET"
               }
             }
           }

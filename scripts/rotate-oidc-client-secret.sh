@@ -24,6 +24,7 @@
 #
 #   scripts/rotate-oidc-client-secret.sh grafana
 #   scripts/rotate-oidc-client-secret.sh openwebui
+#   scripts/rotate-oidc-client-secret.sh bulwark
 #   scripts/rotate-oidc-client-secret.sh nextcloud
 #
 # Prompts silently for each value in turn -- nothing echoed, nothing in
@@ -55,7 +56,7 @@ fail() {
   exit 1
 }
 
-[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|openwebui|nextcloud>"
+[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|openwebui|bulwark|nextcloud>"
 client="$1"
 case "$client" in
   grafana)
@@ -64,11 +65,14 @@ case "$client" in
   openwebui)
     client_secret_id="home-infra/open-webui"
     ;;
+  bulwark)
+    client_secret_id="k3s-apps/bulwark"
+    ;;
   nextcloud)
     client_secret_id="home-infra/nextcloud"
     ;;
   *)
-    fail "usage: $(basename "$0") <grafana|openwebui|nextcloud>"
+    fail "usage: $(basename "$0") <grafana|openwebui|bulwark|nextcloud>"
     ;;
 esac
 hash_key="authelia_oidc_${client}_client_secret_hash"
