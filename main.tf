@@ -88,6 +88,13 @@ module "stalwart" {
   stalwart_ses_smtp_password = local.home_infra_monitoring["monitoring_ses_smtp_password"]
 }
 
+# Stalwart's own runtime settings (CORS, IP allow-list, ...), adopted from
+# what was originally set by hand in its admin UI. Separate from
+# module "stalwart" above, which owns the Kubernetes objects.
+module "stalwart_config" {
+  source = "./modules/stalwart_config"
+}
+
 module "bulwark" {
   source = "./modules/bulwark"
 

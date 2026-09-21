@@ -55,3 +55,21 @@ provider "kubernetes" {
 provider "aws" {
   region = "eu-central-1"
 }
+
+# Stalwart's own settings, as code (modules/stalwart_config). Talks to
+# the management API over the private Service, never the public
+# hostname (Authelia would intercept it). Authenticates with an admin
+# API key from Secrets Manager -- a Bearer token, which Stalwart
+# validates as an internal credential regardless of its Authentication
+# Directory setting, so this keeps working while SSO is on.
+#
+# COUPLING WORTH KNOWING: unlike everything else in this root, this
+# provider talks to a live server at plan time. If Stalwart is down,
+# every plan in this repo fails -- including the one that would fix
+# it. Fixes: `terraform plan -target=module.stalwart` (touches only the
+# Deployment/Services, not the provider), or bring Stalwart back by
+# hand first. Accepted deliberately (2026-09-21) over a separate root.
+provider "stalwart" {
+  endpoint = coalesce(var.stalwart_endpoint, var.in_cluster ? "http://stalwart-internal.default.svc.cluster.local:8080" : "http://127.0.0.1:18083")
+  token    = local.k3s_apps_stalwart["stalwart_api_token"]
+}
