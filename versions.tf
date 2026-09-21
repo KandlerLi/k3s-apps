@@ -14,6 +14,13 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
+    # Community provider (not HashiCorp's), pre-1.0, single maintainer --
+    # pinned to an exact version on purpose: bump it deliberately after
+    # reading its changelog, never via a ~> range.
+    stalwart = {
+      source  = "tahacodes/stalwart"
+      version = "0.2.4"
+    }
   }
 
   # Added 2026-09-03, alongside splitting modules/github_runner + the
