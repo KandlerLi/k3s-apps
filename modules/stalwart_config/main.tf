@@ -26,3 +26,63 @@ resource "stalwart_allowed_ip" "k3s_pods" {
   address = "10.42.0.0/16"
   reason  = "k3s Pod network (Traefik); Stalwart's IP banning must never block the ingress"
 }
+
+# --- Certificate for IMAPS/submission (mail clients) -----------------------
+#
+# Stalwart's own ACME, HTTP-01. Traefik owns 80/443, but the challenge
+# still reaches Stalwart: port 80 redirects to https, and the `stalwart-api`
+# router (modules/ingress) sends /.well-known/* on stalwart.jkandler.de to
+# Stalwart without Authelia. DNS-01 was deliberately NOT used: it needs
+# the domain's DNS management set to Automatic, which would let Stalwart
+# write records into the Route53 zone that aws/dyndns and aws/ses-relay
+# own (SPF, DMARC, MX ...) -- exactly the kind of second owner this
+# workspace avoids.
+#
+# The contact is an outside address on purpose: Let's Encrypt's expiry
+# warnings must still arrive if the mail server itself is what broke.
+resource "stalwart_acme_provider" "letsencrypt" {
+  contact        = ["julian.kandler@outlook.com"]
+  directory      = "https://acme-v02.api.letsencrypt.org/directory"
+  challenge_type = "Http01"
+}
+
+# The mail domain. It already exists (created by the setup wizard), so
+# the provider adopts it. EVERY live value is mirrored here explicitly,
+# read from the server on 2026-09-21, so adoption cannot reset anything
+# to a provider default.
+resource "stalwart_domain" "jkandler_de" {
+  name               = "jkandler.de"
+  is_enabled         = true
+  allow_relaying     = false
+  report_address_uri = "mailto:postmaster"
+
+  sub_addressing = {
+    type = "Enabled"
+  }
+
+  # DNS stays with Terraform (aws/dyndns, aws/ses-relay), never Stalwart.
+  dns_management = {
+    type = "Manual"
+  }
+
+  # Was "Automatic" (the wizard's default). Stalwart-side DKIM signing
+  # must stay off: outbound mail goes through SES, which signs with its own
+  # Easy DKIM, and a second DKIM-Signature header makes SES reject the
+  # message outright (554 "Duplicate header 'DKIM-Signature'", hit live
+  # 2026-09-20). Automatic management could quietly recreate the keys
+  # we deleted; Manual cannot.
+  dkim_management = {
+    type = "Manual"
+  }
+
+  # Only the hostname mail clients connect to. Hostnames are relative to
+  # the domain ("stalwart" -> stalwart.jkandler.de); the apex would be
+  # written in full. Which names Stalwart requests when this is left empty
+  # isn't documented, so it's pinned explicitly -- names that don't
+  # exist in DNS (imap., mta-sts., ...) would fail a whole HTTP-01 order.
+  certificate_management = {
+    type                      = "Automatic"
+    acme_provider_id          = stalwart_acme_provider.letsencrypt.id
+    subject_alternative_names = ["stalwart"]
+  }
+}
