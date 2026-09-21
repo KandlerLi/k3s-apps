@@ -1,8 +1,10 @@
-# Stalwart mail server, first slice: inbound SMTP (port 25) only. The
-# homeserver's k3s_ingress_forward relay (home-infra#51) already carries
-# public port 25 to this Service's LoadBalancer address; submission,
-# IMAP and the web admin stay cluster-internal for now (reach the admin
-# with `kubectl port-forward svc/stalwart-internal 8080`).
+# Stalwart mail server. The homeserver's k3s_ingress_forward relay
+# (home-infra#51, #53) carries public ports 25 (inbound SMTP), 993
+# (IMAPS) and 465 (implicit-TLS submission) to this Service's
+# LoadBalancer address; the web admin stays cluster-internal on
+# stalwart-internal:8080 (behind Traefik/Authelia at
+# stalwart.jkandler.de, or `kubectl port-forward svc/stalwart-internal
+# 8080`). The plaintext 143/587 are not exposed anywhere.
 #
 # First-run setup is done through Stalwart's own bootstrap wizard, which
 # generates config.toml on the PVC and prints a temporary admin password
@@ -117,6 +119,14 @@ resource "kubernetes_deployment_v1" "stalwart" {
             container_port = 25
           }
           port {
+            name           = "imaps"
+            container_port = 993
+          }
+          port {
+            name           = "submissions"
+            container_port = 465
+          }
+          port {
             name           = "http"
             container_port = 8080
           }
@@ -189,10 +199,16 @@ resource "kubernetes_deployment_v1" "stalwart" {
   }
 }
 
-# Public inbound SMTP only. Local, so the real sender IP reaches Stalwart
-# for SPF and rate limiting -- the same reason as modules/blocky's own
-# Service: the default (Cluster) masquerades the source. Safe because
-# the single replica and this Service's LoadBalancer IP share k3s-node-1.
+# Public mail ports: inbound SMTP (25), plus the TLS-only client ports
+# IMAPS (993) and implicit-TLS submission (465) for mail clients. The
+# plaintext 143/587 are deliberately not exposed. The name stays
+# "stalwart-smtp" (renaming would replace the Service and its
+# LoadBalancer address) though it now carries more than SMTP.
+# Local, so the real client/sender IP reaches Stalwart for SPF, rate
+# limiting and its brute-force protection -- the same reason as
+# modules/blocky's own Service: the default (Cluster) masquerades the
+# source. Safe because the single replica and this Service's
+# LoadBalancer IP share k3s-node-1.
 resource "kubernetes_service_v1" "stalwart_smtp" {
   metadata {
     name = "stalwart-smtp"
@@ -212,6 +228,16 @@ resource "kubernetes_service_v1" "stalwart_smtp" {
       name        = "smtp"
       port        = 25
       target_port = 25
+    }
+    port {
+      name        = "imaps"
+      port        = 993
+      target_port = 993
+    }
+    port {
+      name        = "submissions"
+      port        = 465
+      target_port = 465
     }
   }
 }
