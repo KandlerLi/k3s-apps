@@ -1,9 +1,10 @@
 # New service, part of the parked "Ingress auth: replace Basic Auth
 # with Authelia" plan (see PARKED.md and this module's own secret.tf)
-# -- Authelia, not Authentik, specifically because it needs no second
+# -- Authelia, not Authentik, specifically because it needs no heavy second
 # stateful sidecar (SQLite is enough for a single-user homelab, no
-# Postgres/Redis the way Authentik's own IdP footprint would need) on
-# a node that has already hit real CPU/memory pressure before. This
+# Postgres the way Authentik's own IdP footprint would need) on
+# a node that has already hit real CPU/memory pressure before. A small
+# Redis sidecar was added later, only to keep sessions across restarts. This
 # first apply is additive only: it stands the Pod up and wires
 # auth.jkandler.de's own portal router (modules/ingress/configmap.tf),
 # but doesn't yet touch any of the five hostnames still gated by
@@ -11,7 +12,7 @@
 # deliberate, separate step once a real login + TOTP enrollment is
 # confirmed working end-to-end.
 #
-# Single Pod, no init_container, no second stateful service --
+# Single Pod, no init_container, no second stateful Deployment --
 # confirmed against the image's own real config (ghcr.io/authelia/
 # authelia's config blob, not assumed): ExposedPorts 9091/tcp,
 # Entrypoint /app/entrypoint.sh, a built-in HEALTHCHECK CMD-SHELL
@@ -166,6 +167,64 @@ resource "kubernetes_deployment_v1" "authelia" {
           }
         }
 
+        # Session store: Authelia's only way to keep sessions across a
+        # restart is an external Redis (session.redis in secret.tf); its
+        # SQLite database does not hold them. A sidecar rather than a
+        # second Deployment -- one Pod, one lifecycle, and bound to
+        # 127.0.0.1 so nothing else in the cluster can reach it.
+        # Append-only persistence on its own PVC is what carries the
+        # sessions over the Pod recreation (strategy Recreate above)
+        # and a node reboot.
+        container {
+          name  = "redis"
+          image = "redis:8-alpine@sha256:ba6e394f6acc2a695ef1b6944f161b9ca813711739be68319fa0db3470673f1d"
+
+          args = [
+            "--bind", "127.0.0.1",
+            "--dir", "/redis-data",
+            "--appendonly", "yes",
+            "--save", "",
+            "--maxmemory", "48mb",
+            "--maxmemory-policy", "noeviction",
+          ]
+
+          resources {
+            requests = {
+              cpu    = "10m"
+              memory = "32Mi"
+            }
+            limits = {
+              cpu    = "100m"
+              memory = "96Mi"
+            }
+          }
+
+          security_context {
+            allow_privilege_escalation = false
+            run_as_non_root            = true
+            run_as_user                = 65534
+            run_as_group               = 65534
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+          }
+
+          volume_mount {
+            name       = "redis-data"
+            mount_path = "/redis-data"
+          }
+
+          readiness_probe {
+            exec {
+              command = ["redis-cli", "-h", "127.0.0.1", "ping"]
+            }
+            initial_delay_seconds = 3
+            period_seconds        = 10
+            timeout_seconds       = 3
+          }
+        }
+
         volume {
           name = "config"
           secret {
@@ -182,6 +241,12 @@ resource "kubernetes_deployment_v1" "authelia" {
           name = "data"
           persistent_volume_claim {
             claim_name = kubernetes_persistent_volume_claim_v1.authelia_data.metadata[0].name
+          }
+        }
+        volume {
+          name = "redis-data"
+          persistent_volume_claim {
+            claim_name = kubernetes_persistent_volume_claim_v1.authelia_redis.metadata[0].name
           }
         }
         volume {

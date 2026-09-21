@@ -1,5 +1,6 @@
-# Small PVC for Authelia's own SQLite database (sessions, TOTP
-# registrations, the reset-password JWT denylist) -- worth surviving
+# Small PVC for Authelia's own SQLite database (TOTP registrations,
+# consent state, the reset-password JWT denylist -- not sessions, those
+# live in the Redis sidecar, see authelia_redis below) -- worth surviving
 # an ordinary Pod restart rather than resetting every time, the same
 # "genuinely disposable but worth keeping" reasoning modules/ingress's
 # own acme.json PVC and modules/blocky's own Postgres PVC both used
@@ -10,6 +11,27 @@
 resource "kubernetes_persistent_volume_claim_v1" "authelia_data" {
   metadata {
     name = "authelia-data"
+  }
+
+  wait_until_bound = false
+
+  spec {
+    access_modes       = ["ReadWriteOnce"]
+    storage_class_name = "local-path"
+
+    resources {
+      requests = {
+        storage = "128Mi"
+      }
+    }
+  }
+}
+
+# Redis sidecar's append-only file (session store). Same local-path
+# reasoning as authelia_data above.
+resource "kubernetes_persistent_volume_claim_v1" "authelia_redis" {
+  metadata {
+    name = "authelia-redis"
   }
 
   wait_until_bound = false

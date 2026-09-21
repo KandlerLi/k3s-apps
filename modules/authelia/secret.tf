@@ -249,6 +249,13 @@ resource "kubernetes_secret_v1" "authelia_config" {
           - domain: 'jkandler.de'
             authelia_url: 'https://auth.jkandler.de'
             default_redirection_url: 'https://home.jkandler.de'
+        # Without this block Authelia keeps sessions in process memory
+        # only, so every Pod restart (each rollout) logged everyone
+        # out. Redis is a sidecar in this same Pod (main.tf), so
+        # 127.0.0.1 is enough and it is not reachable from other Pods.
+        redis:
+          host: '127.0.0.1'
+          port: 6379
 
       storage:
         encryption_key: '${var.authelia_storage_encryption_key}'
