@@ -1,10 +1,5 @@
-# Static config -- mirrors home-infra's own shared_ingress role's
-# templates/traefik.yml.j2 nearly verbatim. The "health" entryPoint
-# stays container-internal only (never exposed via the LoadBalancer
-# Service below, only reachable through Kubernetes' own readiness/
-# liveness probes hitting the Pod's own IP directly) -- same shape as
-# the original's own 127.0.0.1-bound health entryPoint, just via a
-# Pod's own network namespace instead of the homeserver's loopback.
+# The "health" entryPoint is container-internal only -- never exposed
+# via the LoadBalancer Service, just used by Kubernetes' own probes.
 resource "kubernetes_config_map_v1" "ingress_static_config" {
   metadata {
     name = "ingress-static-config"
@@ -49,19 +44,9 @@ resource "kubernetes_config_map_v1" "ingress_static_config" {
           directory: /etc/traefik/dynamic
           watch: true
 
-      # dnsChallenge, not tlsChallenge (the original shared_ingress role's
-      # own choice) -- deliberately switched during this migration.
-      # TLS-ALPN-01 always validates against the domain's real port 443,
-      # so it ties cert issuance to the exact moment 80/443 get cut over
-      # to k3s, with no way to rehearse it safely first. DNS-01 decouples
-      # the two entirely: this Traefik can issue and renew real
-      # production certs against jkandler.de's own Route53 zone at any
-      # time, with no port ever touched -- proven and stable well before
-      # the real DNAT cutover, not discovered live during it. Credentials
-      # (lego's own route53 provider reads AWS_ACCESS_KEY_ID/
-      # AWS_SECRET_ACCESS_KEY/AWS_HOSTED_ZONE_ID/AWS_REGION from the
-      # environment, not from this file) come from dyndns's own
-      # traefik-acme-dns01 IAM user -- see main.tf's container env.
+      # DNS-01, not TLS-ALPN-01 -- see current-state.md ("k3s learning
+      # cluster") for why. Credentials come from dyndns's own
+      # traefik-acme-dns01 IAM user (main.tf's container env).
       certificatesResolvers:
         letsencrypt:
           acme:
@@ -83,20 +68,10 @@ resource "kubernetes_config_map_v1" "ingress_static_config" {
   }
 }
 
-# Dynamic config -- mirrors dynamic.yml.j2's own final, fully-enabled
-# shape (every route home-infra's own shared_ingress had gated behind
-# a per-service opt-in flag is unconditionally live in this repo
-# already, confirmed by every one of those cutovers already being
-# complete) with the Jinja conditionals resolved away, and every
-# backend re-pointed at this cluster's own in-cluster Service DNS
-# names directly (home-agent-svc, open-webui-svc, deluge-web-svc,
-# grafana-svc, landing-page-svc -- all already exposing port 80,
-# confirmed against each module's own Service) instead of bouncing
-# back out through the node's own external address the way the old,
-# outside-the-cluster homeserver Traefik had to. nextcloud is the one
-# exception -- Nextcloud AIO's own Apache stays on the homeserver
-# permanently, reached through the nextcloud-aio-backend Service
-# (nextcloud_backend.tf) instead.
+# Every backend routes to this cluster's own in-cluster Service DNS
+# names directly. nextcloud is the one exception -- Nextcloud AIO's own
+# Apache stays on the homeserver, reached through the
+# nextcloud-aio-backend Service (nextcloud_backend.tf) instead.
 resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
   metadata {
     name = "ingress-dynamic-config"
@@ -182,14 +157,10 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               - apex-redirect
             tls:
               certResolver: letsencrypt
-          # Stands the portal up at auth.jkandler.de -- added 2026-09-08
-          # as a deliberately additive first step (see git history),
-          # confirmed live with a real login + TOTP enrollment before
-          # the cutover below ever happened. authelia-chain carries no
-          # auth middleware of its own (bypass) -- Authelia's own
-          # access_control already marks this exact hostname bypass
-          # (modules/authelia/secret.tf), and the portal has to be
-          # reachable unauthenticated or nobody could ever log in.
+          # authelia-chain is bypass -- Authelia's own access_control
+          # already marks this hostname bypass (modules/authelia/
+          # secret.tf), and the portal has to be reachable
+          # unauthenticated or nobody could ever log in.
           auth:
             rule: "Host(`auth.jkandler.de`)"
             entryPoints:
@@ -310,28 +281,13 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
             chain:
               middlewares:
                 - nextcloud-secure-headers
-          # Re-cut over 2026-09-08 (same day as the original cutover
-          # and its rollback -- see PARKED.md's own detailed writeup)
-          # after real, deliberate load testing (sequential and
-          # concurrent failed logins, a triggered regulation ban)
-          # failed to reproduce the SQLite data-loss issue that
-          # triggered the rollback -- treated as a real possible
-          # one-time fluke rather than a confirmed recurring bug, not
-          # worth continuing to block production auth on indefinitely.
-          # If it recurs, the fix is the same known ~5-minute drill
-          # (recreate db.sqlite3, possibly re-enroll TOTP) that resolved
-          # it both times before -- see BACKLOG.md's own tracked item.
-          # The shared-auth Basic Auth middleware that used to serve as
-          # an instant one-line rollback for this was deliberately
-          # retired 2026-09-11 (the underlying ingress/password Secrets
-          # Manager keys were dead weight once every chain had actually
-          # held stable on forward-auth for days) -- there is no
-          # equivalent instant fallback any more; recovery is the
-          # drill above or a slower rebuild of the old middleware from
-          # git history. Response headers match Authelia's own documented Traefik
-          # integration exactly (the four Remote-* headers its
-          # forward-auth endpoint sends back once a request is
-          # authenticated).
+          # No Basic Auth fallback middleware exists anymore -- if
+          # Authelia's SQLite storage loses data again (BACKLOG.md),
+          # recovery is a ~5-minute drill (recreate db.sqlite3,
+          # re-enroll TOTP if needed), not an instant middleware
+          # rollback. See current-state.md's "k3s learning cluster"
+          # entry for the full incident history. Response headers match
+          # Authelia's own documented Traefik integration exactly.
           authelia-forward-auth:
             forwardAuth:
               address: "http://authelia-svc:9091/api/authz/forward-auth"
@@ -393,13 +349,7 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
                 - open-webui-request-limit
                 - agent-security-headers
           # deluge-chain/grafana-chain/home-chain/kubernetes-dashboard-chain
-          # (and each one's own -rate-limit/-request-limit/-security-headers
-          # trio) used to be hand-copied here, byte-identical except for the
-          # name prefix and two numbers (rate/burst, buffer size) -- moved
-          # 2026-09-22 (ponytail-audit) into generated-middlewares.yml
-          # (below), a second file in this same ConfigMap that Traefik's
-          # file provider merges in from the same watched directory
-          # (providers.file.directory in configmap.tf's own static config).
+          # are generated -- see generated-middlewares.yml below.
           # No request-size buffering middleware on the mail/stalwart
           # chains (unlike the others): JMAP/webmail uploads attachments.
           mail-rate-limit:
@@ -446,9 +396,10 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               permanent: true
     EOT
 
-    # Generated (see locals below), not hand-written like routes.yml above
-    # -- these four chains were the one place this file had real,
-    # mechanical duplication rather than four genuinely different routes.
+    # Generated from locals below, not hand-written like routes.yml --
+    # see decisions in docs/home-infra-ai-context's current-state.md
+    # ("k3s learning cluster", 2026-09-22 entry) for why only these four
+    # chains are generated and every other middleware stays hand-written.
     "generated-middlewares.yml" = yamlencode({
       http = {
         middlewares = local.generated_middlewares
@@ -457,16 +408,6 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
   }
 }
 
-# The shared shape behind deluge-chain/grafana-chain/home-chain/
-# kubernetes-dashboard-chain: an Authelia forward-auth gate, a per-service
-# rate limit, a request-size limit, and a fixed set of security headers --
-# differing only in the numeric rate/burst/buffer values. Every other
-# chain in routes.yml's own middlewares (mail, stalwart, agent,
-# open-webui, nextcloud, authelia) has its own distinct shape (some skip
-# the request-limit, some skip forward-auth, some share a middleware
-# across two routers) and stays hand-written there rather than being
-# forced into this same generic shape for the sake of a single generic
-# loop.
 locals {
   authelia_gated_chains = {
     deluge                 = { rate = 120, burst = 240, buffer = 1048576 }

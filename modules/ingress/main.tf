@@ -1,42 +1,10 @@
-# Phase [shared_ingress migration] (see the approved plan in
-# home-infra's own plan history): the last, highest-stakes piece of
-# the "move things to k3s one at a time" project. Unlike every prior
-# migration, this one has no safe additive window -- only one thing can
-# hold the homeserver's own physical ports 80/443 at a time. See the
-# plan itself for the full reasoning; this module only covers the
-# in-cluster half of it (the new Traefik instance). The other half --
-# the iptables DNAT relay that actually gets public traffic here at
-# all, since the k3s VM's own network is deliberately unreachable from
-# the LAN otherwise -- lives in home-infra's new k3s_ingress_forward
-# role, not here.
-#
-# A new, dedicated Traefik, not a reconfiguration of k3s's own bundled
-# one -- k3s_node's own README deliberately keeps that at defaults, and
-# real production ACME/Basic-Auth/rate-limit config has no business
-# living there. k3s's own bundled Traefik is disabled entirely
-# (k3s_node's own --disable traefik flag) once this one is confirmed
-# taking over cleanly -- two Traefik instances can't both hold the
-# same LoadBalancer ports or usefully watch the same Ingress resources.
-#
-# Static/dynamic config (configmap.tf) mirrors home-infra's own
-# shared_ingress role's templates nearly verbatim, deliberately -- the
-# lowest-risk possible translation on the riskiest service in this
-# project, reusing config already proven in production rather than
-# learning Kubernetes' own IngressRoute/Middleware CRD model here of
-# all places. Every backend routes to this cluster's own in-cluster
-# Service DNS names directly now (home-agent-svc, open-webui-svc,
-# deluge-web-svc, grafana-svc, landing-page-svc), not back out through
-# the node's own external address the way the old, outside-the-cluster
-# homeserver Traefik had to -- this Traefik lives inside the cluster
-# now, so it doesn't need to.
-#
-# Resources: no real usage data for this exact workload yet (first
-# deploy of a from-scratch Traefik instance, not a migrated one with
-# its own docker stats history) -- limits match the old Docker
-# container's own ceiling (256Mi/0.5 CPU) as a starting point, requests
-# set conservatively low; revisit against real usage once live, the
-# same measure-then-size discipline every other module here follows
-# once real data exists to size from.
+# Dedicated Traefik Deployment -- k3s's own bundled instance stays
+# disabled (k3s_node's one departure from "everything else stays at
+# defaults"). The iptables DNAT relay that gets public traffic to this
+# cluster at all lives in home-infra's k3s_ingress_forward role, not
+# here. Full migration history and the DNS-01-over-TLS-ALPN-01 ACME
+# decision: docs/home-infra-ai-context's current-state.md ("k3s
+# learning cluster").
 
 resource "kubernetes_deployment_v1" "ingress" {
   metadata {
@@ -58,27 +26,12 @@ resource "kubernetes_deployment_v1" "ingress" {
           app = "ingress"
         }
 
-        # static-config/dynamic-config are mounted below via sub_path,
-        # and acme-dns01-credentials is consumed via
-        # env.valueFrom.secretKeyRef -- two different mechanisms, but
-        # Kubernetes never live-propagates either kind of update into
-        # an already-running container: a sub_path mount only picks up
-        # new ConfigMap/Secret content on a real Pod recreation, and
-        # secretKeyRef env vars are read once at container start and
-        # never refreshed at all. Confirmed live (2026-09-02, back when
-        # a third sub_path source -- the now-retired Basic Auth users
-        # file -- was mounted the same way): rotating that password
-        # updated the Secret object fine, but the running Pod kept
-        # serving the old hash until a manual `kubectl rollout restart`
-        # was run. checksum/acme-dns01-credentials was added
-        # 2026-09-11 after the same gap bit a real ACME key rotation --
-        # the Secret updated fine, but the already-running Pod kept
-        # using the just-deleted IAM key in memory until a manual
-        # restart, caught and fixed by hand only because it was being
-        # watched for at the time. These checksums make it automatic:
-        # changing any of the three sources changes the pod template
-        # itself, so Kubernetes rolls a fresh Pod on its own -- exactly
-        # when, and only when, one of them actually changes.
+        # sub_path mounts and secretKeyRef env vars never live-refresh
+        # on a ConfigMap/Secret change -- Kubernetes only picks up new
+        # content on a real Pod recreation. These checksums force that
+        # recreation whenever any of the three sources actually
+        # changes. See current-state.md for the incidents that found
+        # this the hard way.
         annotations = {
           "checksum/static-config"            = sha256(kubernetes_config_map_v1.ingress_static_config.data["traefik.yml"])
           "checksum/dynamic-config"           = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["routes.yml"])
@@ -99,15 +52,10 @@ resource "kubernetes_deployment_v1" "ingress" {
             "--configFile=/etc/traefik/traefik.yml",
           ]
 
-          # lego's own route53 provider (the ACME DNS-01 challenge --
-          # see configmap.tf's own comment) reads all of these directly
-          # from the environment. AWS_HOSTED_ZONE_ID/AWS_REGION are
-          # non-secret (dyndns's own public jkandler.de zone ID, same
-          # region dyndns itself deploys into) so they're literals here
-          # rather than SOPS secrets -- passing AWS_HOSTED_ZONE_ID
-          # explicitly also skips lego's own route53:ListHostedZonesByName
-          # zone-lookup call entirely, matching the IAM user's own
-          # deliberately narrow policy (see dyndns's own main.tf).
+          # lego's own route53 provider reads these directly from the
+          # environment. Zone ID/region are non-secret literals;
+          # setting AWS_HOSTED_ZONE_ID explicitly also skips lego's own
+          # zone-lookup call, matching the IAM user's narrow policy.
           env {
             name  = "AWS_HOSTED_ZONE_ID"
             value = "Z07879811I86VC8PAL8HX"
@@ -159,11 +107,8 @@ resource "kubernetes_deployment_v1" "ingress" {
             }
           }
 
-          # Matches the old Docker container's own security_opts/
-          # cap_drop/capabilities exactly: read-only root, every
-          # capability dropped except NET_BIND_SERVICE (needed to bind
-          # ports 80/443 as a non-root user -- otherwise the kernel's
-          # own unprivileged-port restriction blocks it).
+          # NET_BIND_SERVICE is the one added capability -- needed to
+          # bind ports 80/443 as a non-root user.
           security_context {
             read_only_root_filesystem  = true
             allow_privilege_escalation = false
@@ -188,11 +133,9 @@ resource "kubernetes_deployment_v1" "ingress" {
             sub_path   = "routes.yml"
             read_only  = true
           }
-          # Traefik's own file provider watches the whole directory
-          # (providers.file.directory in configmap.tf's own static config)
-          # and merges every file in it -- a second sub_path mount for the
-          # generated-middlewares.yml key works the same way routes.yml
-          # does, just as a second file in that same directory.
+          # Traefik's file provider watches the whole directory and
+          # merges every file in it -- this is a second file there,
+          # not a special case.
           volume_mount {
             name       = "dynamic-config"
             mount_path = "/etc/traefik/dynamic/generated-middlewares.yml"
@@ -260,22 +203,13 @@ resource "kubernetes_deployment_v1" "ingress" {
   }
 }
 
-# type = LoadBalancer, matching modules/deluge's/modules/alertmanager's
-# own precedent -- k3s's bundled ServiceLB binds this directly to
-# k3s-node-1's own address, giving home-infra's new
-# k3s_ingress_forward role a stable 192.168.101.10:80/:443 DNAT target.
+# type = LoadBalancer -- k3s's bundled ServiceLB binds this to
+# k3s-node-1's own address, giving home-infra's k3s_ingress_forward
+# role a stable 192.168.101.10:80/:443 DNAT target.
 #
-# wait_for_load_balancer = false: confirmed live that this resource
-# hangs indefinitely (Terraform's own default wait behavior for
-# LoadBalancer Services) without it -- k3s's own bundled Traefik is
-# still running as this module's own first apply, already holding
-# these exact ports on this exact node via its own svclb-traefik Pod,
-# so ServiceLB can never assign this Service an external IP until that
-# one is disabled. Deliberately not disabling it yet -- confirmed live
-# it's still routing real production traffic today (ai/torrent/
-# grafana/home.jkandler.de all forward through it already), so this
-# module gets built, wired, and verified via its own ClusterIP first;
-# disabling k3s's bundled Traefik is its own separate, deliberate step.
+# wait_for_load_balancer = false: k3s's bundled Traefik holds these
+# same ports until it's disabled, so ServiceLB can't assign this
+# Service an external IP until then -- see current-state.md.
 resource "kubernetes_service_v1" "ingress" {
   metadata {
     name = "ingress-svc"
