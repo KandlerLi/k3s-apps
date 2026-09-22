@@ -80,9 +80,10 @@ resource "kubernetes_deployment_v1" "ingress" {
         # itself, so Kubernetes rolls a fresh Pod on its own -- exactly
         # when, and only when, one of them actually changes.
         annotations = {
-          "checksum/static-config"          = sha256(kubernetes_config_map_v1.ingress_static_config.data["traefik.yml"])
-          "checksum/dynamic-config"         = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["routes.yml"])
-          "checksum/acme-dns01-credentials" = sha256(jsonencode(kubernetes_secret_v1.ingress_acme_dns01_credentials.data))
+          "checksum/static-config"            = sha256(kubernetes_config_map_v1.ingress_static_config.data["traefik.yml"])
+          "checksum/dynamic-config"           = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["routes.yml"])
+          "checksum/generated-dynamic-config" = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["generated-middlewares.yml"])
+          "checksum/acme-dns01-credentials"   = sha256(jsonencode(kubernetes_secret_v1.ingress_acme_dns01_credentials.data))
         }
       }
 
@@ -187,6 +188,17 @@ resource "kubernetes_deployment_v1" "ingress" {
             sub_path   = "routes.yml"
             read_only  = true
           }
+          # Traefik's own file provider watches the whole directory
+          # (providers.file.directory in configmap.tf's own static config)
+          # and merges every file in it -- a second sub_path mount for the
+          # generated-middlewares.yml key works the same way routes.yml
+          # does, just as a second file in that same directory.
+          volume_mount {
+            name       = "dynamic-config"
+            mount_path = "/etc/traefik/dynamic/generated-middlewares.yml"
+            sub_path   = "generated-middlewares.yml"
+            read_only  = true
+          }
           volume_mount {
             name       = "acme"
             mount_path = "/letsencrypt"
@@ -233,7 +245,7 @@ resource "kubernetes_deployment_v1" "ingress" {
         volume {
           name = "acme"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim_v1.ingress_acme.metadata[0].name
+            claim_name = module.ingress_acme.name
           }
         }
         volume {

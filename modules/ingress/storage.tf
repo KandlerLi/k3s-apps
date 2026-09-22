@@ -18,21 +18,17 @@
 # reference), so waiting for it to reach Bound here is a genuine
 # chicken-and-egg hang -- it can only bind after a later resource this
 # same apply hasn't created yet.
-resource "kubernetes_persistent_volume_claim_v1" "ingress_acme" {
-  metadata {
-    name = "ingress-acme"
-  }
+#
+# Shape lives in modules/pvc_local_path (extracted 2026-09-22,
+# ponytail-audit -- see that module's own comment).
+moved {
+  from = kubernetes_persistent_volume_claim_v1.ingress_acme
+  to   = module.ingress_acme.kubernetes_persistent_volume_claim_v1.this
+}
 
-  wait_until_bound = false
+module "ingress_acme" {
+  source = "../pvc_local_path"
 
-  spec {
-    access_modes       = ["ReadWriteOnce"]
-    storage_class_name = "local-path"
-
-    resources {
-      requests = {
-        storage = "128Mi"
-      }
-    }
-  }
+  name = "ingress-acme"
+  size = "128Mi"
 }

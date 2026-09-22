@@ -392,102 +392,14 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
                 - open-webui-rate-limit
                 - open-webui-request-limit
                 - agent-security-headers
-          deluge-rate-limit:
-            rateLimit:
-              average: 120
-              period: 1m
-              burst: 240
-          deluge-request-limit:
-            buffering:
-              maxRequestBodyBytes: 1048576
-              memRequestBodyBytes: 1048576
-          deluge-security-headers:
-            headers:
-              contentTypeNosniff: true
-              frameDeny: true
-              referrerPolicy: no-referrer
-              permissionsPolicy: "camera=(), microphone=(), geolocation=()"
-              stsSeconds: 31536000
-              stsIncludeSubdomains: false
-          deluge-chain:
-            chain:
-              middlewares:
-                - authelia-forward-auth
-                - deluge-rate-limit
-                - deluge-request-limit
-                - deluge-security-headers
-          grafana-rate-limit:
-            rateLimit:
-              average: 120
-              period: 1m
-              burst: 240
-          grafana-request-limit:
-            buffering:
-              maxRequestBodyBytes: 1048576
-              memRequestBodyBytes: 1048576
-          grafana-security-headers:
-            headers:
-              contentTypeNosniff: true
-              frameDeny: true
-              referrerPolicy: no-referrer
-              permissionsPolicy: "camera=(), microphone=(), geolocation=()"
-              stsSeconds: 31536000
-              stsIncludeSubdomains: false
-          grafana-chain:
-            chain:
-              middlewares:
-                - authelia-forward-auth
-                - grafana-rate-limit
-                - grafana-request-limit
-                - grafana-security-headers
-          home-rate-limit:
-            rateLimit:
-              average: 10
-              period: 1m
-              burst: 5
-          home-request-limit:
-            buffering:
-              maxRequestBodyBytes: 16384
-              memRequestBodyBytes: 16384
-          home-security-headers:
-            headers:
-              contentTypeNosniff: true
-              frameDeny: true
-              referrerPolicy: no-referrer
-              permissionsPolicy: "camera=(), microphone=(), geolocation=()"
-              stsSeconds: 31536000
-              stsIncludeSubdomains: false
-          home-chain:
-            chain:
-              middlewares:
-                - authelia-forward-auth
-                - home-rate-limit
-                - home-request-limit
-                - home-security-headers
-          kubernetes-dashboard-rate-limit:
-            rateLimit:
-              average: 120
-              period: 1m
-              burst: 240
-          kubernetes-dashboard-request-limit:
-            buffering:
-              maxRequestBodyBytes: 1048576
-              memRequestBodyBytes: 1048576
-          kubernetes-dashboard-security-headers:
-            headers:
-              contentTypeNosniff: true
-              frameDeny: true
-              referrerPolicy: no-referrer
-              permissionsPolicy: "camera=(), microphone=(), geolocation=()"
-              stsSeconds: 31536000
-              stsIncludeSubdomains: false
-          kubernetes-dashboard-chain:
-            chain:
-              middlewares:
-                - authelia-forward-auth
-                - kubernetes-dashboard-rate-limit
-                - kubernetes-dashboard-request-limit
-                - kubernetes-dashboard-security-headers
+          # deluge-chain/grafana-chain/home-chain/kubernetes-dashboard-chain
+          # (and each one's own -rate-limit/-request-limit/-security-headers
+          # trio) used to be hand-copied here, byte-identical except for the
+          # name prefix and two numbers (rate/burst, buffer size) -- moved
+          # 2026-09-22 (ponytail-audit) into generated-middlewares.yml
+          # (below), a second file in this same ConfigMap that Traefik's
+          # file provider merges in from the same watched directory
+          # (providers.file.directory in configmap.tf's own static config).
           # No request-size buffering middleware on the mail/stalwart
           # chains (unlike the others): JMAP/webmail uploads attachments.
           mail-rate-limit:
@@ -533,5 +445,71 @@ resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
               replacement: 'https://www.jkandler.de/$${1}'
               permanent: true
     EOT
+
+    # Generated (see locals below), not hand-written like routes.yml above
+    # -- these four chains were the one place this file had real,
+    # mechanical duplication rather than four genuinely different routes.
+    "generated-middlewares.yml" = yamlencode({
+      http = {
+        middlewares = local.generated_middlewares
+      }
+    })
   }
+}
+
+# The shared shape behind deluge-chain/grafana-chain/home-chain/
+# kubernetes-dashboard-chain: an Authelia forward-auth gate, a per-service
+# rate limit, a request-size limit, and a fixed set of security headers --
+# differing only in the numeric rate/burst/buffer values. Every other
+# chain in routes.yml's own middlewares (mail, stalwart, agent,
+# open-webui, nextcloud, authelia) has its own distinct shape (some skip
+# the request-limit, some skip forward-auth, some share a middleware
+# across two routers) and stays hand-written there rather than being
+# forced into this same generic shape for the sake of a single generic
+# loop.
+locals {
+  authelia_gated_chains = {
+    deluge                 = { rate = 120, burst = 240, buffer = 1048576 }
+    grafana                = { rate = 120, burst = 240, buffer = 1048576 }
+    "kubernetes-dashboard" = { rate = 120, burst = 240, buffer = 1048576 }
+    home                   = { rate = 10, burst = 5, buffer = 16384 }
+  }
+
+  generated_middlewares = merge([
+    for name, cfg in local.authelia_gated_chains : {
+      "${name}-rate-limit" = {
+        rateLimit = {
+          average = cfg.rate
+          period  = "1m"
+          burst   = cfg.burst
+        }
+      }
+      "${name}-request-limit" = {
+        buffering = {
+          maxRequestBodyBytes = cfg.buffer
+          memRequestBodyBytes = cfg.buffer
+        }
+      }
+      "${name}-security-headers" = {
+        headers = {
+          contentTypeNosniff   = true
+          frameDeny            = true
+          referrerPolicy       = "no-referrer"
+          permissionsPolicy    = "camera=(), microphone=(), geolocation=()"
+          stsSeconds           = 31536000
+          stsIncludeSubdomains = false
+        }
+      }
+      "${name}-chain" = {
+        chain = {
+          middlewares = [
+            "authelia-forward-auth",
+            "${name}-rate-limit",
+            "${name}-request-limit",
+            "${name}-security-headers",
+          ]
+        }
+      }
+    }
+  ]...)
 }

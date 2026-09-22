@@ -227,7 +227,7 @@ resource "kubernetes_deployment_v1" "bulwark" {
         volume {
           name = "data"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim_v1.bulwark.metadata[0].name
+            claim_name = module.bulwark_data.name
           }
         }
       }

@@ -53,7 +53,7 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
             automount_service_account_token = false
 
             image_pull_secrets {
-              name = kubernetes_secret_v1.ghcr_pull.metadata[0].name
+              name = module.ghcr_pull_secret.name
             }
 
             # Confirmed live: "PermissionError: /var/lib/sankey-export/out"

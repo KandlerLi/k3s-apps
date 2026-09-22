@@ -111,7 +111,7 @@ resource "kubernetes_cron_job_v1" "authelia_backup" {
             volume {
               name = "authelia-data"
               persistent_volume_claim {
-                claim_name = kubernetes_persistent_volume_claim_v1.authelia_data.metadata[0].name
+                claim_name = module.authelia_data.name
               }
             }
             volume {

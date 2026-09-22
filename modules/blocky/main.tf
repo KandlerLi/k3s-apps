@@ -360,7 +360,7 @@ resource "kubernetes_deployment_v1" "blocky" {
         volume {
           name = "postgres-data"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim_v1.blocky_postgres.metadata[0].name
+            claim_name = module.blocky_postgres.name
           }
         }
       }
