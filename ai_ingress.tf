@@ -1,19 +1,15 @@
 # ai.jkandler.de -- one hostname split by path between home_agent and
-# open_webui, exactly like home-infra's own shared_ingress does today
-# (see its dynamic.yml.j2: home_agent answers /healthz and /v1/chat
-# directly, priority 100; open_webui gets everything else, priority
-# 10). shared_ingress' own two upstreams (shared_ingress_agent_upstream,
-# shared_ingress_open_webui_upstream) both point at this cluster's
-# Traefik once cut over, so this Ingress has to replicate that same
-# split on this side -- standard Kubernetes Ingress path matching
-# already prefers a more specific (Exact) match over a broader
-# (Prefix) one for the same host, without needing Traefik's own
-# priority annotation the Docker-side config uses.
+# open_webui (home_agent answers /healthz and /v1/chat, open_webui gets
+# everything else). Lives at the root, not inside either module -- it's
+# the one thing that depends on both home_agent's and open_webui's own
+# Services, referenced across modules through their outputs.tf.
 #
-# Lives at the root, not inside either module -- it's the one thing
-# that genuinely depends on both home_agent's and open_webui's own
-# Services, which Terraform can only reference across modules through
-# their outputs.tf.
+# NOTE (found during a 2026-09-22 comment-trim pass, not yet acted on):
+# same as modules/deluge's/modules/grafana's/modules/landing_page's own
+# kubernetes_ingress_v1 resources -- ai.jkandler.de's real routing now
+# happens via modules/ingress's own home-agent-api/open-webui routers
+# (configmap.tf), and this Ingress looks like it's no longer read by
+# anything since that Traefik only has a `file` provider configured.
 
 resource "kubernetes_ingress_v1" "ai" {
   metadata {
@@ -24,10 +20,6 @@ resource "kubernetes_ingress_v1" "ai" {
     ingress_class_name = "traefik"
 
     rule {
-      # shared_ingress' own outer Traefik forwards the client's
-      # original Host header unchanged (passHostHeader: true), so this
-      # has to match what actually arrives once home-infra points both
-      # ai.jkandler.de upstreams at this cluster.
       host = "ai.jkandler.de"
 
       http {

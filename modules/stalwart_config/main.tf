@@ -47,9 +47,8 @@ resource "stalwart_acme_provider" "letsencrypt" {
 }
 
 # The mail domain. It already exists (created by the setup wizard), so
-# the provider adopts it. EVERY live value is mirrored here explicitly,
-# read from the server on 2026-09-21, so adoption cannot reset anything
-# to a provider default.
+# the provider adopts it. EVERY live value is mirrored here explicitly
+# so adoption cannot reset anything to a provider default.
 resource "stalwart_domain" "jkandler_de" {
   name               = "jkandler.de"
   is_enabled         = true
@@ -66,11 +65,10 @@ resource "stalwart_domain" "jkandler_de" {
   }
 
   # Was "Automatic" (the wizard's default). Stalwart-side DKIM signing
-  # must stay off: outbound mail goes through SES, which signs with its own
-  # Easy DKIM, and a second DKIM-Signature header makes SES reject the
-  # message outright (554 "Duplicate header 'DKIM-Signature'", hit live
-  # 2026-09-20). Automatic management could quietly recreate the keys
-  # we deleted; Manual cannot.
+  # must stay off: outbound mail goes through SES, which signs with its
+  # own Easy DKIM, and a second DKIM-Signature header makes SES reject
+  # the message outright. Automatic management could quietly recreate
+  # the keys we deleted; Manual cannot.
   dkim_management = {
     type = "Manual"
   }

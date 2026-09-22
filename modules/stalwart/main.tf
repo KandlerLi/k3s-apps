@@ -1,25 +1,10 @@
-# Stalwart mail server. The homeserver's k3s_ingress_forward relay
-# (home-infra#51, #53) carries public ports 25 (inbound SMTP), 993
-# (IMAPS) and 465 (implicit-TLS submission) to this Service's
-# LoadBalancer address; the web admin stays cluster-internal on
+# Stalwart mail server. The web admin stays cluster-internal on
 # stalwart-internal:8080 (behind Traefik/Authelia at
-# stalwart.jkandler.de, or `kubectl port-forward svc/stalwart-internal
-# 8080`). The plaintext 143/587 are not exposed anywhere.
-#
-# First-run setup is done through Stalwart's own bootstrap wizard, which
-# generates config.toml on the PVC and prints a temporary admin password
-# to the Pod log (`kubectl logs deploy/stalwart | grep -A8 'bootstrap
-# mode'`). STALWART_RECOVERY_ADMIN (a fixed admin credential) is
-# deliberately not wired yet: it needs a new Secrets Manager entry in
-# aws/secrets-manager first, a separate change.
-#
-# Image: v0.16.22, pinned by digest like every other module here.
-#
-# Sizing: the setup wizard's RocksDB defaults (128MB write buffers + 128MB
-# block cache) alone are ~256MB before Stalwart's own process, so the
-# original 512Mi limit sat right at the OOM line. The limit is what
-# matters (the node itself has free memory); request stays modest.
-# Revisit against real usage once mail actually flows.
+# stalwart.jkandler.de, or `kubectl port-forward`). The plaintext
+# 143/587 are not exposed anywhere. STALWART_RECOVERY_ADMIN is
+# deliberately not wired yet -- needs a new Secrets Manager entry
+# first, a separate change. See docs/home-infra-ai-context's
+# current-state.md ("Mail server") for the fuller picture.
 
 # Outbound mail relay credential, exposed to Stalwart as environment
 # variables rather than typed into its own admin UI (its "Secret read
@@ -168,16 +153,9 @@ resource "kubernetes_deployment_v1" "stalwart" {
             sub_path   = "data"
           }
 
-          # Deliberately only a startup probe, on 8080. Confirmed live
-          # (2026-09-19): until the bootstrap wizard is completed,
-          # Stalwart listens on 8080 only -- no SMTP listener at all --
-          # so the original readiness/liveness probes on port 25 failed
-          # forever, and the liveness probe restarted the Pod every ~3
-          # minutes (the CI apply then timed out waiting for Ready).
-          # Which ports stay open after setup isn't known yet, so a
-          # steady-state readiness/liveness probe is left for a
-          # follow-up once the real listeners are known; a wrong one
-          # here would either kill or unroute a working mail server.
+          # Deliberately only a startup probe, on 8080 -- see
+          # current-state.md for why steady-state probes are left for a
+          # follow-up.
           startup_probe {
             tcp_socket {
               port = 8080

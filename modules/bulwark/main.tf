@@ -1,23 +1,17 @@
 # Bulwark Webmail (https://github.com/bulwarkmail/webmail, AGPL-3.0): a
-# JMAP webmail client for Stalwart, giving mail, calendar, contacts and
-# files in one UI. It runs in the browser against Stalwart's JMAP
-# endpoint directly (stalwart.jkandler.de), so Stalwart needs CORS
-# enabled for this app's origin (mail.jkandler.de) -- a manual Stalwart
-# setting, not configurable from here.
+# JMAP webmail client for Stalwart. Runs in the browser against
+# Stalwart's JMAP endpoint directly, so Stalwart needs CORS enabled for
+# this app's origin -- a manual Stalwart setting. See
+# docs/home-infra-ai-context's current-state.md ("Mail server") for the
+# fuller picture.
 #
-# Version 1.10.0 (stable; 1.11.0 is still a beta), pinned by the
-# multi-arch index digest like every other image here. A young,
-# third-party project: revisit the pin deliberately, don't float it.
+# Session secret: generated here and kept in Terraform state rather
+# than Secrets Manager. Rotating it (taint random_id.session) logs
+# every webmail user out.
 #
-# Session secret: generated here and kept in Terraform state (S3,
-# encrypted) rather than Secrets Manager, so this needs no change in
-# aws/secrets-manager. Rotating it (taint random_id.session) logs every
-# webmail user out.
-#
-# The image's user is the *name* `nextjs`, which Kubernetes can't verify
-# as non-root, so a numeric UID is set explicitly. 1001 is that user's
-# usual UID in Node images (not confirmed from the image itself) --
-# if the Pod hits permission errors, check that first.
+# The image's user is the *name* `nextjs`, which Kubernetes can't
+# verify as non-root, so a numeric UID (1001, its usual UID in Node
+# images) is set explicitly -- check that first on a permission error.
 
 resource "random_id" "session" {
   byte_length = 32
@@ -35,20 +29,11 @@ resource "kubernetes_secret_v1" "bulwark_session" {
   type = "Opaque"
 }
 
-# Authelia OIDC login ("sign in with Authelia" in Bulwark's own UI).
-# This is separate from -- and does not by itself change -- the
-# forward-auth gate already in front of mail.jkandler.de
-# (modules/ingress' mail-chain): that gate gets you to Bulwark's own
-# login screen at all; this is what Bulwark's login screen itself uses.
-#
-# Deliberately NOT wired yet: whether Bulwark actually uses the
-# resulting OAuth access token to authenticate to Stalwart's JMAP
-# endpoint (OAUTHBEARER), or still expects separate mailbox
-# credentials, isn't confirmed -- and Stalwart's own directory is
-# still "internal" (the wizard's choice), not OIDC, so it can't
-# validate that token yet either. Until both sides are verified
-# end-to-end, this only adds an OIDC login *option* to Bulwark; it does
-# not complete single sign-on into the mailbox itself.
+# Authelia OIDC login ("sign in with Authelia" in Bulwark's own UI) --
+# separate from, and doesn't by itself change, the forward-auth gate
+# already in front of mail.jkandler.de (modules/ingress' mail-chain):
+# that gate gets you to Bulwark's own login screen; this is what the
+# login screen itself uses.
 resource "kubernetes_secret_v1" "bulwark_oidc" {
   metadata {
     name = "bulwark-oidc"
@@ -145,15 +130,9 @@ resource "kubernetes_deployment_v1" "bulwark" {
             name  = "OAUTH_ISSUER_URL"
             value = "https://auth.jkandler.de"
           }
-          # Confirmed live 2026-09-20 the SSO flow genuinely opens the
-          # real mailbox end-to-end (Stalwart's Authentication
-          # Directory now points at the "Authelia SSO" OIDC directory
-          # -- see the Stalwart runbook), so Bulwark's own password
-          # form is dead weight: Stalwart's internal password check is
-          # disabled while an external directory is active, the same
-          # as it is for every other account. AUTO_SSO_ENABLED skips
-          # straight to the login that actually works instead of
-          # showing a form that doesn't.
+          # Bulwark's own password form is dead weight once Stalwart's
+          # Authentication Directory points at the Authelia SSO OIDC
+          # directory -- skips straight to the login that works.
           env {
             name  = "AUTO_SSO_ENABLED"
             value = "true"

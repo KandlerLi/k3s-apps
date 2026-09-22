@@ -1,13 +1,8 @@
-# Deluge itself. Same pinned image as home-infra's deluge role,
-# same PUID/PGID (993/986 -- Deluge's real service account on the
-# homeserver, confirmed live to have write access through the NFS
-# exports in deluge_storage.tf), same "don't drop capabilities"
-# reasoning: linuxserver/deluge's s6-overlay init starts as root and
-# remaps to PUID/PGID via chown/setuid, which a restrictive
-# securityContext (runAsNonRoot, read-only root filesystem) would
-# break -- deliberately left at Kubernetes' permissive defaults here,
-# matching why the Ansible role skips read_only/cap_drop for this one
-# container too.
+# Same PUID/PGID as home-infra's deluge role (993/986, its real
+# service account, write access through the NFS exports). No
+# restrictive securityContext -- linuxserver/deluge's s6-overlay init
+# starts as root and remaps to PUID/PGID via chown/setuid, which
+# runAsNonRoot/read-only-root would break.
 
 resource "kubernetes_deployment_v1" "deluge" {
   metadata {
@@ -29,44 +24,18 @@ resource "kubernetes_deployment_v1" "deluge" {
           app = "deluge"
         }
         annotations = {
-          # subPath-mounted files (web-conf below) don't get live-
-          # refreshed by Kubernetes' normal Secret-update propagation --
-          # this annotation changes whenever the rendered web.conf
-          # content changes (i.e. the password variable actually
-          # changes), which changes the Pod template, which forces a
-          # real rollout instead of a stale mounted file silently
-          # surviving a password rotation.
+          # Forces a rollout when the rendered web.conf actually
+          # changes -- see modules/ingress's own identical pattern.
           "checksum/web-conf" = sha256(local.deluge_web_conf)
         }
       }
 
       spec {
-        # Seeds web.conf into the config PVC before Deluge's own
-        # container starts. NOT a subPath volume_mount into the same
-        # path (what this replaced) -- Kubernetes creates a subPath
-        # mount's target file at the OCI-runtime level, running as
-        # root on the *node*, and that root gets squashed by NFS's
-        # root_squash (deliberately configured, see nfs_server in
-        # home-infra) to an unprivileged user that can't write into
-        # deluge-config (owned by deluge:deluge, mode 0750). Confirmed
-        # live: the Pod never started, stuck in CrashLoopBackOff with
-        # "openat2 /config/web.conf: permission denied" from runc
-        # itself, before Deluge's own process ever ran.
-        #
-        # This container's own process runs as the real Deluge uid
-        # (993/986) instead, doing a normal file write through its own
-        # mount of the same PVC -- no subPath, no root-level mount
-        # trick, so root_squash never enters into it. Only seeds the
-        # file if it's missing, matching the Ansible role's own
-        # "Deluge never writes web.conf on its own until something
-        # triggers a save" reasoning; deliberately simpler than that
-        # role's further logic to detect and repair a known-bad
-        # default password left by an old migration bug, since nothing
-        # here has that history yet. This does mean a Terraform-side
-        # password rotation later won't take effect on its own (an
-        # existing web.conf is left alone) -- a real, acknowledged gap
-        # to solve when password rotation actually comes up, not
-        # bundled into getting the first deploy working.
+        # Seeds web.conf into the config PVC as the real Deluge uid,
+        # not a subPath mount -- see current-state.md for the
+        # root_squash/CrashLoopBackOff this replaced. Only seeds if
+        # missing: a later password rotation won't take effect on its
+        # own (an existing web.conf is left alone), a known gap.
         init_container {
           name    = "seed-web-conf"
           image   = "linuxserver/deluge:2.2.0-ls381@sha256:33a939576f7ecfc1227db1a0cb2afce030ce983e620ec9d93c956e3700e21fe9"
@@ -178,10 +147,8 @@ resource "kubernetes_service_v1" "deluge_web" {
 }
 
 # BitTorrent's actual peer traffic -- Ingress only understands HTTP(S),
-# so this needs a different mechanism entirely: a LoadBalancer Service,
-# which k3s's bundled ServiceLB (the same svclb-* pods already fronting
-# Traefik) picks up and binds directly to the node's own IP on exactly
-# port 6881, not a randomly-assigned NodePort in the 30000+ range.
+# so this needs a LoadBalancer Service instead, bound to a fixed port
+# rather than a randomly-assigned NodePort.
 resource "kubernetes_service_v1" "deluge_peer" {
   metadata {
     name = "deluge-peer-svc"
@@ -209,9 +176,13 @@ resource "kubernetes_service_v1" "deluge_peer" {
   }
 }
 
-# Test hostname first, same as landing_page's own migration -- proven
-# privately before ever touching the real torrent.jkandler.de route in
-# home-infra's shared_ingress.
+# NOTE (found during a 2026-09-22 comment-trim pass, not yet acted
+# on): modules/ingress's own dedicated Traefik only has a `file`
+# provider configured (configmap.tf's static config), no Kubernetes
+# Ingress/CRD provider -- so this resource looks like it's no longer
+# actually read by anything, and torrent.jkandler.de routes entirely
+# through that module's deluge-chain instead. Worth confirming and
+# possibly deleting in a real (non-comment-only) follow-up.
 resource "kubernetes_ingress_v1" "deluge" {
   metadata {
     name = "deluge-ingress"
@@ -221,11 +192,6 @@ resource "kubernetes_ingress_v1" "deluge" {
     ingress_class_name = "traefik"
 
     rule {
-      # The real production hostname -- shared_ingress's outer Traefik
-      # forwards the client's original Host header unchanged
-      # (passHostHeader: true), so this has to match what actually
-      # arrives once home-infra points shared_ingress_deluge_upstream
-      # at this cluster.
       host = "torrent.jkandler.de"
 
       http {

@@ -1,33 +1,13 @@
-# Open WebUI itself -- the k3s-native copy of home-infra's own
-# open_webui role, same pinned image, same real data (mounted from the
-# NFS export in storage.tf, not started fresh -- see that file and
-# home-infra's own nfs_server_exports comment for the live
-# concurrent-write risk this depends on having already been handled:
-# home-infra's own open-webui container must be stopped before this
-# module is ever applied).
+# The k3s-native copy of home-infra's own open_webui role -- same
+# pinned image, same real data (mounted from the NFS export in
+# storage.tf, not started fresh). Points at home_agent's own in-cluster
+# Service instead of a Docker network alias.
 #
-# No image_pull_secrets -- unlike home_agent, this is a public GHCR
-# image.
-#
-# Points at home_agent's own in-cluster Service (modules/home_agent)
-# instead of the Docker "home-agent" network alias -- everything else
-# about the relationship (OpenAI-compatible API only, transcription
-# endpoint reused for voice input, home-agent's own HOME_AGENT_MODEL/
-# HOME_AGENT_STT_MODEL always winning over whatever this container
-# claims) is unchanged from home-infra's own role.
-#
-# CPU sized differently from every other module here: requests (100m)
-# and limits (500m) are deliberately split (Burstable, not this repo's
-# usual limits-only-implies-Guaranteed) instead of just carrying over
-# home-infra's own cpu_limit=1.0. That 1.0 is a Docker *ceiling* on a
-# 4-core homeserver serving dozens of other containers, never a
-# reservation -- copying it as a k3s Guaranteed *request* would repeat
-# exactly the mistake home_agent's first cut made, and there isn't
-# room for it: confirmed live via `kubectl describe node`, only 450m of
-# the VM's 2 vCPU budget was free before this module. Real observed
-# usage (`docker stats`) is 2.36% of one core idle -- 100m is already
-# ~4x that, and 500m gives real burst room for actual chat load without
-# threatening the node's schedulability the way a 1000m request would.
+# CPU requests/limits are deliberately split (Burstable), not a
+# Guaranteed request copied from home-infra's own Docker ceiling --
+# that ceiling was never a reservation, and copying it as a k3s request
+# would starve the node's own scheduling budget. See
+# docs/home-infra-ai-context's current-state.md.
 
 resource "kubernetes_deployment_v1" "open_webui" {
   metadata {
@@ -49,18 +29,9 @@ resource "kubernetes_deployment_v1" "open_webui" {
           app = "open-webui"
         }
 
-        # Confirmed live, 2026-09-09: env.value_from.secret_key_ref is
-        # a read-once-at-container-start mechanism -- unlike a mounted
-        # volume, Kubernetes never refreshes it when the underlying
-        # Secret's own content changes later, and nothing else in this
-        # Deployment's pod template happens to change on a routine
-        # secret rotation either, so a stale Pod could silently keep
-        # serving an old/empty client_secret indefinitely with no
-        # rollout ever triggered. This is exactly the same class of
-        # bug modules/grafana's/modules/authelia's own checksum
-        # annotations already solve for their volume-mounted secrets,
-        # applied here to the one secretKeyRef-based value this module
-        # has.
+        # env.value_from.secret_key_ref is read once at container
+        # start -- same checksum-annotation fix as modules/grafana's/
+        # modules/authelia's own volume-mounted secrets.
         annotations = {
           "checksum/oidc-client-secret" = sha256(kubernetes_secret_v1.open_webui_oidc_client_secret.data["OAUTH_CLIENT_SECRET"])
         }
@@ -100,21 +71,11 @@ resource "kubernetes_deployment_v1" "open_webui" {
             name  = "WEBUI_AUTH"
             value = "True"
           }
-          # Confirmed live, 2026-09-09: with Authelia's own OIDC SSO
-          # working (below), native login stayed enabled as a
-          # deliberate fallback -- but Authelia's ingress-level gate
-          # only proves you reached a valid Authelia session (MFA
-          # required to get one); once past it, Open WebUI's own
-          # native login/signup was a second, completely independent
-          # credential path that skipped MFA entirely.
-          # ENABLE_LOGIN_FORM=False alone only hides the UI (matches
-          # the same gap found in Grafana's own disable_login_form,
-          # see modules/grafana's identical comment) -- ENABLE_PASSWORD_AUTH=False
-          # is the actual protocol-level switch that disables password
-          # auth outright, closing that gap for real. ENABLE_SIGNUP=False
-          # stops new native accounts too, so there's no way to
-          # re-open this by creating one. Authelia is now the only way
-          # in.
+          # ENABLE_LOGIN_FORM=False alone only hides the UI (same gap
+          # as Grafana's own disable_login_form) --
+          # ENABLE_PASSWORD_AUTH=False is the actual protocol-level
+          # switch. ENABLE_SIGNUP=False stops a new native account from
+          # reopening it.
           env {
             name  = "ENABLE_LOGIN_FORM"
             value = "False"
@@ -159,12 +120,9 @@ resource "kubernetes_deployment_v1" "open_webui" {
             name  = "WEBUI_AUTH_COOKIE_SAME_SITE"
             value = "strict"
           }
-          # OIDC SSO against Authelia (modules/authelia's own
-          # identity_providers.oidc), added 2026-09-08 -- now the only
-          # way to log in (see above). OAUTH_MERGE_ACCOUNTS_BY_EMAIL
-          # matches Authelia's own documented Open WebUI integration
-          # guide -- reuses any existing native account with the same
-          # email rather than creating a duplicate.
+          # OAUTH_MERGE_ACCOUNTS_BY_EMAIL reuses any existing native
+          # account with the same email rather than creating a
+          # duplicate.
           env {
             name  = "ENABLE_OAUTH_SIGNUP"
             value = "True"

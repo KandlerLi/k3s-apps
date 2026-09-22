@@ -1,33 +1,8 @@
-# Phase [Blocky migration] -- the last "LAN-facing, can't reach the
-# isolated k3s VM" service to move, made viable by the same
-# k3s_ingress_forward DNAT relay modules/ingress already uses (see
-# home-infra's own role, extended to carry UDP+TCP DNS traffic too,
-# not just HTTP/S). Router config never changes: the FRITZ!Box/DHCP
-# setup keeps pointing LAN clients at the homeserver's own LAN IP for
-# DNS exactly as it does today, and the homeserver relays port 53
-# straight through to this Service instead of answering it directly.
-#
-# Blocky and Postgres share one Pod, not two -- the most faithful
-# translation of the Docker deployment's own network_mode: host
-# (Blocky's own queryLog.target still connects via 127.0.0.1, which a
-# shared Pod network namespace reproduces exactly, no config changes
-# needed there). Unlike the Docker version, Blocky's own DNS/HTTP
-# ports don't need to bind a specific host IP any more -- external
-# reachability is controlled entirely by the Service + DNAT relay now,
-# not by which interface Blocky binds inside its own Pod. Postgres
-# itself binds 0.0.0.0, not loopback-only -- see its own init_container
-# block below for why that's required, not a relaxation.
-#
-# Blocky's own image declares USER 100 (confirmed directly against the
-# GHCR registry's own image config, not assumed) -- security_context
-# mirrors that exactly, plus the same cap_drop: ALL + NET_BIND_SERVICE
-# the Docker deployment already used to bind port 53 as a non-root
-# user. Postgres gets no forced security_context at all, matching the
-# Docker deployment's own deliberate exception: the official image's
-# entrypoint needs to start as root to initialize/chown its own data
-# directory on first run (same class of exception as modules/ingress's
-# own reasoning never needed, since Traefik doesn't own persistent
-# state the way a database does).
+# Blocky and Postgres share one Pod, not two -- Blocky's own
+# queryLog.target connects via 127.0.0.1, which a shared Pod network
+# namespace reproduces with no config changes. Full cutover history and
+# every bug found building this: docs/home-infra-ai-context's
+# current-state.md ("k3s learning cluster", Blocky entry).
 
 resource "kubernetes_deployment_v1" "blocky" {
   metadata {
@@ -37,18 +12,10 @@ resource "kubernetes_deployment_v1" "blocky" {
   spec {
     replicas = 1
 
-    # Confirmed live (2026-09-01): the default RollingUpdate strategy
-    # -- maxUnavailable rounding to 0 at replicas=1 -- creates the new
-    # Pod before terminating the old one. Both land on the same node,
-    # and the PVC below uses local-path (a hostPath wrapper with no
-    # real CSI attach/detach exclusivity, unlike a genuine
-    # ReadWriteOnce-enforcing driver), so both Pods' Postgres sidecars
-    # briefly mounted the exact same underlying data directory at
-    # once -- two concurrent, uncoordinated postgres processes writing
-    # to the same files, which corrupted the WAL ("invalid record
-    # length") and lost the log_entries table entirely, more than
-    # once. Recreate guarantees the old Pod (and its data directory
-    # lock) is fully gone before a new one starts.
+    # Recreate, not the RollingUpdate default -- avoids two Pods'
+    # Postgres sidecars briefly mounting the same local-path data
+    # directory at once. See current-state.md for the corruption this
+    # caused.
     strategy {
       type = "Recreate"
     }
@@ -65,19 +32,10 @@ resource "kubernetes_deployment_v1" "blocky" {
           app = "blocky"
         }
 
-        # Found live 2026-09-12, ahead of building rotation automation
-        # for blocky_postgres_password: config.yml is a sub_path mount
-        # (Blocky's own queryLog.target connection string), which never
-        # gets even kubelet's own eventual sync -- and
-        # blocky_postgres_credentials feeds the postgres sidecar via
-        # env_from, read once at container start. Neither Secret had a
-        # checksum annotation, so a password rotation would update
-        # Secrets Manager and the Kubernetes Secrets but never actually
-        # restart this Pod -- Blocky would keep dialing Postgres with
-        # the stale password in its already-running process
-        # indefinitely. Same class of gap already fixed for
-        # modules/ingress, modules/alertmanager, and
-        # bootstrap/k3s-bootstrap's own modules/github_runner.
+        # Neither Secret live-propagates -- config.yml is a sub_path
+        # mount, and blocky_postgres_credentials feeds the postgres
+        # sidecar via env_from, read once at container start. Same
+        # checksum-annotation fix as modules/ingress/modules/alertmanager.
         annotations = {
           "checksum/config"               = sha256(kubernetes_secret_v1.blocky_config.data["config.yml"])
           "checksum/postgres-credentials" = sha256(jsonencode(kubernetes_secret_v1.blocky_postgres_credentials.data))
@@ -140,15 +98,8 @@ resource "kubernetes_deployment_v1" "blocky" {
             mount_path = "/tmp"
           }
 
-          # Blocky's own image is FROM scratch -- no shell, confirmed
-          # against home-infra's own role (docker exec blocky sh fails
-          # with "executable file not found"). Its own binary ships a
-          # "healthcheck" subcommand for exactly this reason. Unlike
-          # the Docker deployment, no --bindip/--port override is
-          # needed -- that was only required there because Blocky was
-          # bound to the homeserver's own real LAN IP, not 127.0.0.1;
-          # here it binds 0.0.0.0, so the healthcheck's own default
-          # (dial 127.0.0.1:53) matches correctly on its own.
+          # Blocky's own image is FROM scratch -- no shell, so its
+          # binary ships a "healthcheck" subcommand for exactly this.
           readiness_probe {
             exec {
               command = ["/app/blocky", "healthcheck"]
@@ -169,20 +120,11 @@ resource "kubernetes_deployment_v1" "blocky" {
           }
         }
 
-        # Added 2026-09-16 to close a real, confirmed-live gap:
         # Blocky's own query-log Postgres writer has no reconnect logic
-        # (upstream behavior, not fixable here) -- an ~18h silent
-        # logging gap after a Postgres restart mid-Pod-lifetime was
-        # found once by chance, and Blocky's own `up` metric stays
-        # green the whole time, so nothing existing would ever catch a
-        # repeat. This exporter exposes standard `pg_stat_user_tables`
-        # metrics (row insert/update/delete counts per table, no custom
-        # queries needed) so home-infra's own Prometheus can alert on
-        # "no new log_entries rows in N minutes" -- see that repo's
-        # own alert_rules.yml.j2. A regular container, not a native
-        # sidecar like postgres itself: it only needs Postgres to be
-        # reachable, not to start before it -- a transient connection
-        # error at boot is normal, tolerated, and logged, not fatal.
+        # and its `up` metric stays green through a silent logging gap
+        # -- see current-state.md. A regular container, not a native
+        # sidecar: it only needs Postgres reachable, not to start
+        # before it.
         container {
           name  = "postgres-exporter"
           image = "quay.io/prometheuscommunity/postgres-exporter:v0.17.1@sha256:38606faa38c54787525fb0ff2fd6b41b4cfb75d455c1df294927c5f611699b17"
@@ -209,11 +151,6 @@ resource "kubernetes_deployment_v1" "blocky" {
             }
           }
 
-          # The image's own config declares USER nobody (confirmed
-          # directly against the registry's own image config, same
-          # discipline Blocky's own USER 100 check above used) -- 65534
-          # is the standard nobody uid this and virtually every other
-          # minimal image use.
           security_context {
             read_only_root_filesystem  = true
             allow_privilege_escalation = false
@@ -247,21 +184,10 @@ resource "kubernetes_deployment_v1" "blocky" {
         }
 
         # A native sidecar (restart_policy = "Always" on an
-        # init_container -- KEP-753, GA), not a regular container.
-        # Confirmed live (2026-09-01): as two ordinary containers with
-        # no ordering guarantee between them, Blocky started fast
-        # enough to attempt its own Postgres connection *before*
-        # Postgres finished its one-time initdb (data page checksums,
-        # subdirectories, bootstrap script -- genuinely several
-        # seconds on first run), exhausted its own fixed 3-attempt
-        # retry budget, and permanently fell back to console-only
-        # query logging for that Pod's entire lifetime -- Blocky never
-        # retries the writer again afterward, so the query_log table
-        # was never even created, and Grafana's own blocky-postgres
-        # dashboard stayed empty. A native sidecar starts before the
-        # Pod's main containers and blocks them from starting at all
-        # until its own readiness_probe below first succeeds, removing
-        # the race entirely rather than just tolerating it faster.
+        # init_container -- KEP-753), not a regular container -- starts
+        # before the Pod's main containers and blocks them until its
+        # own readiness_probe first succeeds. See current-state.md for
+        # the startup race this avoids.
         init_container {
           name  = "postgres"
           image = "postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73"
@@ -279,33 +205,12 @@ resource "kubernetes_deployment_v1" "blocky" {
             }
           }
 
-          # 0.0.0.0, not 127.0.0.1 -- confirmed live (2026-09-01):
-          # loopback-only broke the exact thing blocky-svc's own
-          # postgres port exists for. A Kubernetes Service is not a
-          # network namespace trick; it DNATs to the Pod's real IP,
-          # which nothing outside this Pod can ever reach if Postgres
-          # only listens on 127.0.0.1 -- Grafana got a flat "connection
-          # refused" on every query. The access boundary here is
-          # correctly the Service's own scope (only reachable from
-          # inside the cluster, same as every other backend this
-          # module or modules/grafana talks to) plus the official
-          # image's own password-required pg_hba.conf default, not
-          # which interface postgres itself binds -- Blocky's own
-          # connection over 127.0.0.1 (this Pod's shared network
-          # namespace) keeps working unchanged either way.
-          #
-          # args, not command: Kubernetes' own container.command
-          # replaces the image's ENTRYPOINT (Docker's docker-
-          # entrypoint.sh), not just its CMD. That entrypoint is what
-          # initializes/chowns the data directory on first run and
-          # drops privileges from root to the postgres user before
-          # actually exec'ing the server -- skipping it (confirmed
-          # live, 2026-09-01) starts the postgres binary directly as
-          # root, which it refuses outright ('"root" execution of the
-          # PostgreSQL server is not permitted'). args leaves the
-          # entrypoint in charge and passes this flag through to it,
-          # the same way `docker run postgres -c listen_addresses=...`
-          # does.
+          # 0.0.0.0, not 127.0.0.1 -- blocky-svc's own postgres port
+          # DNATs to this Pod's real IP, unreachable if Postgres only
+          # listens on loopback. args, not command: command would
+          # bypass the image's own entrypoint (which chowns the data
+          # directory and drops root before exec'ing the server). See
+          # current-state.md.
           args = ["-c", "listen_addresses=0.0.0.0"]
 
           resources {
@@ -368,16 +273,11 @@ resource "kubernetes_deployment_v1" "blocky" {
   }
 }
 
-# type = LoadBalancer, matching modules/deluge's own dual-protocol
-# deluge-peer-svc precedent for the DNS ports -- k3s's bundled
-# ServiceLB binds this directly to k3s-node-1's own address, giving
-# home-infra's own k3s_ingress_forward role a stable
-# 192.168.101.10:53 (tcp+udp) DNAT target. postgres/http don't need
-# DNAT (Grafana/Prometheus reach this address directly -- the
-# homeserver and every other in-cluster Pod already have a route into
-# the k3s VM's own isolated network, unlike LAN clients or the public
-# internet), but ride along on the same Service since a single stable
-# address is simplest for all four ports together.
+# type = LoadBalancer -- k3s's bundled ServiceLB binds this to
+# k3s-node-1's own address, giving home-infra's k3s_ingress_forward
+# role a stable 192.168.101.10:53 (tcp+udp) DNAT target. postgres/http
+# don't need DNAT but ride along on the same Service for one stable
+# address.
 resource "kubernetes_service_v1" "blocky" {
   metadata {
     name = "blocky-svc"
@@ -387,19 +287,11 @@ resource "kubernetes_service_v1" "blocky" {
 
   spec {
     type = "LoadBalancer"
-    # Confirmed live (2026-09-01), the moment real LAN DNS traffic
-    # started flowing through k3s_ingress_forward's own DNAT relay:
-    # kube-proxy's default externalTrafficPolicy (Cluster) masquerades
-    # the original client's source IP when routing Service traffic to
-    # a Pod, replacing it with a cluster-internal address (10.42.0.1)
-    # before Blocky ever sees it -- its own query log lost every real
-    # LAN client's identity, the exact thing that log exists to
-    # capture. Local is safe here specifically because Blocky's own
-    # Pod and this Service's LoadBalancer IP are both pinned to
-    # k3s-node-1 (single replica, no node_selector needed elsewhere in
-    # this module) -- no risk of dropping traffic that arrived at a
-    # node with no local endpoint, the one real tradeoff Local usually
-    # carries.
+    # Local, not the Cluster default -- Cluster masquerades the real
+    # LAN client's source IP before Blocky ever sees it, defeating the
+    # query log's whole purpose. Safe here since Blocky's Pod and this
+    # Service's LoadBalancer IP are both pinned to the same node. See
+    # current-state.md.
     external_traffic_policy = "Local"
 
     selector = {

@@ -1,8 +1,5 @@
-# sankey-export's own image is a private GHCR package
-# (ghcr.io/kandlerli/sankey-export), same shape as home_agent's own
-# ghcr_pull secret -- both now share modules/ghcr_pull_secret (extracted
-# 2026-09-22, ponytail-audit; see modules/home_agent/secret.tf's own
-# comment).
+# Shape lives in modules/ghcr_pull_secret -- shared with
+# modules/home_agent/secret.tf.
 moved {
   from = kubernetes_secret_v1.ghcr_pull
   to   = module.ghcr_pull_secret.kubernetes_secret_v1.this

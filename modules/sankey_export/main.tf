@@ -1,18 +1,10 @@
 # Renders the Finanzfluss budget Sankey diagram and uploads it to
 # Nextcloud, on the same 1-minute cadence the old home-infra systemd
-# timer used. finanzfluss_export.py itself needed zero code changes for
-# this move -- it was already entirely env-var-configured; only the
-# ETag cache (skips re-rendering when the workbook hasn't changed) needed
-# a durable mount instead of a local systemd-managed disk path, via the
-# host_path volume below rather than a cluster-scoped PersistentVolume
-# (which would mean touching the separate, human-only k3s-bootstrap repo
-# for no real benefit on a single-node cluster).
-#
-# 192.168.101.1:11000 is this homeserver's own address on the k3s VM's
-# isolated network -- the exact same endpoint home_agent's own
-# nextcloud_tools sidecar already reaches Nextcloud AIO Apache through
-# (see modules/home_agent/main.tf), must stay in lockstep with
-# home-infra's nextcloud_aio_apache_ip_binding.
+# timer used. The ETag cache uses a host_path volume, not a
+# cluster-scoped PersistentVolume -- no real benefit on a single-node
+# cluster. Full cutover history and every bug found:
+# docs/home-infra-ai-context's current-state.md ("k3s learning
+# cluster").
 
 resource "kubernetes_cron_job_v1" "sankey_export" {
   metadata {
@@ -56,22 +48,10 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
               name = module.ghcr_pull_secret.name
             }
 
-            # Confirmed live: "PermissionError: /var/lib/sankey-export/out"
-            # -- unlike emptyDir (created world-writable by kubelet), a
-            # DirectoryOrCreate hostPath is created root-owned 0755 on
-            # the node's own disk. A pod-level fs_group was tried first
-            # (matching the pattern that fixes this for PVC-backed
-            # volumes) and confirmed live NOT to work: fsGroup-based
-            # ownership management only covers volume types kubelet
-            # itself provisions (emptyDir, CSI volumes that opt in via
-            # fsGroupPolicy) -- hostPath is explicitly excluded, kubelet
-            # never touches its ownership at all (checked directly via a
-            # debug Pod: still root:root 0755 after the "fix"). An
-            # initContainer running as root is the standard fix for
-            # exactly this gap -- it chowns the mount once before the
-            # real container starts, which needs CAP_CHOWN specifically
-            # (dropping every other capability, same least-privilege
-            # shape as the main container below).
+            # A DirectoryOrCreate hostPath is created root-owned 0755 --
+            # fs_group does NOT fix this for hostPath specifically (see
+            # current-state.md). This initContainer chowns it once
+            # instead, the standard fix.
             init_container {
               name    = "fix-state-dir-ownership"
               image   = var.sankey_export_image
@@ -119,19 +99,9 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
                 name  = "SANKEY_EXPORT_APP_PASSWORD_FILE"
                 value = "/etc/sankey-export/app-password"
               }
-              # Nextcloud shares don't preserve the sharer's own path for
-              # the recipient -- confirmed live via `occ share:list
-              # --recipient=sankey-export`: source-path
-              # "/admin/files/Documents/Finanzen" but target-path
-              # "/Shared/Finanzen". The dedicated account's WebDAV root
-              # sees it at Shared/Finanzen, not Documents/Finanzen (the
-              # role's own defaults/main.yml default -- overridden in
-              # home-infra's own group_vars/all/main.yml, which this
-              # value was copied from without checking against the
-              # override; confirmed live, the first two real runs both
-              # got "Workbook not found" at Documents/Finanzen/...,
-              # while home-infra's own systemd copy kept succeeding
-              # using this same Shared/Finanzen value the whole time).
+              # Nextcloud shares don't preserve the sharer's own path
+              # for the recipient -- see current-state.md for the
+              # 404s this caused before landing on this value.
               env {
                 name  = "SANKEY_EXPORT_REMOTE_DIR"
                 value = "Shared/Finanzen"
@@ -149,20 +119,12 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
                 value = "/var/lib/sankey-export/last-etag"
               }
 
-              # Ceiling matches the old systemd unit's own
-              # MemoryMax=768M/CPUQuota=100% (rendering with a real
-              # headless Chromium is the expensive part), but requests
-              # stay low -- this Job bursts for a few seconds once a
-              # minute, not continuously, and setting limits alone
-              # would default requests to match them (Guaranteed QoS),
-              # reserving a full CPU against the node's schedulable
-              # capacity around the clock. Confirmed live: the k3s VM's
-              # 2 vCPU budget only had ~120m of request headroom left
-              # once every other module's own request was accounted
-              # for -- 1000m alone failed to schedule at all ("0/2
-              # nodes are available: 1 Insufficient cpu"), the exact
-              # same class of bug home_agent's own main.tf already
-              # documents fixing.
+              # Limits match the old systemd unit's own ceiling
+              # (rendering with headless Chromium is the expensive
+              # part), but requests stay low -- this Job bursts for a
+              # few seconds once a minute, not continuously. See
+              # current-state.md for the scheduling failure a
+              # Guaranteed-QoS request caused.
               resources {
                 requests = {
                   memory = "128Mi"

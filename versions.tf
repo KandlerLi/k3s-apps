@@ -23,16 +23,8 @@ terraform {
     }
   }
 
-  # Added 2026-09-03, alongside splitting modules/github_runner + the
-  # cluster-scoped PVs out into their own root (its own separate S3
-  # state, key k3s-bootstrap/terraform.tfstate -- originally a
-  # bootstrap/ subdirectory of this same repo, later extracted into the
-  # standalone k3s-bootstrap repo alongside terraform-state -- and, at
-  # the time, repo-infra too, since moved to its own github/ directory)
-  # -- this root now gets applied by CI, which is ephemeral and can't
-  # rely on a local state file the way the old fully-local setup could.
-  # Same bucket, same convention every other repo in this workspace
-  # already uses.
+  # CI applies this root, which is ephemeral and can't rely on a local
+  # state file -- same bucket/convention every other repo here uses.
   backend "s3" {
     bucket       = "jkandler-terraform-state"
     key          = "k3s-apps/terraform.tfstate"

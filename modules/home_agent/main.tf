@@ -1,16 +1,10 @@
 # home_agent + nextcloud_tools as sidecars in one Pod, sharing a Unix
-# socket through an emptyDir -- preserves the exact trust shape
-# home-infra's own deployment already has (nextcloud_tools reachable
-# only over a Unix socket, never a network), just relocated from "two
-# processes on one host" to "two containers in one Pod". home_tools_service
-# is the one dependency that couldn't move this way (see home-infra's
-# own comment on home_agent_tools_tcp_bind_address) -- it's reached over
-# its new TCP listener instead, at 192.168.101.1:8095.
-#
-# No Ingress here yet -- home_agent doesn't need to be reachable on its
-# own; only open_webui (not yet migrated) needs to reach it, the same
-# internal-only relationship home-infra's own home-agent-frontend Docker
-# network already has today.
+# socket through an emptyDir -- nextcloud_tools stays reachable only
+# over that socket, never a network. home_tools_service is the one
+# dependency that couldn't move this way -- reached over a TCP listener
+# at 192.168.101.1:8095 instead. Full cutover history and every bug
+# found: docs/home-infra-ai-context's current-state.md ("k3s learning
+# cluster").
 
 resource "kubernetes_deployment_v1" "home_agent" {
   metadata {
@@ -32,17 +26,9 @@ resource "kubernetes_deployment_v1" "home_agent" {
           app = "home-agent"
         }
 
-        # Found live 2026-09-12, ahead of rotating
-        # home_agent_openai_api_key/nextcloud_tools_app_password: this
-        # Deployment had zero checksum annotations at all. All three
-        # Secrets are whole-directory volume mounts (not sub_path), so
-        # kubelet does eventually sync the file content on its own
-        # (~60-90s), but whether either process notices without a
-        # restart -- the same open question the alertmanager/grafana
-        # precedents found -- was never confirmed. Forces a rollout on
-        # any real rotation instead of leaving that unconfirmed, same
-        # pattern as modules/grafana, modules/alertmanager, and
-        # bootstrap/k3s-bootstrap's own modules/github_runner.
+        # Same checksum-annotation pattern as modules/grafana/
+        # modules/alertmanager -- forces a rollout on rotation instead
+        # of leaving whether the process notices unconfirmed.
         annotations = {
           "checksum/openai-api-key"         = sha256(kubernetes_secret_v1.openai_api_key.data["openai_api_key"])
           "checksum/anthropic-api-key"      = sha256(kubernetes_secret_v1.anthropic_api_key.data["anthropic_api_key"])
@@ -55,26 +41,8 @@ resource "kubernetes_deployment_v1" "home_agent" {
       }
 
       spec {
-        # Neither container talks to the Kubernetes API, so there's
-        # nothing for the default projected serviceaccount-token volume
-        # to do here -- originally turned off because it collided with
-        # the openai_api_key Secret, then mounted whole at /run/secrets:
-        # kubelet auto-mounts the token at
-        # /var/run/secrets/kubernetes.io/serviceaccount, which aliases
-        # (/var/run -> /run) into a subdirectory of that same
-        # already-mounted path, and couldn't create it there (confirmed
-        # live: "mkdirat .../run/secrets/kubernetes.io: read-only file
-        # system"). Not actually caused by read_only_root_filesystem
-        # below, despite this comment originally blaming it -- the
-        # grafana module hit the identical collision with no
-        # read_only_root_filesystem set at all, from its own Secret
-        # mounted the same way at /run/secrets. The openai/anthropic key
-        # Secrets now mount at /run/secrets/openai and
-        # /run/secrets/anthropic instead (2026-09-18, split for the
-        # Anthropic key), which no longer collides -- kept off anyway,
-        # same least-privilege reasoning as the cap_drop/non-root/
-        # read-only-root baseline already applied to both containers
-        # either way, for a mount neither needs.
+        # Neither container talks to the Kubernetes API. See
+        # current-state.md for the /run/secrets collision this avoids.
         automount_service_account_token = false
 
         image_pull_secrets {
@@ -118,12 +86,9 @@ resource "kubernetes_deployment_v1" "home_agent" {
             container_port = 8000
           }
 
-          # I/O-bound (waiting on the OpenAI API over the network, not
-          # burning CPU) -- 1000m was unmeasured copy-pasted headroom
-          # that alone left no room for this Pod on the k3s VM's 2 vCPU
-          # budget (k3s_node_vm_vcpus), on top of deluge's own Guaranteed
-          # 1000m. Confirmed live: that combination failed to schedule
-          # ("0/1 nodes are available: 1 Insufficient cpu").
+          # I/O-bound (waiting on network calls, not burning CPU) -- see
+          # current-state.md for the scheduling failure an unmeasured
+          # 1000m limit caused.
           resources {
             limits = {
               memory = "256Mi"
@@ -204,19 +169,10 @@ resource "kubernetes_deployment_v1" "home_agent" {
             name  = "NEXTCLOUD_APP_PASSWORD_FILE"
             value = "/etc/nextcloud-tools/app-password"
           }
-          # The real live value (not the role's own bare "AI Workspace"
-          # default) -- Nextcloud shares don't preserve the sharer's own
-          # path for the recipient, confirmed live via `occ
-          # share:list --recipient=home-agent`, same lesson learned for
-          # sankey_export's own remote_dir.
-          #
-          # Widened 2026-09-19 from "Shared/AI Workspace" to the whole
-          # "Shared" folder: the agent now sees every folder Julian
-          # explicitly shares with the home-agent account, and nothing
-          # else. Scope and read-only vs. editable are decided per share
-          # in Nextcloud itself (owner-only, manual -- the agent's own
-          # credential can neither create nor widen shares), so this
-          # value alone grants no new access until a share exists.
+          # The agent sees every folder Julian explicitly shares with
+          # the home-agent account, and nothing else -- scope and
+          # read-only vs. editable are decided per share in Nextcloud
+          # itself, never here.
           env {
             name  = "NEXTCLOUD_ALLOWED_ROOT"
             value = "Shared"
@@ -240,12 +196,7 @@ resource "kubernetes_deployment_v1" "home_agent" {
             # Shares home-agent's own GID (10001), not this container's
             # own UID's group -- the socket this process creates and
             # chmods 0660 needs to be group-readable/writable by
-            # home-agent's process specifically, the same "put the
-            # client in the tools' own group" shape home-infra's own
-            # Ansible deployment already uses
-            # (home_agent_nextcloud_tools_client_group). Confirmed live:
-            # without this, home-agent got PermissionError connecting to
-            # the socket even though both containers were Running.
+            # home-agent's process specifically. See current-state.md.
             run_as_group = 10001
             capabilities {
               drop = ["ALL"]
