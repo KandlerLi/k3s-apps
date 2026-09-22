@@ -1,9 +1,6 @@
-# Terraform equivalent of home-infra's ansible/roles/landing_page role --
-# same image digest, same mount point, same links -- run against the k3s
-# learning cluster instead of a Docker container on the homeserver. The
-# real index.html/style.css content lives in files/ in this module (pulled
-# from the live homeserver, not fabricated), read in via file() below,
-# the same way the Ansible role templates them from its own source.
+# Terraform equivalent of home-infra's now-deleted landing_page role --
+# same image digest, same mount point. Content in files/ was pulled
+# from the live homeserver, not fabricated.
 
 resource "kubernetes_config_map_v1" "landing_page_html" {
   metadata {
@@ -83,6 +80,10 @@ resource "kubernetes_service_v1" "landing_page" {
   }
 }
 
+# NOTE (found during a 2026-09-22 comment-trim pass, not yet acted
+# on): same as modules/deluge's/modules/grafana's own kubernetes_ingress_v1
+# -- likely no longer read by anything now that modules/ingress's
+# Traefik only has a `file` provider configured.
 resource "kubernetes_ingress_v1" "landing_page" {
   metadata {
     name = "landing-page-ingress"
@@ -92,12 +93,6 @@ resource "kubernetes_ingress_v1" "landing_page" {
     ingress_class_name = "traefik"
 
     rule {
-      # The real production hostname, not a made-up test one -- this
-      # only matters once shared_ingress's outer Traefik on the
-      # homeserver is pointed at this cluster (see home-infra), since it
-      # forwards the client's original Host header unchanged
-      # (passHostHeader: true on the "home" service in dynamic.yml.j2),
-      # and this Ingress has to match what actually arrives.
       host = "home.jkandler.de"
 
       http {

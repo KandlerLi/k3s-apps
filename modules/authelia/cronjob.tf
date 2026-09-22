@@ -1,30 +1,13 @@
-# Closes a real gap: BACKLOG.md's "Ingress auth: Authelia SQLite
-# storage lost data twice during the original cutover" entry recorded
-# two real losses of this exact db.sqlite3 (sessions, TOTP
-# registrations, the reset-password JWT denylist) during the original
-# 2026-09-08 cutover, one costing a real TOTP registration -- root
-# cause was never confirmed, and until now nothing backed this data up
-# at all. Deliberately separate from that entry's own root-cause
-# investigation -- this doesn't explain or prevent a recurrence, it
-# just makes one survivable.
-#
-# authelia_data (storage.tf) is a local-path/hostPath PVC -- its real
-# bytes live only inside this node's own guest filesystem, invisible
-# to the homeserver directly the way Deluge's/Open WebUI's own
-# NFS-backed data already is. So unlike aux_backup (home-infra,
-# reads homeserver-local paths straight off disk), the backup has to
-# run from inside the cluster, mounting authelia_data as a second
-# reader alongside Authelia's own real Pod. Kubernetes' ReadWriteOnce
-# restricts a PVC to a single *node*, not a single Pod -- two Pods on
-# the same node (guaranteed here, since local-path's own PV carries a
-# hard nodeAffinity) can both mount it fine.
-#
-# Uses the exact same SQLite online-backup-API approach
-# infra/home-infra's own aux_backup role already uses for Open WebUI's
-# live webui.db -- a raw file copy of a WAL-mode database that's
-# actively open elsewhere isn't guaranteed to be a consistent
-# snapshot, and Connection.backup() is specifically designed to
-# produce one without needing exclusive access.
+# Backs up db.sqlite3 so a repeat of BACKLOG.md's "Authelia SQLite
+# storage lost data twice" is survivable, even without a confirmed root
+# cause. authelia_data (storage.tf) is a local-path/hostPath PVC, so
+# this backup runs from inside the cluster as a second reader alongside
+# Authelia's own Pod -- ReadWriteOnce restricts a PVC to one *node*, not
+# one Pod, and local-path's own PV carries a hard nodeAffinity that
+# guarantees both land on the same node. Uses the same SQLite
+# online-backup-API approach as home-infra's aux_backup role, since a
+# raw file copy of a WAL-mode database that's actively open elsewhere
+# isn't guaranteed to be a consistent snapshot.
 
 resource "kubernetes_cron_job_v1" "authelia_backup" {
   metadata {
@@ -73,15 +56,11 @@ resource "kubernetes_cron_job_v1" "authelia_backup" {
                 }
               }
 
-              # 984:979 -- infra/home-infra's own authelia_backup role
-              # asserts these exact uid/gid values against its service
-              # account (not just documents them), so NFS's
-              # root_squash (this account is never root) writes here
-              # as an identity the homeserver side already owns the
-              # export directory as. Confirmed live 2026-09-16 uid and
-              # gid are NOT the same number here -- the account's
-              # primary group landed on a different free slot than its
-              # own uid, unlike open_webui's own uid=gid account.
+              # 984:979 -- must match home-infra's authelia_backup role
+              # service account exactly, so NFS's root_squash writes as
+              # an identity the homeserver already owns the export
+              # directory as. uid and gid are deliberately NOT the same
+              # number here, unlike open_webui's own account.
               security_context {
                 read_only_root_filesystem  = true
                 allow_privilege_escalation = false

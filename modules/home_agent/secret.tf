@@ -5,9 +5,8 @@
 # which uses the workflow's own short-lived GITHUB_TOKEN for that
 # instead of any durable credential).
 #
-# Shape lives in modules/ghcr_pull_secret (extracted 2026-09-22,
-# ponytail-audit -- this was a byte-identical resource here and in
-# modules/sankey_export/secret.tf).
+# Shape lives in modules/ghcr_pull_secret -- shared with
+# modules/sankey_export/secret.tf.
 moved {
   from = kubernetes_secret_v1.ghcr_pull
   to   = module.ghcr_pull_secret.kubernetes_secret_v1.this

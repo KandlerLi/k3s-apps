@@ -1,30 +1,10 @@
-# Grafana -- Phase 1 of moving home-infra's `monitoring` role into k3s
-# (see infra's plan doc). Prometheus stays on the homeserver
-# permanently (node_exporter/cAdvisor report *this physical host's*
-# own hardware/Docker daemon, so moving Prometheus itself would
-# monitor the wrong thing), reached over the additive 192.168.101.1
-# listener monitoring_prometheus_k3s_bind_address exposes. Blocky
-# used to be LAN-facing-only for the same reason, but moved into the
-# cluster too once home-infra's own k3s_ingress_forward DNAT relay
-# made that viable (see modules/blocky) -- its own Postgres datasource
-# below now reaches modules/blocky's own in-cluster Service directly,
-# not an additive homeserver-side listener any more.
-#
-# No PVC, deliberately -- everything Grafana needs (datasources,
-# dashboard provider, the five dashboard JSONs) is provisioned from
-# files below, the same "no click-through UI state to lose" reasoning
-# home-infra's own role's README already gives, confirmed with Julian
-# before applying rather than assumed. /var/lib/grafana is a plain
-# emptyDir: Grafana's own sqlite (session state, not dashboards/
-# datasources, which are file-provisioned and reappear on restart) is
-# genuinely disposable here.
-#
-# CPU/memory sized off Grafana's own real docker stats on the
-# homeserver (0.68% CPU idle, 169MiB/256M memory) the same way
-# open_webui's module was -- Burstable requests/limits, not a copied
-# Docker cpus: ceiling. Only 350m of the k3s VM's 2 vCPU budget was
-# free before this module (`kubectl describe node`); 100m request
-# leaves headroom for Deluge/home_agent/open_webui's own bursts.
+# Prometheus stays on the homeserver permanently (node_exporter/
+# cAdvisor report this physical host's own hardware) -- Grafana reaches
+# it over the additive 192.168.101.1 listener. No PVC, deliberately --
+# everything Grafana needs is provisioned from files below;
+# /var/lib/grafana is a plain emptyDir, genuinely disposable. Full
+# cutover history and bugs found: docs/home-infra-ai-context's
+# current-state.md ("k3s learning cluster").
 
 resource "kubernetes_deployment_v1" "grafana" {
   metadata {
@@ -46,20 +26,8 @@ resource "kubernetes_deployment_v1" "grafana" {
           app = "grafana"
         }
 
-        # Found live 2026-09-12, ahead of building rotation automation
-        # for blocky_postgres_password: this Deployment had zero
-        # checksum annotations at all. grafana_oidc_client_secret is a
-        # sub_path mount (grafana.ini), which never gets even
-        # kubelet's own eventual sync; grafana_datasources
-        # (datasources.yaml, embeds blocky_postgres_password) and
-        # grafana_admin_password are whole-directory mounts, which
-        # kubelet does eventually sync (~60-90s) but Grafana's own
-        # provisioning system only reads once at startup regardless.
-        # Without these, rotating any of the three would update the
-        # Kubernetes Secret but never actually restart this Pod. Same
-        # class of gap already fixed for modules/ingress,
-        # modules/alertmanager, modules/blocky, and
-        # bootstrap/k3s-bootstrap's own modules/github_runner.
+        # Grafana's own provisioning system only reads these once at
+        # startup -- same checksum-annotation fix as modules/ingress.
         annotations = {
           "checksum/oidc-client-secret" = sha256(kubernetes_secret_v1.grafana_oidc_client_secret.data["grafana.ini"])
           "checksum/datasources"        = sha256(kubernetes_secret_v1.grafana_datasources.data["datasources.yaml"])
@@ -68,19 +36,9 @@ resource "kubernetes_deployment_v1" "grafana" {
       }
 
       spec {
-        # Grafana doesn't talk to the Kubernetes API, so there's nothing
-        # for the default projected serviceaccount-token volume to do
-        # here -- and it collides with the admin-password Secret
-        # mounted at /run/secrets below: kubelet auto-mounts the token
-        # at /var/run/secrets/kubernetes.io/serviceaccount, which
-        # aliases (/var/run -> /run) into a subdirectory of that same
-        # already-mounted path, and can't create it there. Confirmed
-        # live: "mkdirat .../run/secrets/kubernetes.io: read-only file
-        # system", CrashLoopBackOff -- home_agent hit the identical
-        # collision (see its own main.tf) mounting its OpenAI key the
-        # same way; that comment blamed read_only_root_filesystem, but
-        # this module has none set and still hit it, so the real
-        # trigger is the /run/secrets mount path itself, not that flag.
+        # Collides with the admin-password Secret at /run/secrets
+        # otherwise -- kubelet's own serviceaccount-token auto-mount
+        # aliases into the same path. See current-state.md.
         automount_service_account_token = false
 
         container {
@@ -122,21 +80,10 @@ resource "kubernetes_deployment_v1" "grafana" {
             name  = "GF_USERS_ALLOW_SIGN_UP"
             value = "false"
           }
-          # Confirmed live, 2026-09-09: with Authelia's own OIDC SSO
-          # working (below), native login stayed live as a deliberate
-          # fallback -- but Authelia's ingress-level gate only proves
-          # you reached a valid Authelia session (MFA required to get
-          # one); once past it, Grafana's own native login form was a
-          # second, completely independent credential that skips MFA
-          # entirely. disable_login_form alone only hides the UI --
-          # confirmed via Grafana's own community reports that the old
-          # password still works over HTTP Basic Auth even with the
-          # form hidden -- so this also disables auth.basic itself,
-          # the actual protocol-level switch, closing that gap for
-          # real rather than just hiding it. The GF_SECURITY_ADMIN_*
-          # account above still technically exists, it just can no
-          # longer log in by any means -- Authelia is now the only way
-          # in.
+          # disable_login_form alone only hides the UI -- the old
+          # password still works over HTTP Basic Auth with the form
+          # hidden, so auth.basic is disabled too, the actual
+          # protocol-level switch. See current-state.md.
           env {
             name  = "GF_AUTH_DISABLE_LOGIN_FORM"
             value = "true"
@@ -146,13 +93,8 @@ resource "kubernetes_deployment_v1" "grafana" {
             value = "false"
           }
 
-          # OIDC SSO against Authelia (modules/authelia's own
-          # identity_providers.oidc), added 2026-09-08 -- now the only
-          # way to log in (see above). Group->role mapping matches
-          # Authelia's own documented Grafana integration guide: the
-          # "admins" group (the only group that exists today, see
-          # modules/authelia's own users_database.yml) becomes Grafana
-          # Admin, everyone else defaults to Viewer.
+          # OIDC SSO against Authelia -- the "admins" group becomes
+          # Grafana Admin, everyone else defaults to Viewer.
           env {
             name  = "GF_AUTH_GENERIC_OAUTH_ENABLED"
             value = "true"
@@ -214,16 +156,9 @@ resource "kubernetes_deployment_v1" "grafana" {
             value = "InHeader"
           }
 
-          # memory bumped from 320Mi (confirmed live 2026-09-01:
-          # OOMKilled repeatedly, exit code 137, well before the
-          # Deployment's own liveness probe ever got a chance to pass
-          # -- Grafana 13's unified storage layer builds an in-memory
-          # bleve index for folders/dashboards/playlists/etc. on every
-          # startup, and a fresh Pod was already sitting at 202Mi
-          # immediately after boot before that indexing work even
-          # finished). The node has plenty of headroom (83% of its own
-          # memory limits allocated cluster-wide at the time this was
-          # raised, nowhere near capacity).
+          # 512Mi limit -- Grafana 13's unified storage layer builds an
+          # in-memory bleve index on every startup; see current-state.md
+          # for the OOM this fixed.
           resources {
             requests = {
               cpu    = "100m"
@@ -236,12 +171,8 @@ resource "kubernetes_deployment_v1" "grafana" {
           }
 
           # UID 472, GID 0 -- Grafana's official image's own documented
-          # non-root default UID, paired with the root group the image
-          # ships group-writable permissions for (same "arbitrary UID,
-          # root group" shape as open_webui's 995:0, but there's no
-          # host-owned directory to match here since nothing is
-          # bind-mounted -- everything below is either an emptyDir or a
-          # read-only ConfigMap/Secret mount).
+          # non-root default, paired with the root group it ships
+          # group-writable permissions for.
           security_context {
             allow_privilege_escalation = false
             run_as_non_root            = true
@@ -272,12 +203,8 @@ resource "kubernetes_deployment_v1" "grafana" {
             mount_path = "/run/secrets"
             read_only  = true
           }
-          # /etc/grafana/grafana.ini, the official image's own default
-          # config path (confirmed live: its own baked-in copy there is
-          # a fully-commented example file, nothing active, safe to
-          # replace outright) -- see secret.tf's own comment for why
-          # this is a real ini file, not an env var, for this one
-          # setting specifically.
+          # /etc/grafana/grafana.ini -- see secret.tf's own comment for
+          # why this one setting needs a real ini file, not an env var.
           volume_mount {
             name       = "oidc-client-secret"
             mount_path = "/etc/grafana/grafana.ini"
@@ -381,6 +308,10 @@ resource "kubernetes_service_v1" "grafana" {
   }
 }
 
+# NOTE (found during a 2026-09-22 comment-trim pass, not yet acted
+# on): same as modules/deluge's own kubernetes_ingress_v1 -- likely no
+# longer read by anything now that modules/ingress's Traefik only has
+# a `file` provider configured, not a Kubernetes Ingress/CRD provider.
 resource "kubernetes_ingress_v1" "grafana" {
   metadata {
     name = "grafana-ingress"
@@ -390,10 +321,6 @@ resource "kubernetes_ingress_v1" "grafana" {
     ingress_class_name = "traefik"
 
     rule {
-      # Not published via shared_ingress_grafana_upstream yet -- this
-      # Ingress has to exist and be verified first (real dashboards,
-      # real data) before home-infra's own cutover step can point
-      # traffic at it, same sequencing as every prior service.
       host = "grafana.jkandler.de"
 
       http {

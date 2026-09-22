@@ -1,32 +1,17 @@
-# Gained a real S3 backend 2026-09-03 (see versions.tf) once this root
-# started being applied by CI -- see that file's own comment for why.
-#
 # Two auth modes, chosen by var.in_cluster:
 #
-# - false (the default, for a human's own local apply): config_path, as
-#   before. NOTE: the kubernetes provider does NOT read the standard
-#   KUBECONFIG environment variable the way kubectl does -- confirmed
-#   against its own docs (hashicorp/terraform-provider-kubernetes,
-#   docs/index.md): "The provider does not use the KUBECONFIG
-#   environment variable by default." An earlier version of this file
-#   relied on that and just silently fell back to querying
-#   http://localhost, which is why `terraform apply` failed with a
-#   connection-refused error instead of a clear "no config" one.
-#   config_path is set explicitly instead so this doesn't depend on how
-#   the shell invoking terraform is set up. See README.md for the
-#   tunnel + kubeconfig setup this path assumes.
-# - true (set only by this repo's own CI workflows, which run on the
-#   self-hosted runner living inside this same cluster): the standard
-#   in-cluster auth triple (host + token + CA, read from the
-#   ServiceAccount token Kubernetes automatically mounts into any Pod
-#   with automount_service_account_token enabled -- see the separate
-#   k3s-bootstrap repo's own main.tf for the k3s-apps-ci ServiceAccount
-#   and its modules/github_runner for the wiring of it onto this repo's
-#   own runner Deployment specifically). Confirmed live (2026-09-03) that
-#   Terraform's own conditional expressions short-circuit file() in the
-#   untaken branch -- a bogus path in the *other* branch doesn't error
-#   here, so this is safe to leave as the unconditional default rather
-#   than needing its own separate provider block.
+# - false (the default, for a human's own local apply): config_path.
+#   The kubernetes provider does NOT read the standard KUBECONFIG
+#   environment variable the way kubectl does -- an earlier version of
+#   this file relied on that and silently fell back to querying
+#   http://localhost. config_path is set explicitly instead. See
+#   README.md for the tunnel + kubeconfig setup this path assumes.
+# - true (set only by this repo's own CI workflows): the standard
+#   in-cluster auth triple (host + token + CA, from the ServiceAccount
+#   token Kubernetes automatically mounts). Terraform's own conditional
+#   expressions short-circuit file() in the untaken branch, so this is
+#   safe to leave as the unconditional default rather than needing its
+#   own separate provider block.
 variable "in_cluster" {
   description = <<-EOT
     Selects which of the two provider auth modes above applies. Left
@@ -46,12 +31,8 @@ provider "kubernetes" {
 }
 
 # Auth is ambient in both apply modes -- CI's own AWS OIDC role
-# assumption (aws-actions/configure-aws-credentials, .github/workflows/)
-# for the in-cluster case, a human's own `aws login` session otherwise
-# -- same as the S3 backend's own credential resolution above, no
-# separate config needed here. Added for secrets.tf's own
-# data "aws_secretsmanager_secret_version" reads, the
-# SOPS-to-Secrets-Manager cutover (PARKED.md).
+# assumption for the in-cluster case, a human's own `aws login` session
+# otherwise. Used by secrets.tf's own data sources.
 provider "aws" {
   region = "eu-central-1"
 }
@@ -64,11 +45,10 @@ provider "aws" {
 # Directory setting, so this keeps working while SSO is on.
 #
 # COUPLING WORTH KNOWING: unlike everything else in this root, this
-# provider talks to a live server at plan time. If Stalwart is down,
-# every plan in this repo fails -- including the one that would fix
-# it. Fixes: `terraform plan -target=module.stalwart` (touches only the
-# Deployment/Services, not the provider), or bring Stalwart back by
-# hand first. Accepted deliberately (2026-09-21) over a separate root.
+# provider talks to a live server at plan time -- a Stalwart outage
+# fails every plan in this repo. See
+# docs/home-infra-ai-context's current-state.md ("Mail server") for why
+# this was accepted over a separate root, and the -target workaround.
 provider "stalwart" {
   endpoint = coalesce(var.stalwart_endpoint, var.in_cluster ? "http://stalwart-internal.default.svc.cluster.local:8080" : "http://127.0.0.1:18083")
   token    = local.k3s_apps_stalwart["stalwart_api_token"]

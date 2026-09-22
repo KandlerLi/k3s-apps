@@ -1,9 +1,6 @@
 # Shared dockerconfigjson credential for pulling a private GHCR image
-# (ghcr.io/kandlerli/<image>) into this cluster -- extracted 2026-09-22
-# (ponytail-audit) after modules/home_agent's and modules/sankey_export's
-# own secret.tf files turned out to hold byte-identical copies of this
-# resource, differing only in the Secret's own name and which token
-# variable fed it.
+# (ghcr.io/kandlerli/<image>) into this cluster. Used by
+# modules/home_agent and modules/sankey_export.
 
 variable "name" {
   description = "Kubernetes Secret name for this dockerconfigjson credential."

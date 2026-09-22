@@ -1,34 +1,8 @@
-# Phase 2 of moving home-infra's `monitoring` role into k3s (Grafana was
-# Phase 1). Alertmanager itself has no host dependency at all -- it just
-# evaluates config and posts webhooks/SMTP -- so unlike node_exporter/
-# cAdvisor/blackbox_exporter/Blocky, this one can move outright rather
-# than needing a network exception in both directions the way Grafana's
-# datasources did.
-#
-# The direction here is the reverse of Grafana's: Prometheus (staying on
-# the homeserver) needs to reach *this*, not the other way around.
-# Prometheus's own alerting.alertmanagers target list notifies every
-# address in it for the same firing alert (unlike a scrape target list),
-# so running the old homeserver Alertmanager and this one at the same
-# time would double-fire every real notification -- home-infra's own
-# monitoring_alertmanager_upstream switches cleanly to this module's
-# LoadBalancer address only once this is independently verified working
-# (a real synthetic alert reaching both ntfy and SES), never both at
-# once.
-#
-# No PVC, deliberately -- confirmed with Julian first (same question
-# already asked for Grafana): Alertmanager's own /alertmanager directory
+# No PVC, deliberately -- Alertmanager's own /alertmanager directory
 # holds active silences and a notification-dedup log, not real history,
-# so starting fresh is low-stakes (a handful of already-notified alerts
-# might re-fire once).
-#
-# CPU/memory sized off Alertmanager's own real docker stats on the
-# homeserver (0.77% of one core, 17.67MiB/128MiB memory -- genuinely
-# idle almost all the time) -- Burstable requests/limits, not a copied
-# Docker cpus: ceiling. Only 250m of the k3s VM's 2 vCPU budget was
-# free before this module (`kubectl describe node`), the tightest
-# headroom yet; 20m request comfortably covers real observed usage with
-# room to spare.
+# so starting fresh is low-stakes. Full migration history (why this
+# moved outright, the double-fire risk during cutover, resource sizing):
+# docs/home-infra-ai-context's current-state.md ("k3s learning cluster").
 
 resource "kubernetes_deployment_v1" "alertmanager" {
   metadata {
@@ -51,16 +25,11 @@ resource "kubernetes_deployment_v1" "alertmanager" {
         }
 
         # alertmanager_config is mounted as a whole directory (no
-        # sub_path -- see below), so unlike modules/ingress's own
-        # sub_path mounts, kubelet *does* eventually sync a changed
-        # Secret into it (~60-90s). Whether Alertmanager itself then
-        # actually reloads a changed config.file live wasn't confirmed
-        # either way, so rather than depend on that plus an
-        # unspecified sync delay, this checksum forces the same
-        # deterministic, immediate Pod recreation every other Secret
-        # consumer in this repo already gets -- added 2026-09-11
-        # ahead of a real SES SMTP credential rotation, not found live
-        # the hard way this time.
+        # sub_path), so kubelet does eventually sync a changed Secret
+        # into it -- but whether Alertmanager itself reloads a changed
+        # config.file live isn't confirmed, so this checksum forces the
+        # same deterministic, immediate Pod recreation every other
+        # Secret consumer here gets.
         annotations = {
           "checksum/config" = sha256(kubernetes_secret_v1.alertmanager_config.data["alertmanager.yml"])
         }
@@ -172,16 +141,10 @@ resource "kubernetes_deployment_v1" "alertmanager" {
 }
 
 # Alertmanager isn't a browser-facing app, and Prometheus needs a plain
-# IP:port target rather than Host-based routing -- so this reuses
-# modules/deluge's own deluge-peer-svc mechanism instead of a ClusterIP
-# + Ingress: type = LoadBalancer lets k3s's bundled ServiceLB (the same
-# svclb-* pods already fronting Traefik and Deluge's peer port) bind
-# this directly to the node's own address, giving a stable
-# 192.168.101.10:9093 -- same port number Alertmanager already uses on
-# the homeserver today, so home-infra's own monitoring_alertmanager_upstream
-# only ever has two literal values to compare against. No Ingress at
-# all: Alertmanager has never been reachable through shared_ingress,
-# and this doesn't change that.
+# IP:port target rather than Host-based routing -- type = LoadBalancer
+# lets k3s's bundled ServiceLB bind this directly to the node's own
+# address (192.168.101.10:9093, matching the port Alertmanager already
+# used on the homeserver).
 resource "kubernetes_service_v1" "alertmanager" {
   metadata {
     name = "alertmanager-svc"

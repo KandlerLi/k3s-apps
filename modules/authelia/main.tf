@@ -1,29 +1,13 @@
-# New service, part of the parked "Ingress auth: replace Basic Auth
-# with Authelia" plan (see PARKED.md and this module's own secret.tf)
-# -- Authelia, not Authentik, specifically because it needs no heavy second
-# stateful sidecar (SQLite is enough for a single-user homelab, no
-# Postgres the way Authentik's own IdP footprint would need) on
-# a node that has already hit real CPU/memory pressure before. A small
-# Redis sidecar was added later, only to keep sessions across restarts. This
-# first apply is additive only: it stands the Pod up and wires
-# auth.jkandler.de's own portal router (modules/ingress/configmap.tf),
-# but doesn't yet touch any of the five hostnames still gated by
-# Traefik's own Basic Auth (shared-auth) -- that cutover is a
-# deliberate, separate step once a real login + TOTP enrollment is
-# confirmed working end-to-end.
+# Authelia, not Authentik -- needs no second stateful sidecar (SQLite is
+# enough for a single-user homelab, no Postgres). A small Redis sidecar
+# keeps sessions across restarts. Full cutover history (the Basic Auth
+# replacement, the SQLite rollback/re-cutover): docs/home-infra-ai-context's
+# current-state.md ("k3s learning cluster", Authelia SSO entry).
 #
-# Single Pod, no init_container, no second stateful Deployment --
-# confirmed against the image's own real config (ghcr.io/authelia/
-# authelia's config blob, not assumed): ExposedPorts 9091/tcp,
-# Entrypoint /app/entrypoint.sh, a built-in HEALTHCHECK CMD-SHELL
-# /app/healthcheck.sh matching Blocky's own "use the image's own
-# health tool" precedent. The image declares no USER (defaults to
-# root) -- security_context below instead mirrors modules/ingress's
-# own Traefik container's choice (run_as_user 65534/nobody, no
-# NET_BIND_SERVICE needed since 9091 is unprivileged) specifically
-# because that's the one other container in this repo already proven
-# live writing into a local-path-backed PVC as a non-root UID with no
-# chown step -- the same shape this Pod's own /data mount needs.
+# The image declares no USER (defaults to root) -- security_context
+# below runs it as 65534/nobody instead, the same non-root UID already
+# proven writing into a local-path PVC with no chown step elsewhere in
+# this repo.
 
 resource "kubernetes_deployment_v1" "authelia" {
   metadata {
@@ -33,11 +17,9 @@ resource "kubernetes_deployment_v1" "authelia" {
   spec {
     replicas = 1
 
-    # Recreate, not the RollingUpdate default -- same SQLite-on-
-    # local-path corruption risk modules/blocky's own strategy block
-    # already documents in detail (two Pods briefly mounting the same
-    # underlying directory at once). Authelia's own SQLite database is
-    # exactly the same shape of risk.
+    # Recreate, not the RollingUpdate default -- avoids two Pods briefly
+    # mounting the same local-path-backed SQLite database at once (see
+    # modules/blocky's own strategy block for the same risk).
     strategy {
       type = "Recreate"
     }
@@ -54,10 +36,9 @@ resource "kubernetes_deployment_v1" "authelia" {
           app = "authelia"
         }
 
-        # Neither Secret is live-propagated into a sub_path mount by
-        # Kubernetes -- only a Pod recreation picks up new content.
-        # Same checksum-annotation fix modules/ingress's own Traefik
-        # Deployment already uses, for the same reason.
+        # Neither Secret live-propagates into a sub_path mount -- only a
+        # Pod recreation picks up new content (see modules/ingress's own
+        # identical checksum-annotation fix).
         annotations = {
           "checksum/config" = sha256(kubernetes_secret_v1.authelia_config.data["configuration.yml"])
           "checksum/users"  = sha256(kubernetes_secret_v1.authelia_users.data["users_database.yml"])
@@ -76,18 +57,9 @@ resource "kubernetes_deployment_v1" "authelia" {
             container_port = 9091
           }
 
-          # Bumped 2026-09-08, right after the five-chain cutover
-          # (PARKED.md): confirmed live via `kubectl get pod -o
-          # jsonpath='{.status.containerStatuses[0].lastState}'` --
-          # exitCode 137, reason OOMKilled, repeatedly, within minutes
-          # of the cutover applying. 256Mi was sized against the portal
-          # alone (auth.jkandler.de, effectively single-request manual
-          # testing); the cutover instantly multiplied real traffic --
-          # every one of the five newly-gated services' own background
-          # polling (Grafana's /api/live/ws and /api/login/ping,
-          # Kubernetes Dashboard's refresh, etc.) now calls
-          # /api/authz/forward-auth continuously, not just on a real
-          # page load.
+          # Sized for continuous forward-auth traffic from every gated
+          # service's own background polling, not just page loads -- see
+          # current-state.md for the OOM that motivated this.
           resources {
             requests = {
               cpu    = "20m"
@@ -100,22 +72,9 @@ resource "kubernetes_deployment_v1" "authelia" {
           }
 
           # read_only_root_filesystem deliberately NOT set (defaults to
-          # false) -- confirmed live, 2026-09-08: with it true, the
-          # container crash-loops with only a generic "Errors occurred
-          # performing startup checks" fatal and no further detail, even
-          # at log.level: debug. Isolated via a throwaway debug Pod with
-          # the exact same volumes: relocating both the SQLite path and
-          # the users_database.yml path to already-writable locations
-          # didn't help, but dropping only this one security_context
-          # field (keeping run_as_non_root/run_as_user 65534/capabilities
-          # drop ALL exactly as below) let it start cleanly and log
-          # "Startup complete" -- so it's writing somewhere on its own
-          # root filesystem at startup that isn't /data, /config, or
-          # /tmp, and this minimal scratch-based image ships no
-          # debugging tools (no strace, no shell utilities beyond
-          # busybox) to pin down exactly where. Unlike
-          # modules/ingress's own Traefik container, this image isn't
-          # built for a fully read-only root.
+          # false) -- this image crash-loops with it true, writing
+          # somewhere on its own root filesystem at startup outside
+          # /data, /config, or /tmp. See current-state.md.
           security_context {
             allow_privilege_escalation = false
             run_as_non_root            = true

@@ -53,14 +53,10 @@ data "aws_secretsmanager_secret_version" "k3s_apps_sankey_export" {
   secret_id = "k3s-apps/sankey-export"
 }
 
-# Split out of home-infra/home-agent 2026-09-12 -- a genuinely new
-# secret, not a migration. home_agent_ghcr_token was never really
-# "home-agent's own" credential: it's a single, account-scoped GitHub
-# PAT (read:packages on KandlerLi) that authorizes pulling two
-# unrelated private packages, ghcr.io/kandlerli/home-agent AND
-# ghcr.io/kandlerli/sankey-export -- filed under a name that only
-# signaled one of its two real consumers. See
-# aws/secrets-manager's own k3s-apps/ghcr-pull-token module.
+# A single, account-scoped GitHub PAT (read:packages on KandlerLi)
+# authorizing two unrelated private packages: home-agent and
+# sankey-export. See aws/secrets-manager's own k3s-apps/ghcr-pull-token
+# module.
 data "aws_secretsmanager_secret_version" "k3s_apps_ghcr_pull_token" {
   secret_id = "k3s-apps/ghcr-pull-token"
 }
