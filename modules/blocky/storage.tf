@@ -15,21 +15,17 @@
 # own acme.json PVC hit and fixed -- local-path's WaitForFirstConsumer
 # binding mode only binds once a Pod references it, but Terraform
 # creates this PVC before the Deployment that would do that.
-resource "kubernetes_persistent_volume_claim_v1" "blocky_postgres" {
-  metadata {
-    name = "blocky-postgres"
-  }
+#
+# Shape lives in modules/pvc_local_path (extracted 2026-09-22,
+# ponytail-audit -- see that module's own comment).
+moved {
+  from = kubernetes_persistent_volume_claim_v1.blocky_postgres
+  to   = module.blocky_postgres.kubernetes_persistent_volume_claim_v1.this
+}
 
-  wait_until_bound = false
+module "blocky_postgres" {
+  source = "../pvc_local_path"
 
-  spec {
-    access_modes       = ["ReadWriteOnce"]
-    storage_class_name = "local-path"
-
-    resources {
-      requests = {
-        storage = "256Mi"
-      }
-    }
-  }
+  name = "blocky-postgres"
+  size = "256Mi"
 }

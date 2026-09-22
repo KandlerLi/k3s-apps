@@ -4,24 +4,20 @@
 # the token a human uses to push (see home-infra's build-home-agent.yml,
 # which uses the workflow's own short-lived GITHUB_TOKEN for that
 # instead of any durable credential).
-resource "kubernetes_secret_v1" "ghcr_pull" {
-  metadata {
-    name = "ghcr-pull-secret"
-  }
+#
+# Shape lives in modules/ghcr_pull_secret (extracted 2026-09-22,
+# ponytail-audit -- this was a byte-identical resource here and in
+# modules/sankey_export/secret.tf).
+moved {
+  from = kubernetes_secret_v1.ghcr_pull
+  to   = module.ghcr_pull_secret.kubernetes_secret_v1.this
+}
 
-  type = "kubernetes.io/dockerconfigjson"
+module "ghcr_pull_secret" {
+  source = "../ghcr_pull_secret"
 
-  data = {
-    ".dockerconfigjson" = jsonencode({
-      auths = {
-        "ghcr.io" = {
-          username = "KandlerLi"
-          password = var.home_agent_ghcr_token
-          auth     = base64encode("KandlerLi:${var.home_agent_ghcr_token}")
-        }
-      }
-    })
-  }
+  name  = "ghcr-pull-secret"
+  token = var.home_agent_ghcr_token
 }
 
 # Mounted into the home-agent container at /run/secrets/openai, matching

@@ -78,7 +78,7 @@ resource "kubernetes_deployment_v1" "home_agent" {
         automount_service_account_token = false
 
         image_pull_secrets {
-          name = kubernetes_secret_v1.ghcr_pull.metadata[0].name
+          name = module.ghcr_pull_secret.name
         }
 
         container {

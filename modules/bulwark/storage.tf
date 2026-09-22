@@ -5,21 +5,16 @@
 #
 # storage_class_name = "local-path" explicitly and wait_until_bound =
 # false, for the same reasons modules/blocky's own storage.tf documents.
-resource "kubernetes_persistent_volume_claim_v1" "bulwark" {
-  metadata {
-    name = "bulwark"
-  }
+# Shape lives in modules/pvc_local_path (extracted 2026-09-22,
+# ponytail-audit -- see that module's own comment).
+moved {
+  from = kubernetes_persistent_volume_claim_v1.bulwark
+  to   = module.bulwark_data.kubernetes_persistent_volume_claim_v1.this
+}
 
-  wait_until_bound = false
+module "bulwark_data" {
+  source = "../pvc_local_path"
 
-  spec {
-    access_modes       = ["ReadWriteOnce"]
-    storage_class_name = "local-path"
-
-    resources {
-      requests = {
-        storage = "1Gi"
-      }
-    }
-  }
+  name = "bulwark"
+  size = "1Gi"
 }
