@@ -63,6 +63,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      # Needed by the "Post plan to pull request" step below.
+      pull-requests: write
     env:
       AWS_REGION: eu-central-1
       TF_IN_AUTOMATION: "true"
@@ -130,4 +132,48 @@ jobs:
         run: terraform init -input=false
 
       - name: Create speculative plan
-        run: terraform plan -input=false -lock=false -no-color
+        run: |
+          set -o pipefail
+          terraform plan -input=false -lock=false -no-color | tee plan_output.txt
+
+      # Same as gha-common's terraform-checks.yml own "Post plan to pull
+      # request" step -- this repo's plan job doesn't call that reusable
+      # workflow (see this file's own header comment for why), so it's
+      # duplicated here rather than shared.
+      - name: Post plan to pull request
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- gha-common-terraform-plan -->';
+            const maxBodyLen = 60000;
+
+            let plan = fs.readFileSync('plan_output.txt', 'utf8');
+            if (plan.length > maxBodyLen) {
+              plan = plan.slice(0, maxBodyLen) + '\n... (truncated)';
+            }
+            const body = `${marker}\n### Terraform plan\n\`\`\`diff\n${plan}\n\`\`\``;
+
+            const pull_number = context.payload.pull_request.number;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pull_number,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pull_number,
+                body,
+              });
+            }
