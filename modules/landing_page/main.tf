@@ -79,38 +79,3 @@ resource "kubernetes_service_v1" "landing_page" {
     }
   }
 }
-
-# NOTE (found during a 2026-09-22 comment-trim pass, not yet acted
-# on): same as modules/deluge's/modules/grafana's own kubernetes_ingress_v1
-# -- likely no longer read by anything now that modules/ingress's
-# Traefik only has a `file` provider configured.
-resource "kubernetes_ingress_v1" "landing_page" {
-  metadata {
-    name = "landing-page-ingress"
-  }
-
-  spec {
-    ingress_class_name = "traefik"
-
-    rule {
-      host = "home.jkandler.de"
-
-      http {
-        path {
-          path      = "/"
-          path_type = "Prefix"
-
-          backend {
-            service {
-              name = kubernetes_service_v1.landing_page.metadata[0].name
-
-              port {
-                number = 80
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
