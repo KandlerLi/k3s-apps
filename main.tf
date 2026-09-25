@@ -87,6 +87,25 @@ module "stalwart" {
 # module "stalwart" above, which owns the Kubernetes objects.
 module "stalwart_config" {
   source = "./modules/stalwart_config"
+
+  ses_smtp_username = local.home_infra_monitoring["monitoring_ses_smtp_username"]
+}
+
+# Adopt the SES route and outbound strategy that were set up by hand,
+# instead of creating a second route with the same name. Remove these
+# blocks (and the data source) once the import has been applied.
+data "stalwart_mta_route_relay" "ses_relay" {
+  name = "ses-relay"
+}
+
+import {
+  to = module.stalwart_config.stalwart_mta_route_relay.ses
+  id = data.stalwart_mta_route_relay.ses_relay.id
+}
+
+import {
+  to = module.stalwart_config.stalwart_mta_outbound_strategy.this
+  id = "singleton"
 }
 
 module "bulwark" {

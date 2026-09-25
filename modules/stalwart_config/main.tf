@@ -4,12 +4,11 @@
 # adopt the live settings, and a non-singleton whose key already exists
 # (like an allowed IP's address) is adopted rather than duplicated.
 #
-# FIRST SLICE ONLY, deliberately small: prove the provider's plan is clean
-# against the live server before moving anything riskier (the
-# authentication directory, SES relay route, ACME) under management.
-# Every resource here is checked with a local `terraform plan` before
-# CI ever applies it -- an unset optional attribute could otherwise be
-# sent to the server as a default and quietly change a live setting.
+# Moved over one small slice at a time, each checked against a real plan
+# before it is applied -- an unset optional attribute could otherwise be
+# sent to the server as a default and quietly change a live setting. The
+# authentication directory (the Authelia OIDC switch) deliberately stays
+# manual: a mistake there locks out everything but the admin API key.
 
 # Bulwark's browser-side JMAP calls to stalwart.jkandler.de come from
 # https://mail.jkandler.de, so cross-origin requests must be allowed.
@@ -82,5 +81,40 @@ resource "stalwart_domain" "jkandler_de" {
     type                      = "Automatic"
     acme_provider_id          = stalwart_acme_provider.letsencrypt.id
     subject_alternative_names = ["stalwart"]
+  }
+}
+
+# --- Outbound relay through Amazon SES -------------------------------------
+#
+# All outbound mail goes through SES (aws/ses-relay), not direct-to-MX
+# from the k3s VM's unproven IP. The password never reaches Stalwart's
+# database: the route reads it from the SES_SMTP_PASSWORD env var that
+# modules/stalwart injects from Secrets Manager. STARTTLS on 587, not
+# implicit TLS.
+resource "stalwart_mta_route_relay" "ses" {
+  name                = "ses-relay"
+  address             = "email-smtp.eu-central-1.amazonaws.com"
+  port                = 587
+  protocol            = "smtp"
+  implicit_tls        = false
+  allow_invalid_certs = false
+  auth_username       = var.ses_smtp_username
+
+  auth_secret = {
+    type          = "EnvironmentVariable"
+    variable_name = "SES_SMTP_PASSWORD"
+  }
+}
+
+# Local recipients stay local; everything else goes to the SES route
+# above (Stalwart's default is 'mx'). Only the route expression is set,
+# so the schedule, TLS and connection strategies stay as they are.
+resource "stalwart_mta_outbound_strategy" "this" {
+  route = {
+    match = [{
+      if   = "is_local_domain(rcpt_domain)"
+      then = "'local'"
+    }]
+    else = "'ses-relay'"
   }
 }
