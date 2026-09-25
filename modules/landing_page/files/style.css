@@ -1,11 +1,26 @@
+/* Tokens and surfaces follow www.jkandler.de (aws/website/site/style.css). */
+
 :root {
   color-scheme: light dark;
-  --bg: #101418;
-  --fg: #e6e9ec;
-  --muted: #8b95a1;
-  --accent: #5aa9e6;
-  --card: #1a1f26;
-  --border: #2a3038;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #5a5a5a;
+  --accent: #5f4b8b;
+  --border: #e2e2e2;
+  --card-bg: #f7f7f8;
+  --max-width: 46rem;
+  --topbar-height: 3.25rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --fg: #eaeaea;
+    --muted: #a3a3a3;
+    --accent: #a695d6;
+    --border: #2a2d33;
+    --card-bg: #1c1f24;
+  }
 }
 
 * {
@@ -14,74 +29,211 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.55;
+}
+
+@supports (background: color-mix(in srgb, red 50%, transparent)) {
+  body {
+    background-image:
+      radial-gradient(38rem 38rem at 12% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
+      radial-gradient(32rem 32rem at 90% 22%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+      radial-gradient(42rem 42rem at 50% 100%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+}
+
+main,
+.hero,
+.topbar-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Topbar */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.topbar-inner {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: var(--bg);
+  height: var(--topbar-height);
+}
+
+.brand {
+  font-weight: 700;
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.brand-logo {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.4rem;
+}
+
+.topbar-link {
   color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  text-decoration: none;
+  font-size: 0.95rem;
 }
 
-main {
-  width: 100%;
-  max-width: 32rem;
-  padding: 2rem;
+.topbar-link:hover {
+  color: var(--accent);
 }
 
-h1 {
-  margin: 0 0 1.5rem;
-  font-size: 1.75rem;
+/* Hero */
+
+.hero {
+  padding-top: 3rem;
+  padding-bottom: 1rem;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 1.9rem;
+}
+
+.title {
+  margin: 0.15rem 0 0;
   font-weight: 600;
+  color: var(--accent);
 }
 
-ul.links {
+.tagline {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+/* Sections */
+
+section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem 1.75rem 1.75rem;
+  margin: 1.75rem 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .topbar {
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+  }
+
+  section {
+    background: color-mix(in srgb, var(--card-bg) 55%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+  }
+}
+
+h2 {
+  font-size: 1.3rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.4rem;
+  margin-top: 0;
+}
+
+/* Service tiles */
+
+.services {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
   gap: 0.75rem;
 }
 
-ul.links li {
-  display: flex;
-  flex-direction: column;
-  padding: 1rem 1.25rem;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-}
-
-ul.links a {
+.services a {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  color: var(--accent);
+  gap: 0.9rem;
+  height: 100%;
+  padding: 0.85rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--fg);
   text-decoration: none;
-  font-size: 1.05rem;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.services a:hover,
+.services a:focus-visible {
+  border-color: var(--accent);
+}
+
+.services a:hover .icon,
+.services a:focus-visible .icon,
+.services a:hover .label,
+.services a:focus-visible .label {
+  color: var(--accent);
+}
+
+.icon {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  fill: currentColor;
+  color: var(--muted);
+  transition: color 0.15s ease;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.label {
   font-weight: 600;
 }
 
-ul.links a:hover .label {
-  text-decoration: underline;
-}
-
-ul.links .icon {
-  display: flex;
-  flex-shrink: 0;
-  width: 1.375rem;
-  height: 1.375rem;
-}
-
-ul.links .icon svg {
-  width: 100%;
-  height: 100%;
-}
-
-ul.links .description {
-  display: block;
-  margin-top: 0.25rem;
-  margin-left: calc(1.375rem + 0.625rem);
+.description {
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: 0.9rem;
+}
+
+.host {
+  color: var(--muted);
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+main {
+  padding-bottom: 2rem;
+}
+
+.site-footer {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 1.5rem 3rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.site-footer a {
+  color: var(--muted);
+}
+
+.site-footer a:hover {
+  color: var(--accent);
 }

@@ -11,6 +11,10 @@ resource "kubernetes_config_map_v1" "landing_page_html" {
     "index.html" = file("${path.module}/files/index.html")
     "style.css"  = file("${path.module}/files/style.css")
   }
+
+  binary_data = {
+    "favicon-128.png" = filebase64("${path.module}/files/favicon-128.png")
+  }
 }
 
 resource "kubernetes_deployment_v1" "landing_page" {
