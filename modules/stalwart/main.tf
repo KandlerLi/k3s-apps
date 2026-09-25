@@ -11,10 +11,8 @@
 # from environment variable" option under MTA -> Outbound -> Routes) --
 # the same SES SMTP credential aws/ses-relay's IAM policy already scopes
 # to the whole jkandler.de domain, reused here rather than typed once
-# into Stalwart's own database with no rotation path. The route/strategy
-# itself is still configured by hand in Stalwart's admin UI (like its
-# CORS and IP-allow-list settings) -- only the secret value is
-# Terraform-managed.
+# into Stalwart's own database with no rotation path. The route and
+# outbound strategy that use it are in modules/stalwart_config.
 resource "kubernetes_secret_v1" "stalwart_ses_smtp" {
   metadata {
     name = "stalwart-ses-smtp"
