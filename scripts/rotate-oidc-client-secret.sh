@@ -25,6 +25,7 @@
 #   scripts/rotate-oidc-client-secret.sh grafana
 #   scripts/rotate-oidc-client-secret.sh openwebui
 #   scripts/rotate-oidc-client-secret.sh bulwark
+#   scripts/rotate-oidc-client-secret.sh paperless
 #   scripts/rotate-oidc-client-secret.sh nextcloud
 #
 # Prompts silently for each value in turn -- nothing echoed, nothing in
@@ -56,7 +57,7 @@ fail() {
   exit 1
 }
 
-[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|openwebui|bulwark|nextcloud>"
+[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|nextcloud>"
 client="$1"
 case "$client" in
   grafana)
@@ -68,11 +69,14 @@ case "$client" in
   bulwark)
     client_secret_id="k3s-apps/bulwark"
     ;;
+  paperless)
+    client_secret_id="k3s-apps/paperless"
+    ;;
   nextcloud)
     client_secret_id="home-infra/nextcloud"
     ;;
   *)
-    fail "usage: $(basename "$0") <grafana|openwebui|bulwark|nextcloud>"
+    fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|nextcloud>"
     ;;
 esac
 hash_key="authelia_oidc_${client}_client_secret_hash"

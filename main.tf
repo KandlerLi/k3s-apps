@@ -97,6 +97,12 @@ module "bulwark" {
   bulwark_oidc_client_secret = local.k3s_apps_bulwark["authelia_oidc_bulwark_client_secret"]
 }
 
+module "paperless" {
+  source = "./modules/paperless"
+
+  paperless_oidc_client_secret = local.k3s_apps_paperless["authelia_oidc_paperless_client_secret"]
+}
+
 module "authelia" {
   source = "./modules/authelia"
 
@@ -113,6 +119,7 @@ module "authelia" {
   authelia_oidc_openwebui_client_secret_hash = local.home_infra_authelia["authelia_oidc_openwebui_client_secret_hash"]
   authelia_oidc_nextcloud_client_secret_hash = local.home_infra_authelia["authelia_oidc_nextcloud_client_secret_hash"]
   authelia_oidc_bulwark_client_secret_hash   = local.home_infra_authelia["authelia_oidc_bulwark_client_secret_hash"]
+  authelia_oidc_paperless_client_secret_hash = local.home_infra_authelia["authelia_oidc_paperless_client_secret_hash"]
 }
 
 module "ingress" {
@@ -131,5 +138,6 @@ module "ingress" {
     module.authelia.ingress_routes,
     module.bulwark.ingress_routes,
     module.stalwart.ingress_routes,
+    module.paperless.ingress_routes,
   )
 }

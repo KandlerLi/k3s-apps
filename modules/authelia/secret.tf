@@ -71,6 +71,14 @@ resource "kubernetes_secret_v1" "authelia_config" {
                 - 'email'
                 - 'email_verified'
                 - 'preferred_username'
+          # Paperless holds personal documents: only julian, not the
+          # separate Stalwart "admin" identity, which is also in admins.
+          authorization_policies:
+            julian_only:
+              default_policy: 'deny'
+              rules:
+                - policy: 'two_factor'
+                  subject: 'user:julian'
           clients:
             - client_id: 'grafana'
               client_name: 'Grafana'
@@ -169,6 +177,26 @@ resource "kubernetes_secret_v1" "authelia_config" {
               token_endpoint_auth_method: 'client_secret_post'
               access_token_signed_response_alg: 'none'
               userinfo_signed_response_alg: 'none'
+            - client_id: 'paperless'
+              client_name: 'Paperless'
+              client_secret: '${var.authelia_oidc_paperless_client_secret_hash}'
+              public: false
+              authorization_policy: 'julian_only'
+              claims_policy: 'groups_in_id_token'
+              require_pkce: true
+              pkce_challenge_method: 'S256'
+              redirect_uris:
+                - 'https://docs.jkandler.de/accounts/oidc/authelia/login/callback/'
+              scopes:
+                - 'openid'
+                - 'profile'
+                - 'groups'
+                - 'email'
+              response_types:
+                - 'code'
+              grant_types:
+                - 'authorization_code'
+              token_endpoint_auth_method: 'client_secret_basic'
 
       session:
         secret: '${var.authelia_session_secret}'
