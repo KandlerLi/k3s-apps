@@ -184,3 +184,14 @@ variable "authelia_oidc_nextcloud_client_secret_hash" {
   type        = string
   sensitive   = true
 }
+
+variable "authelia_oidc_paperless_client_secret_hash" {
+  description = <<-EOT
+    pbkdf2-sha512 hash of Paperless-ngx's own OIDC client secret -- the
+    plaintext goes to modules/paperless. Sourced from AWS Secrets
+    Manager's home-infra/authelia group (secrets.tf's
+    local.home_infra_authelia["authelia_oidc_paperless_client_secret_hash"]).
+  EOT
+  type        = string
+  sensitive   = true
+}
