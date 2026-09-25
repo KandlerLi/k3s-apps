@@ -222,8 +222,9 @@ resource "kubernetes_deployment_v1" "authelia" {
 
 # ClusterIP, not LoadBalancer -- unlike Blocky/ingress, nothing outside
 # the cluster ever needs to reach this Pod directly. Traefik's own
-# forwardAuth middleware (modules/ingress/configmap.tf) and the portal
-# router it's about to gain both reach it over this Service's
+# forwardAuth middleware (authelia-forward-auth in
+# modules/ingress/configmap.tf) and the portal router (this module's
+# outputs.tf) both reach it over this Service's
 # in-cluster DNS name only.
 resource "kubernetes_service_v1" "authelia" {
   metadata {

@@ -21,3 +21,20 @@ variable "k3s_ingress_acme_dns01_secret_access_key" {
   type        = string
   sensitive   = true
 }
+
+variable "routes" {
+  description = <<-EOT
+    Traefik routes contributed by app modules' ingress_routes outputs,
+    keyed by router name (also used as its service and middleware name
+    prefix). url is the in-cluster backend; forward_auth puts Authelia
+    in front; rate_limit and max_body_bytes add those middlewares.
+  EOT
+  type = map(object({
+    rule           = string
+    priority       = optional(number)
+    url            = string
+    forward_auth   = bool
+    rate_limit     = optional(object({ average = number, burst = number }))
+    max_body_bytes = optional(number)
+  }))
+}

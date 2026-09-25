@@ -33,10 +33,9 @@ resource "kubernetes_deployment_v1" "ingress" {
         # changes. See current-state.md for the incidents that found
         # this the hard way.
         annotations = {
-          "checksum/static-config"            = sha256(kubernetes_config_map_v1.ingress_static_config.data["traefik.yml"])
-          "checksum/dynamic-config"           = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["routes.yml"])
-          "checksum/generated-dynamic-config" = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["generated-middlewares.yml"])
-          "checksum/acme-dns01-credentials"   = sha256(jsonencode(kubernetes_secret_v1.ingress_acme_dns01_credentials.data))
+          "checksum/static-config"          = sha256(kubernetes_config_map_v1.ingress_static_config.data["traefik.yml"])
+          "checksum/dynamic-config"         = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["routes.yml"])
+          "checksum/acme-dns01-credentials" = sha256(jsonencode(kubernetes_secret_v1.ingress_acme_dns01_credentials.data))
         }
       }
 
@@ -131,15 +130,6 @@ resource "kubernetes_deployment_v1" "ingress" {
             name       = "dynamic-config"
             mount_path = "/etc/traefik/dynamic/routes.yml"
             sub_path   = "routes.yml"
-            read_only  = true
-          }
-          # Traefik's file provider watches the whole directory and
-          # merges every file in it -- this is a second file there,
-          # not a special case.
-          volume_mount {
-            name       = "dynamic-config"
-            mount_path = "/etc/traefik/dynamic/generated-middlewares.yml"
-            sub_path   = "generated-middlewares.yml"
             read_only  = true
           }
           volume_mount {
