@@ -93,6 +93,7 @@ resource "stalwart_domain" "jkandler_de" {
 # implicit TLS.
 resource "stalwart_mta_route_relay" "ses" {
   name                = "ses-relay"
+  description         = "Outbound via Amazon SES SMTP"
   address             = "email-smtp.eu-central-1.amazonaws.com"
   port                = 587
   protocol            = "smtp"
