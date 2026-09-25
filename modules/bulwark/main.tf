@@ -31,7 +31,8 @@ resource "kubernetes_secret_v1" "bulwark_session" {
 
 # Authelia OIDC login ("sign in with Authelia" in Bulwark's own UI) --
 # separate from, and doesn't by itself change, the forward-auth gate
-# already in front of mail.jkandler.de (modules/ingress' mail-chain):
+# already in front of mail.jkandler.de (the mail route in this module's
+# outputs.tf):
 # that gate gets you to Bulwark's own login screen; this is what the
 # login screen itself uses.
 resource "kubernetes_secret_v1" "bulwark_oidc" {

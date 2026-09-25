@@ -119,16 +119,15 @@ module "ingress" {
   k3s_ingress_acme_dns01_access_key_id     = local.home_infra_ingress["k3s_ingress_acme_dns01_access_key_id"]
   k3s_ingress_acme_dns01_secret_access_key = local.home_infra_ingress["k3s_ingress_acme_dns01_secret_access_key"]
 
-  # Every backend it routes to by Service name -- a plain string
-  # inside a ConfigMap's own YAML content, not a real Terraform
-  # reference, so this has to be explicit rather than inferred.
-  depends_on = [
-    module.landing_page,
-    module.kubernetes_dashboard,
-    module.deluge,
-    module.home_agent,
-    module.open_webui,
-    module.grafana,
-    module.authelia,
-  ]
+  routes = merge(
+    module.home_agent.ingress_routes,
+    module.open_webui.ingress_routes,
+    module.deluge.ingress_routes,
+    module.grafana.ingress_routes,
+    module.landing_page.ingress_routes,
+    module.kubernetes_dashboard.ingress_routes,
+    module.authelia.ingress_routes,
+    module.bulwark.ingress_routes,
+    module.stalwart.ingress_routes,
+  )
 }
