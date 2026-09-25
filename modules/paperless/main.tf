@@ -231,6 +231,13 @@ resource "kubernetes_deployment_v1" "paperless" {
             name       = "media"
             mount_path = local.media
           }
+          # Unused (uploads go through the web UI/API), but Paperless's
+          # startup check refuses to run unless it is writable, and the
+          # image's own directory is root-owned.
+          volume_mount {
+            name       = "consume"
+            mount_path = "/usr/src/paperless/consume"
+          }
 
           # First start runs all database migrations, which can take a
           # while; hence the long startup window.
@@ -271,6 +278,10 @@ resource "kubernetes_deployment_v1" "paperless" {
           persistent_volume_claim {
             claim_name = kubernetes_persistent_volume_claim_v1.paperless_media.metadata[0].name
           }
+        }
+        volume {
+          name = "consume"
+          empty_dir {}
         }
         volume {
           name = "postgres-data"
