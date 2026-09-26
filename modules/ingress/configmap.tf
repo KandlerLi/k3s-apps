@@ -144,7 +144,7 @@ locals {
           headers = {
             contentTypeNosniff   = true
             frameDeny            = true
-            referrerPolicy       = "no-referrer"
+            referrerPolicy       = route.referrer_policy
             permissionsPolicy    = "camera=(), microphone=(), geolocation=()"
             stsSeconds           = 31536000
             stsIncludeSubdomains = false
