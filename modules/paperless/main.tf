@@ -199,17 +199,17 @@ resource "kubernetes_deployment_v1" "paperless" {
             }
           }
 
-          # k3s-node-1 is tight on memory (about 70% used before
-          # Paperless). The request is a realistic idle figure so the
-          # scheduler counts it; the limit caps OCR peaks.
+          # Idle is about 750Mi; processing one phone scan was
+          # OOM-killed at 1.5Gi. k3s-node-1 has about 2Gi free, so the
+          # limit can't go much higher without risking the node.
           resources {
             requests = {
               cpu    = "100m"
-              memory = "768Mi"
+              memory = "1Gi"
             }
             limits = {
               cpu    = "2"
-              memory = "1536Mi"
+              memory = "2560Mi"
             }
           }
 
