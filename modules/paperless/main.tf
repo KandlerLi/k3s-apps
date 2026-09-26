@@ -199,9 +199,8 @@ resource "kubernetes_deployment_v1" "paperless" {
             }
           }
 
-          # Idle is about 750Mi; processing one phone scan was
-          # OOM-killed at 1.5Gi. k3s-node-1 has about 2Gi free, so the
-          # limit can't go much higher without risking the node.
+          # Idle is about 1Gi; a 6-page phone scan peaked at ~2.1Gi.
+          # k3s-node-1 was grown to 10Gi for this (home-infra#67).
           resources {
             requests = {
               cpu    = "100m"
@@ -209,7 +208,7 @@ resource "kubernetes_deployment_v1" "paperless" {
             }
             limits = {
               cpu    = "2"
-              memory = "2560Mi"
+              memory = "4Gi"
             }
           }
 
