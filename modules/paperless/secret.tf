@@ -35,6 +35,11 @@ resource "kubernetes_secret_v1" "paperless_env" {
   data = {
     PAPERLESS_DBPASS     = random_password.postgres.result
     PAPERLESS_SECRET_KEY = random_password.secret_key.result
+    # Outlook mail OAuth2 (ADR 0023, update 2026-09-27); redirect URI
+    # https://docs.jkandler.de/api/oauth/callback/, derived from
+    # PAPERLESS_URL.
+    PAPERLESS_OUTLOOK_OAUTH_CLIENT_ID     = var.outlook_oauth_client_id
+    PAPERLESS_OUTLOOK_OAUTH_CLIENT_SECRET = var.outlook_oauth_client_secret
     # client_secret_basic and PKCE on both sides, matching the
     # "paperless" client in modules/authelia.
     PAPERLESS_SOCIALACCOUNT_PROVIDERS = jsonencode({
