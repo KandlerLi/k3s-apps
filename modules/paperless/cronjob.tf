@@ -96,6 +96,12 @@ resource "kubernetes_cron_job_v1" "paperless_export" {
                 name       = "tmp"
                 mount_path = "/tmp"
               }
+              # Unused, but the startup check needs it writable; same as
+              # the Deployment's consume mount.
+              volume_mount {
+                name       = "consume"
+                mount_path = "/usr/src/paperless/consume"
+              }
             }
 
             volume {
@@ -112,6 +118,10 @@ resource "kubernetes_cron_job_v1" "paperless_export" {
             }
             volume {
               name = "tmp"
+              empty_dir {}
+            }
+            volume {
+              name = "consume"
               empty_dir {}
             }
           }
