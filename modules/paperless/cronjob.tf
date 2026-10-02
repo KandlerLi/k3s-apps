@@ -41,10 +41,8 @@ resource "kubernetes_cron_job_v1" "paperless_export" {
               working_dir = local.src_dir
               # manage.py directly: the image's document_exporter
               # wrapper expects the s6 environment that only /init sets
-              # up. --skip-checks: Paperless's startup path check writes a
-              # test file into MEDIA_ROOT and crashes on the read-only
-              # media mount.
-              command = ["python3", "manage.py", "document_exporter", local.export, "--delete", "--no-progress-bar", "--skip-checks"]
+              # up.
+              command = ["python3", "manage.py", "document_exporter", local.export, "--delete", "--no-progress-bar"]
 
               dynamic "env" {
                 for_each = merge(local.common_env, {
@@ -84,10 +82,11 @@ resource "kubernetes_cron_job_v1" "paperless_export" {
                 }
               }
 
+              # Read-write: the exporter holds MEDIA_ROOT/media.lock, the
+              # same lock live Paperless takes while writing documents.
               volume_mount {
                 name       = "media"
                 mount_path = local.media
-                read_only  = true
               }
               volume_mount {
                 name       = "export"
