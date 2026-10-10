@@ -326,7 +326,7 @@ service account, NFS-exported directories -- this cluster still depends
 on, since unlike `landing_page` it owns real state a homeserver rebuild
 still needs). `home-infra`'s `shared_ingress` role points at this
 cluster's Traefik Ingress (`http://192.168.101.10:80`) for both routes;
-see `home-infra-ai-context/context/current-state.md`'s "k3s learning
+see `home-infra-docs/docs/current-state.md`'s "k3s learning
 cluster" section for the full cutover history.
 
 ## Cutting over `ai.jkandler.de`
@@ -354,8 +354,8 @@ distinct follow-up step, not bundled into this cutover): `home_agent`
 and `open_webui` reshaped down to just the host prerequisites their
 k3s copies still depend on (mirroring `deluge`'s own precedent),
 `nextcloud_tools` retired outright since its only consumer was
-`home_agent`'s own now-gone container. See `home-infra-ai-context/
-context/current-state.md` for that reshape's own real near-miss: an
+`home_agent`'s own now-gone container. See `home-infra-docs/
+docs/current-state.md` for that reshape's own real near-miss: an
 intervening `site.yml` run for an unrelated fix silently restarted the
 already-stopped `open-webui` container (its role was still
 Docker-based at that point), leaving it running against the same

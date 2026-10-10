@@ -47,7 +47,7 @@ provider "aws" {
 # COUPLING WORTH KNOWING: unlike everything else in this root, this
 # provider talks to a live server at plan time -- a Stalwart outage
 # fails every plan in this repo. See
-# docs/home-infra-ai-context's current-state.md ("Mail server") for why
+# docs/home-infra-docs' current-state.md ("Mail server") for why
 # this was accepted over a separate root, and the -target workaround.
 provider "stalwart" {
   endpoint = coalesce(var.stalwart_endpoint, var.in_cluster ? "http://stalwart-internal.default.svc.cluster.local:8080" : "http://127.0.0.1:18083")

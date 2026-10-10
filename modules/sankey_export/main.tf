@@ -3,7 +3,7 @@
 # timer used. The ETag cache uses a host_path volume, not a
 # cluster-scoped PersistentVolume -- no real benefit on a single-node
 # cluster. Full cutover history and every bug found:
-# docs/home-infra-ai-context's current-state.md ("k3s learning
+# docs/home-infra-docs' current-state.md ("k3s learning
 # cluster").
 
 resource "kubernetes_cron_job_v1" "sankey_export" {

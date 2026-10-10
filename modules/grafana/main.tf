@@ -3,7 +3,7 @@
 # it over the additive 192.168.101.1 listener. No PVC, deliberately --
 # everything Grafana needs is provisioned from files below;
 # /var/lib/grafana is a plain emptyDir, genuinely disposable. Full
-# cutover history and bugs found: docs/home-infra-ai-context's
+# cutover history and bugs found: docs/home-infra-docs'
 # current-state.md ("k3s learning cluster").
 
 resource "kubernetes_deployment_v1" "grafana" {

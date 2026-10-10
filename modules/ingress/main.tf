@@ -3,7 +3,7 @@
 # defaults"). The iptables DNAT relay that gets public traffic to this
 # cluster at all lives in home-infra's k3s_ingress_forward role, not
 # here. Full migration history and the DNS-01-over-TLS-ALPN-01 ACME
-# decision: docs/home-infra-ai-context's current-state.md ("k3s
+# decision: docs/home-infra-docs' current-state.md ("k3s
 # learning cluster").
 
 resource "kubernetes_deployment_v1" "ingress" {

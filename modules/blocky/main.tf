@@ -1,7 +1,7 @@
 # Blocky and Postgres share one Pod, not two -- Blocky's own
 # queryLog.target connects via 127.0.0.1, which a shared Pod network
 # namespace reproduces with no config changes. Full cutover history and
-# every bug found building this: docs/home-infra-ai-context's
+# every bug found building this: docs/home-infra-docs'
 # current-state.md ("k3s learning cluster", Blocky entry).
 
 resource "kubernetes_deployment_v1" "blocky" {

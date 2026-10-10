@@ -3,7 +3,7 @@
 # over that socket, never a network. home_tools_service is the one
 # dependency that couldn't move this way -- reached over a TCP listener
 # at 192.168.101.1:8095 instead. Full cutover history and every bug
-# found: docs/home-infra-ai-context's current-state.md ("k3s learning
+# found: docs/home-infra-docs' current-state.md ("k3s learning
 # cluster").
 
 resource "kubernetes_deployment_v1" "home_agent" {

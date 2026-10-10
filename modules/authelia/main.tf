@@ -1,7 +1,7 @@
 # Authelia, not Authentik -- needs no second stateful sidecar (SQLite is
 # enough for a single-user homelab, no Postgres). A small Redis sidecar
 # keeps sessions across restarts. Full cutover history (the Basic Auth
-# replacement, the SQLite rollback/re-cutover): docs/home-infra-ai-context's
+# replacement, the SQLite rollback/re-cutover): docs/home-infra-docs'
 # current-state.md ("k3s learning cluster", Authelia SSO entry).
 #
 # The image declares no USER (defaults to root) -- security_context
