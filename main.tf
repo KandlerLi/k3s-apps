@@ -101,6 +101,10 @@ module "paperless" {
   source = "./modules/paperless"
 
   paperless_oidc_client_secret = local.k3s_apps_paperless["authelia_oidc_paperless_client_secret"]
+  # lookup(): the Outlook keys are seeded by hand after the Microsoft app
+  # registration exists; until then the Outlook button stays hidden.
+  outlook_oauth_client_id     = lookup(local.k3s_apps_paperless, "outlook_oauth_client_id", "")
+  outlook_oauth_client_secret = lookup(local.k3s_apps_paperless, "outlook_oauth_client_secret", "")
 }
 
 module "authelia" {
