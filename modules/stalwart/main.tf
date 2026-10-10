@@ -3,7 +3,7 @@
 # stalwart.jkandler.de, or `kubectl port-forward`). The plaintext
 # 143/587 are not exposed anywhere. STALWART_RECOVERY_ADMIN is
 # deliberately not wired yet -- needs a new Secrets Manager entry
-# first, a separate change. See docs/home-infra-ai-context's
+# first, a separate change. See docs/home-infra-docs'
 # current-state.md ("Mail server") for the fuller picture.
 
 # Outbound mail relay credential, exposed to Stalwart as environment

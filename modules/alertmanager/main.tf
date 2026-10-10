@@ -2,7 +2,7 @@
 # holds active silences and a notification-dedup log, not real history,
 # so starting fresh is low-stakes. Full migration history (why this
 # moved outright, the double-fire risk during cutover, resource sizing):
-# docs/home-infra-ai-context's current-state.md ("k3s learning cluster").
+# docs/home-infra-docs' current-state.md ("k3s learning cluster").
 
 resource "kubernetes_deployment_v1" "alertmanager" {
   metadata {

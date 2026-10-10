@@ -2,7 +2,7 @@
 # JMAP webmail client for Stalwart. Runs in the browser against
 # Stalwart's JMAP endpoint directly, so Stalwart needs CORS enabled for
 # this app's origin -- a manual Stalwart setting. See
-# docs/home-infra-ai-context's current-state.md ("Mail server") for the
+# docs/home-infra-docs' current-state.md ("Mail server") for the
 # fuller picture.
 #
 # Session secret: generated here and kept in Terraform state rather
