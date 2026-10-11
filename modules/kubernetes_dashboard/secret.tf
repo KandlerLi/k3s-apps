@@ -1,8 +1,4 @@
-# Empty placeholder Secrets the Dashboard binary reads/writes at
-# runtime (CSRF signing material, its own encryption key) -- it does
-# NOT create these itself if missing, despite get/update/delete
-# access; it panics instead. The official recommended.yaml manifest
-# ships both empty up front for this reason.
+# Empty Secrets the Dashboard needs at runtime; it panics instead of creating them.
 resource "kubernetes_secret_v1" "kubernetes_dashboard_csrf" {
   metadata {
     name = "kubernetes-dashboard-csrf"

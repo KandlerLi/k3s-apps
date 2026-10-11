@@ -1,8 +1,4 @@
-# media and export bind to the static NFS PVs in KandlerLi/k3s-bootstrap
-# (storage.tf) by name; the directories behind them belong to
-# KandlerLi/home-infra's paperless_storage role. data (search index,
-# classifier) and PostgreSQL stay node-local: Paperless advises against
-# databases on network storage, and the index is rebuildable.
+# media and export bind to k3s-bootstrap's NFS PVs; data and PostgreSQL stay node-local.
 
 resource "kubernetes_persistent_volume_claim_v1" "paperless_media" {
   metadata {

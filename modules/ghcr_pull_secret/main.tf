@@ -1,6 +1,4 @@
-# Shared dockerconfigjson credential for pulling a private GHCR image
-# (ghcr.io/kandlerli/<image>) into this cluster. Used by
-# modules/home_agent and modules/sankey_export.
+# Shared pull credential for private GHCR images (home_agent, sankey_export).
 
 variable "name" {
   description = "Kubernetes Secret name for this dockerconfigjson credential."

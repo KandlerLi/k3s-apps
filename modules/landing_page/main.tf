@@ -1,6 +1,4 @@
-# Terraform equivalent of home-infra's now-deleted landing_page role --
-# same image digest, same mount point. Content in files/ was pulled
-# from the live homeserver, not fabricated.
+# Replaces home-infra's deleted landing_page role; content in files/ came from the live server.
 
 resource "kubernetes_config_map_v1" "landing_page_html" {
   metadata {
@@ -41,7 +39,7 @@ resource "kubernetes_deployment_v1" "landing_page" {
       spec {
         container {
           name = "landing-page"
-          # Same pinned digest as ansible/roles/landing_page/defaults/main.yml
+          # Same pinned digest the old role used.
           image = "nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0"
 
           port {

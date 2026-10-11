@@ -1,5 +1,4 @@
-# The PV this PVC binds to lives in the separate k3s-bootstrap repo --
-# see modules/deluge's own identical storage.tf comment for why.
+# The PV lives in k3s-bootstrap; bound here by name.
 
 resource "kubernetes_persistent_volume_claim_v1" "open_webui_data" {
   metadata {

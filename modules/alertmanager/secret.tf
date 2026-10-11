@@ -1,7 +1,4 @@
-# A Secret, not a ConfigMap, because the rendered file carries the real
-# SES SMTP password in plaintext -- matching home-infra's own no_log:
-# true on the equivalent Ansible task, and Grafana's own
-# grafana-datasources Secret for the same reason.
+# A Secret: the rendered file carries the SES SMTP password.
 resource "kubernetes_secret_v1" "alertmanager_config" {
   metadata {
     name = "alertmanager-config"

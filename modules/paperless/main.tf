@@ -1,9 +1,4 @@
-# Paperless-ngx (ADR 0023): the personal document archive at
-# docs.jkandler.de. One Pod with PostgreSQL and Redis as native sidecars
-# (same pattern as modules/blocky), so the app reaches both on
-# 127.0.0.1. Runs rootless as 983:978, the paperless account
-# KandlerLi/home-infra's paperless_storage role pins, so NFS root_squash
-# writes land as the owner of the media directory.
+# Paperless-ngx (ADR 0023) with PostgreSQL and Redis as native sidecars; rootless as home-infra's paperless account 983:978.
 
 locals {
   image    = "ghcr.io/paperless-ngx/paperless-ngx:3.2.1@sha256:5fa76604a81df6945086e0837b14b56543d137e8ce4f311cc5d9ebe907e74e79"
@@ -58,9 +53,7 @@ resource "kubernetes_deployment_v1" "paperless" {
       spec {
         automount_service_account_token = false
 
-        # Listens on 0.0.0.0 so the export CronJob can reach it through
-        # paperless-svc. args, not command: the image's entrypoint
-        # chowns the data directory and drops root.
+        # 0.0.0.0 so the export CronJob reaches it; args keep the image's entrypoint.
         init_container {
           name           = "postgres"
           image          = "postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73"
@@ -114,8 +107,7 @@ resource "kubernetes_deployment_v1" "paperless" {
           }
         }
 
-        # Task broker only; queued tasks don't survive a Pod restart,
-        # which is acceptable for a single user.
+        # Task broker only; losing queued tasks on restart is acceptable.
         init_container {
           name           = "redis"
           image          = "redis:8-alpine@sha256:ba6e394f6acc2a695ef1b6944f161b9ca813711739be68319fa0db3470673f1d"
@@ -173,8 +165,7 @@ resource "kubernetes_deployment_v1" "paperless" {
               # Separator sheets for scanner batches (ADR 0023).
               PAPERLESS_CONSUMER_ENABLE_BARCODES = "true"
 
-              # SSO only in the web UI; the "admins" group in Authelia
-              # makes the account a Paperless superuser on each login.
+              # SSO in the web UI; Authelia's admins group makes the account a superuser.
               PAPERLESS_APPS                                = "allauth.socialaccount.providers.openid_connect"
               PAPERLESS_DISABLE_REGULAR_LOGIN               = "true"
               PAPERLESS_REDIRECT_LOGIN_TO_SSO               = "true"
@@ -199,8 +190,7 @@ resource "kubernetes_deployment_v1" "paperless" {
             }
           }
 
-          # Idle is about 1Gi; a 6-page phone scan peaked at ~2.1Gi.
-          # k3s-node-1 was grown to 10Gi for this (home-infra#67).
+          # Idle ~1Gi, a 6-page scan peaked at ~2.1Gi.
           resources {
             requests = {
               cpu    = "100m"
@@ -230,16 +220,13 @@ resource "kubernetes_deployment_v1" "paperless" {
             name       = "media"
             mount_path = local.media
           }
-          # Unused (uploads go through the web UI/API), but Paperless's
-          # startup check refuses to run unless it is writable, and the
-          # image's own directory is root-owned.
+          # Unused, but the startup check needs it writable and the image's directory is root-owned.
           volume_mount {
             name       = "consume"
             mount_path = "/usr/src/paperless/consume"
           }
 
-          # First start runs all database migrations, which can take a
-          # while; hence the long startup window.
+          # First start runs all migrations, hence the long startup window.
           startup_probe {
             tcp_socket {
               port = 8000

@@ -1,8 +1,4 @@
-# Same PUID/PGID as home-infra's deluge role (993/986, its real
-# service account, write access through the NFS exports). No
-# restrictive securityContext -- linuxserver/deluge's s6-overlay init
-# starts as root and remaps to PUID/PGID via chown/setuid, which
-# runAsNonRoot/read-only-root would break.
+# PUID/PGID 993/986 like home-infra's deluge account; s6-overlay starts as root, so no restrictive securityContext.
 
 resource "kubernetes_deployment_v1" "deluge" {
   metadata {
@@ -24,18 +20,13 @@ resource "kubernetes_deployment_v1" "deluge" {
           app = "deluge"
         }
         annotations = {
-          # Forces a rollout when the rendered web.conf actually
-          # changes -- see modules/ingress's own identical pattern.
+          # Forces a rollout when web.conf changes.
           "checksum/web-conf" = sha256(local.deluge_web_conf)
         }
       }
 
       spec {
-        # Seeds web.conf into the config PVC as the real Deluge uid,
-        # not a subPath mount -- see history.md for the
-        # root_squash/CrashLoopBackOff this replaced. Only seeds if
-        # missing: a later password rotation won't take effect on its
-        # own (an existing web.conf is left alone), a known gap.
+        # Seeds web.conf as the Deluge uid if missing; a later password change isn't applied by itself.
         init_container {
           name    = "seed-web-conf"
           image   = "linuxserver/deluge:2.2.0-ls381@sha256:33a939576f7ecfc1227db1a0cb2afce030ce983e620ec9d93c956e3700e21fe9"
@@ -146,9 +137,7 @@ resource "kubernetes_service_v1" "deluge_web" {
   }
 }
 
-# BitTorrent's actual peer traffic -- Ingress only understands HTTP(S),
-# so this needs a LoadBalancer Service instead, bound to a fixed port
-# rather than a randomly-assigned NodePort.
+# Peer traffic isn't HTTP, so a LoadBalancer on a fixed port.
 resource "kubernetes_service_v1" "deluge_peer" {
   metadata {
     name = "deluge-peer-svc"
