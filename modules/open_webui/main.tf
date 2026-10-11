@@ -1,13 +1,4 @@
-# The k3s-native copy of home-infra's own open_webui role -- same
-# pinned image, same real data (mounted from the NFS export in
-# storage.tf, not started fresh). Points at home_agent's own in-cluster
-# Service instead of a Docker network alias.
-#
-# CPU requests/limits are deliberately split (Burstable), not a
-# Guaranteed request copied from home-infra's own Docker ceiling --
-# that ceiling was never a reservation, and copying it as a k3s request
-# would starve the node's own scheduling budget. See
-# KandlerLi/home-infra-docs' history.md.
+# Open WebUI on its real data (NFS), talking to home_agent's in-cluster Service. CPU is Burstable on purpose.
 
 resource "kubernetes_deployment_v1" "open_webui" {
   metadata {
@@ -29,9 +20,7 @@ resource "kubernetes_deployment_v1" "open_webui" {
           app = "open-webui"
         }
 
-        # env.value_from.secret_key_ref is read once at container
-        # start -- same checksum-annotation fix as modules/grafana's/
-        # modules/authelia's own volume-mounted secrets.
+        # secret_key_ref is read only at start, so a checksum forces a new Pod.
         annotations = {
           "checksum/oidc-client-secret" = sha256(kubernetes_secret_v1.open_webui_oidc_client_secret.data["OAUTH_CLIENT_SECRET"])
         }
@@ -71,11 +60,7 @@ resource "kubernetes_deployment_v1" "open_webui" {
             name  = "WEBUI_AUTH"
             value = "True"
           }
-          # ENABLE_LOGIN_FORM=False alone only hides the UI (same gap
-          # as Grafana's own disable_login_form) --
-          # ENABLE_PASSWORD_AUTH=False is the actual protocol-level
-          # switch. ENABLE_SIGNUP=False stops a new native account from
-          # reopening it.
+          # Hiding the form isn't enough: ENABLE_PASSWORD_AUTH=False switches password login off; no signups.
           env {
             name  = "ENABLE_LOGIN_FORM"
             value = "False"
@@ -121,8 +106,6 @@ resource "kubernetes_deployment_v1" "open_webui" {
             value = "strict"
           }
           # OAUTH_MERGE_ACCOUNTS_BY_EMAIL reuses any existing native
-          # account with the same email rather than creating a
-          # duplicate.
           env {
             name  = "ENABLE_OAUTH_SIGNUP"
             value = "True"
@@ -170,7 +153,6 @@ resource "kubernetes_deployment_v1" "open_webui" {
             value = "True"
           }
           # home-agent's own in-cluster Service (modules/home_agent),
-          # not the Docker "home-agent" network alias.
           env {
             name  = "OPENAI_API_BASE_URL"
             value = "http://home-agent-svc/v1"
@@ -179,12 +161,7 @@ resource "kubernetes_deployment_v1" "open_webui" {
             name  = "OPENAI_API_KEY"
             value = "home-agent-internal"
           }
-          # Route speech-to-text through home-agent (ADR 0012) instead of
-          # the built-in local Whisper engine, which needs a Hugging Face
-          # Hub download this container's OFFLINE_MODE (below)
-          # deliberately blocks -- this sidesteps that restriction rather
-          # than loosening it, since the openai STT engine never touches
-          # HF Hub at all.
+          # Speech-to-text through home-agent (ADR 0012); local Whisper would need Hugging Face, which OFFLINE_MODE blocks.
           env {
             name  = "AUDIO_STT_ENGINE"
             value = "openai"
@@ -369,21 +346,11 @@ resource "kubernetes_deployment_v1" "open_webui" {
             }
           }
 
-          # Not read_only_root_filesystem, matching home-infra's own
-          # role (read_only: false there too) -- Open WebUI writes
-          # beyond just its mounted data dir, unlike home_agent/
-          # nextcloud_tools.
+          # No read_only_root_filesystem: Open WebUI writes outside its data dir.
           security_context {
             allow_privilege_escalation = false
             run_as_non_root            = true
-            # UID 995, GID 0 -- not GID 988, the account's own default
-            # group. home-infra's own docker_container task
-            # deliberately starts this as "995:0" (root group), and the
-            # real data directory on disk is owned 995:root mode 0750
-            # to match. Getting this wrong would repeat the exact
-            # Unix-socket GID mistake home_agent's first cut made, this
-            # time against real, non-reproducible chat history over
-            # NFS instead of an emptyDir.
+            # UID 995, GID 0, matching the data directory's owner on the NFS export.
             run_as_user  = 995
             run_as_group = 0
             capabilities {
@@ -396,12 +363,7 @@ resource "kubernetes_deployment_v1" "open_webui" {
             mount_path = "/app/backend/data"
           }
 
-          # Mirrors home-infra's own Docker healthcheck (curl --fail
-          # http://127.0.0.1:8080/health, 90s start_period for Open
-          # WebUI's genuinely slow startup) as readiness/liveness
-          # probes -- Kubernetes has no direct equivalent of Docker's
-          # single healthcheck block, so both probes share timing that
-          # matches that config as closely as the two models allow.
+          # Readiness and liveness on /health with a long start window: Open WebUI starts slowly.
           readiness_probe {
             http_get {
               path = "/health"

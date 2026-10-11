@@ -1,7 +1,4 @@
-# The secret key and the database password are generated here, not kept
-# in Secrets Manager: nobody ever types either (see
-# KandlerLi/secrets-manager's runbooks/k3s-apps/paperless.md). Rotating the
-# secret key logs everyone out and invalidates API tokens.
+# Generated here, not in Secrets Manager: nobody types them. Rotating the key logs everyone out.
 
 resource "random_password" "secret_key" {
   length  = 64
@@ -35,8 +32,7 @@ resource "kubernetes_secret_v1" "paperless_env" {
   data = {
     PAPERLESS_DBPASS     = random_password.postgres.result
     PAPERLESS_SECRET_KEY = random_password.secret_key.result
-    # client_secret_basic and PKCE on both sides, matching the
-    # "paperless" client in modules/authelia.
+    # client_secret_basic and PKCE, matching modules/authelia's paperless client.
     PAPERLESS_SOCIALACCOUNT_PROVIDERS = jsonencode({
       openid_connect = {
         SCOPE              = ["openid", "profile", "email", "groups"]

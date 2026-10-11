@@ -1,10 +1,4 @@
-# Renders the Finanzfluss budget Sankey diagram and uploads it to
-# Nextcloud, on the same 1-minute cadence the old home-infra systemd
-# timer used. The ETag cache uses a host_path volume, not a
-# cluster-scoped PersistentVolume -- no real benefit on a single-node
-# cluster. Full cutover history and every bug found:
-# KandlerLi/home-infra-docs' history.md ("k3s learning
-# cluster").
+# Renders the budget Sankey diagram every minute and uploads it to Nextcloud. History: history.md.
 
 resource "kubernetes_cron_job_v1" "sankey_export" {
   metadata {
@@ -22,9 +16,7 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
       metadata {}
 
       spec {
-        # No automatic retry -- a failed tick just gets picked up by the
-        # next scheduled run a minute later, same as the old systemd
-        # timer never restarting a failed oneshot on its own.
+        # No retry: the next tick a minute later picks it up.
         backoff_limit           = 0
         active_deadline_seconds = 120
 
@@ -38,20 +30,14 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
           spec {
             restart_policy = "Never"
 
-            # Doesn't talk to the Kubernetes API -- same reasoning as
-            # home_agent's own Pod (see its main.tf's comment on the
-            # identical collision this avoids with a Secret mounted at
-            # /run/secrets-shaped paths).
+            # Doesn't talk to the Kubernetes API.
             automount_service_account_token = false
 
             image_pull_secrets {
               name = module.ghcr_pull_secret.name
             }
 
-            # A DirectoryOrCreate hostPath is created root-owned 0755 --
-            # fs_group does NOT fix this for hostPath specifically (see
-            # history.md). This initContainer chowns it once
-            # instead, the standard fix.
+            # fs_group doesn't fix hostPath ownership, so an initContainer chowns it.
             init_container {
               name    = "fix-state-dir-ownership"
               image   = var.sankey_export_image
@@ -99,9 +85,7 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
                 name  = "SANKEY_EXPORT_APP_PASSWORD_FILE"
                 value = "/etc/sankey-export/app-password"
               }
-              # Nextcloud shares don't preserve the sharer's own path
-              # for the recipient -- see history.md for the
-              # 404s this caused before landing on this value.
+              # Nextcloud shares don't keep the sharer's path for the recipient.
               env {
                 name  = "SANKEY_EXPORT_REMOTE_DIR"
                 value = "Shared/Finanzen"
@@ -119,12 +103,7 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
                 value = "/var/lib/sankey-export/last-etag"
               }
 
-              # Limits match the old systemd unit's own ceiling
-              # (rendering with headless Chromium is the expensive
-              # part), but requests stay low -- this Job bursts for a
-              # few seconds once a minute, not continuously. See
-              # history.md for the scheduling failure a
-              # Guaranteed-QoS request caused.
+              # Bursty Chromium rendering: low requests, limits like the old unit.
               resources {
                 requests = {
                   memory = "128Mi"
@@ -152,12 +131,7 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
                 mount_path = "/etc/sankey-export"
                 read_only  = true
               }
-              # Backs HOME=/tmp, baked into the image -- the exact
-              # choreographer/platformdirs cache-dir fix from
-              # home-infra#14 ("PermissionError: .../.local/share/
-              # choreographer/..."), needed here for the identical
-              # reason: read_only_root_filesystem plus a non-root UID
-              # with no real home directory.
+              # Backs HOME=/tmp for choreographer's cache under read_only_root_filesystem.
               volume_mount {
                 name       = "tmp"
                 mount_path = "/tmp"
@@ -178,10 +152,7 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
               name = "tmp"
               empty_dir {}
             }
-            # A different machine and path from the homeserver's own
-            # /var/lib/sankey-export (that host never runs k3s Pods) --
-            # no collision risk. DirectoryOrCreate so the very first run
-            # doesn't need this pre-created by hand.
+            # DirectoryOrCreate, so the first run needs no manual setup.
             volume {
               name = "state"
               host_path {

@@ -1,45 +1,11 @@
-# Kubernetes Dashboard -- a read-only, at-a-glance web UI for this
-# cluster's own workloads/nodes/events. v2.7.0, the last single-
-# component release before v7 split the project into separate
-# auth/api/web microservices needing cert-manager for their own
-# internal mTLS -- unnecessary complexity for a single-user, read-only
-# homelab view. No metrics-scraper sidecar here either (the small
-# CPU/Memory sparkline graphs on Pod/Node pages) -- a real add later if
-# wanted, not part of this first cut.
-#
-# The ServiceAccount this Deployment runs as, and every RBAC object
-# granting it anything, live in the separate k3s-bootstrap repo
-# instead, applied locally with real cluster-admin credentials -- see
-# that repo's own dashboard_rbac.tf for why: granting RBAC is itself
-# privilege-defining, so it can't be something this CI-applied root's
-# own narrowly-scoped k3s-apps-ci ServiceAccount is able to do to
-# itself (that Role has no serviceaccounts/roles/clusterrolebindings
-# verb at all, deliberately -- see main.tf's own k3s_apps_ci Role).
-# This module only ever *references* "kubernetes-dashboard" by name in
-# a Pod spec, which needs no RBAC grant over the ServiceAccount object
-# itself to do.
-#
-# Runs in --insecure mode (plain HTTP on 9090, no self-signed TLS)
-# deliberately: Traefik already terminates real TLS in front of every
-# other service here, and forwarding on to Dashboard's own self-signed
-# cert would mean either trusting an untrusted cert or adding extra
-# Traefik config to skip verifying it, for zero real security gain
-# over what Basic Auth plus the "view"-only ClusterRoleBinding already
-# provide. --enable-skip-login means anyone through Traefik's Basic
-# Auth lands straight in the read-only cluster view, no separate token
-# to copy in -- safe specifically because the underlying ServiceAccount
-# can't do anything beyond that read-only view regardless of how
-# someone reaches it.
+# Read-only Kubernetes Dashboard v2.7.0, the last single-component release; RBAC lives in k3s-bootstrap.
 
 resource "kubernetes_deployment_v1" "kubernetes_dashboard" {
   metadata {
     name = "kubernetes-dashboard"
   }
 
-  # Not inferred from a real attribute reference (nothing here reads
-  # either Secret's own data) -- explicit because the Dashboard
-  # container panics on startup if either is missing yet, so the
-  # Secrets have to exist first, not merely eventually.
+  # The Dashboard panics on startup if either Secret is missing.
   depends_on = [
     kubernetes_secret_v1.kubernetes_dashboard_csrf,
     kubernetes_secret_v1.kubernetes_dashboard_key_holder,
@@ -62,9 +28,7 @@ resource "kubernetes_deployment_v1" "kubernetes_dashboard" {
       }
 
       spec {
-        # Pre-created in k3s-bootstrap -- see this module's own header
-        # comment. Referencing it here by name needs no RBAC grant over
-        # the ServiceAccount object itself.
+        # Pre-created in k3s-bootstrap.
         service_account_name = "kubernetes-dashboard"
 
         container {
@@ -84,9 +48,7 @@ resource "kubernetes_deployment_v1" "kubernetes_dashboard" {
             container_port = 9090
           }
 
-          # Genuinely light -- a read-only UI serving mostly static
-          # assets plus watch requests against the API server, nothing
-          # like Grafana's own indexing/query workload.
+          # A light, mostly static UI.
           resources {
             requests = {
               cpu    = "50m"
@@ -98,8 +60,7 @@ resource "kubernetes_deployment_v1" "kubernetes_dashboard" {
             }
           }
 
-          # 1001:2001 -- the image's own documented non-root default
-          # UID/GID (same pair the official recommended.yaml pins).
+          # 1001:2001, the image's documented non-root default.
           security_context {
             allow_privilege_escalation = false
             read_only_root_filesystem  = true

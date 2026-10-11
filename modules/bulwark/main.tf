@@ -1,17 +1,4 @@
-# Bulwark Webmail (https://github.com/bulwarkmail/webmail, AGPL-3.0): a
-# JMAP webmail client for Stalwart. Runs in the browser against
-# Stalwart's JMAP endpoint directly, so Stalwart needs CORS enabled for
-# this app's origin -- a manual Stalwart setting. See
-# KandlerLi/home-infra-docs' history.md ("Mail server") for the
-# fuller picture.
-#
-# Session secret: generated here and kept in Terraform state rather
-# than Secrets Manager. Rotating it (taint random_id.session) logs
-# every webmail user out.
-#
-# The image's user is the *name* `nextjs`, which Kubernetes can't
-# verify as non-root, so a numeric UID (1001, its usual UID in Node
-# images) is set explicitly -- check that first on a permission error.
+# Bulwark, a JMAP webmail for Stalwart (AGPL-3.0); its session secret lives in Terraform state. See history.md ("Mail server").
 
 resource "random_id" "session" {
   byte_length = 32
@@ -29,12 +16,7 @@ resource "kubernetes_secret_v1" "bulwark_session" {
   type = "Opaque"
 }
 
-# Authelia OIDC login ("sign in with Authelia" in Bulwark's own UI) --
-# separate from, and doesn't by itself change, the forward-auth gate
-# already in front of mail.jkandler.de (the mail route in this module's
-# outputs.tf):
-# that gate gets you to Bulwark's own login screen; this is what the
-# login screen itself uses.
+# Authelia OIDC for Bulwark's own login screen, separate from the forward-auth gate in front of it.
 resource "kubernetes_secret_v1" "bulwark_oidc" {
   metadata {
     name = "bulwark-oidc"
@@ -131,9 +113,7 @@ resource "kubernetes_deployment_v1" "bulwark" {
             name  = "OAUTH_ISSUER_URL"
             value = "https://auth.jkandler.de"
           }
-          # Bulwark's own password form is dead weight once Stalwart's
-          # Authentication Directory points at the Authelia SSO OIDC
-          # directory -- skips straight to the login that works.
+          # Skips Bulwark's password form, which is dead once Stalwart authenticates via Authelia.
           env {
             name  = "AUTO_SSO_ENABLED"
             value = "true"
@@ -174,10 +154,7 @@ resource "kubernetes_deployment_v1" "bulwark" {
             mount_path = "/app/data"
           }
 
-          # TCP probes on 3000, not an HTTP path: the app binds that
-          # port unconditionally, and (lesson from modules/stalwart) a
-          # probe that depends on unverified app behavior can restart a
-          # healthy Pod in a loop.
+          # TCP probes: an HTTP probe on unverified app behavior can restart a healthy Pod in a loop.
           startup_probe {
             tcp_socket {
               port = 3000
@@ -215,8 +192,7 @@ resource "kubernetes_deployment_v1" "bulwark" {
   }
 }
 
-# Port 80 like every other module's Service, so modules/ingress can
-# reach it as bulwark-svc:80.
+# Port 80, so modules/ingress reaches it as bulwark-svc:80.
 resource "kubernetes_service_v1" "bulwark" {
   metadata {
     name = "bulwark-svc"

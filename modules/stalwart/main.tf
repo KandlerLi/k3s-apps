@@ -1,18 +1,6 @@
-# Stalwart mail server. The web admin stays cluster-internal on
-# stalwart-internal:8080 (behind Traefik/Authelia at
-# stalwart.jkandler.de, or `kubectl port-forward`). The plaintext
-# 143/587 are not exposed anywhere. STALWART_RECOVERY_ADMIN is
-# deliberately not wired yet -- needs a new Secrets Manager entry
-# first, a separate change. See KandlerLi/home-infra-docs'
-# history.md ("Mail server") for the fuller picture.
+# Stalwart mail server; the web admin stays cluster-internal. See history.md ("Mail server").
 
-# Outbound mail relay credential, exposed to Stalwart as environment
-# variables rather than typed into its own admin UI (its "Secret read
-# from environment variable" option under MTA -> Outbound -> Routes) --
-# the same SES SMTP credential KandlerLi/ses-relay's IAM policy already scopes
-# to the whole jkandler.de domain, reused here rather than typed once
-# into Stalwart's own database with no rotation path. The route and
-# outbound strategy that use it are in modules/stalwart_config.
+# The SES relay credential via environment variables, rotatable, instead of typed into Stalwart's UI.
 resource "kubernetes_secret_v1" "stalwart_ses_smtp" {
   metadata {
     name = "stalwart-ses-smtp"
@@ -35,7 +23,6 @@ resource "kubernetes_deployment_v1" "stalwart" {
     replicas = 1
 
     # One RWO local-path volume: a rolling update would try to run two
-    # Pods against it. Recreate stops the old Pod first.
     strategy {
       type = "Recreate"
     }
@@ -60,8 +47,7 @@ resource "kubernetes_deployment_v1" "stalwart" {
       spec {
         automount_service_account_token = false
 
-        # Volume ownership for the image's own unprivileged user (UID
-        # 2000, `stalwart`).
+        # Volume ownership for the image's UID 2000.
         security_context {
           fs_group = 2000
         }
@@ -70,10 +56,7 @@ resource "kubernetes_deployment_v1" "stalwart" {
           name  = "stalwart"
           image = "stalwartlabs/stalwart:v0.16.22@sha256:388dcb75a70727c5b551249a6d34b1f1321294852489e4fa3a4e6be698b7c4f0"
 
-          # Published base URL behind Traefik (modules/ingress'
-          # `stalwart` routers), so redirects and JMAP session URLs use
-          # the public name instead of the internal Service address.
-          # mail.jkandler.de is the webmail (modules/bulwark) now.
+          # The public base URL, so redirects and JMAP session URLs use it.
           env {
             name  = "STALWART_PUBLIC_URL"
             value = "https://stalwart.jkandler.de"
@@ -125,10 +108,7 @@ resource "kubernetes_deployment_v1" "stalwart" {
             }
           }
 
-          # The image's own binary carries cap_net_bind_service, so port
-          # 25 binds without root -- but that file capability only takes
-          # effect if the capability is in the bounding set, so only the
-          # rest are dropped.
+          # The binary's cap_net_bind_service needs that capability in the bounding set.
           security_context {
             allow_privilege_escalation = false
             run_as_non_root            = true
@@ -151,9 +131,7 @@ resource "kubernetes_deployment_v1" "stalwart" {
             sub_path   = "data"
           }
 
-          # Deliberately only a startup probe, on 8080 -- see
-          # history.md for why steady-state probes are left for a
-          # follow-up.
+          # Startup probe only: see history.md.
           startup_probe {
             tcp_socket {
               port = 8080
@@ -175,16 +153,7 @@ resource "kubernetes_deployment_v1" "stalwart" {
   }
 }
 
-# Public mail ports: inbound SMTP (25), plus the TLS-only client ports
-# IMAPS (993) and implicit-TLS submission (465) for mail clients. The
-# plaintext 143/587 are deliberately not exposed. The name stays
-# "stalwart-smtp" (renaming would replace the Service and its
-# LoadBalancer address) though it now carries more than SMTP.
-# Local, so the real client/sender IP reaches Stalwart for SPF, rate
-# limiting and its brute-force protection -- the same reason as
-# modules/blocky's own Service: the default (Cluster) masquerades the
-# source. Safe because the single replica and this Service's
-# LoadBalancer IP share k3s-node-1.
+# 25, 993 and 465 only; the name stays, renaming would change the LoadBalancer address. Local keeps the client IP.
 resource "kubernetes_service_v1" "stalwart_smtp" {
   metadata {
     name = "stalwart-smtp"

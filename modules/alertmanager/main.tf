@@ -1,8 +1,4 @@
-# No PVC, deliberately -- Alertmanager's own /alertmanager directory
-# holds active silences and a notification-dedup log, not real history,
-# so starting fresh is low-stakes. Full migration history (why this
-# moved outright, the double-fire risk during cutover, resource sizing):
-# KandlerLi/home-infra-docs' history.md ("k3s learning cluster").
+# No PVC: silences and the dedup log are fine to lose. History: history.md ("k3s learning cluster").
 
 resource "kubernetes_deployment_v1" "alertmanager" {
   metadata {
@@ -24,23 +20,14 @@ resource "kubernetes_deployment_v1" "alertmanager" {
           app = "alertmanager"
         }
 
-        # alertmanager_config is mounted as a whole directory (no
-        # sub_path), so kubelet does eventually sync a changed Secret
-        # into it -- but whether Alertmanager itself reloads a changed
-        # config.file live isn't confirmed, so this checksum forces the
-        # same deterministic, immediate Pod recreation every other
-        # Secret consumer here gets.
+        # Live reload of a changed config isn't confirmed, so a checksum forces a new Pod.
         annotations = {
           "checksum/config" = sha256(kubernetes_secret_v1.alertmanager_config.data["alertmanager.yml"])
         }
       }
 
       spec {
-        # Alertmanager doesn't talk to the Kubernetes API -- see
-        # modules/grafana's own comment on this exact collision class
-        # (a Secret mounted at a path under /run or /etc doesn't hit
-        # it the way /run/secrets directly did there, but there's no
-        # reason to auto-mount a token nothing here reads either).
+        # Doesn't talk to the Kubernetes API.
         automount_service_account_token = false
 
         container {
@@ -71,9 +58,7 @@ resource "kubernetes_deployment_v1" "alertmanager" {
           security_context {
             allow_privilege_escalation = false
             run_as_non_root            = true
-            # Official image's own conventional non-root UID (nobody),
-            # paired with the root group -- no host-owned directory to
-            # match here since nothing is bind-mounted (no PVC).
+            # The image's non-root UID (nobody) with the root group.
             run_as_user               = 65534
             run_as_group              = 0
             read_only_root_filesystem = true
@@ -140,11 +125,7 @@ resource "kubernetes_deployment_v1" "alertmanager" {
   }
 }
 
-# Alertmanager isn't a browser-facing app, and Prometheus needs a plain
-# IP:port target rather than Host-based routing -- type = LoadBalancer
-# lets k3s's bundled ServiceLB bind this directly to the node's own
-# address (192.168.101.10:9093, matching the port Alertmanager already
-# used on the homeserver).
+# LoadBalancer: Prometheus needs a plain IP:port (192.168.101.10:9093), not Host routing.
 resource "kubernetes_service_v1" "alertmanager" {
   metadata {
     name = "alertmanager-svc"

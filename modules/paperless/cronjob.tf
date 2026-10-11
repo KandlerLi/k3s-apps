@@ -1,9 +1,4 @@
-# Nightly document_exporter into the red HDD (ADR 0023): originals,
-# archive PDFs and a manifest of all metadata, restorable with
-# document_importer into any later Paperless version. Incremental, and
-# --delete keeps it a mirror; accidental deletions are covered by
-# Paperless's own 30-day trash. 04:15 keeps clear of the other red-HDD
-# jobs (Nextcloud Borg 03:00, aux_backup 03:30, authelia-backup 03:45).
+# Nightly document_exporter mirror to the red HDD (ADR 0023), at 04:15 after the other red-HDD jobs.
 
 resource "kubernetes_cron_job_v1" "paperless_export" {
   metadata {
@@ -39,9 +34,7 @@ resource "kubernetes_cron_job_v1" "paperless_export" {
               name        = "paperless-export"
               image       = local.image
               working_dir = local.src_dir
-              # manage.py directly: the image's document_exporter
-              # wrapper expects the s6 environment that only /init sets
-              # up.
+              # manage.py directly: the wrapper needs the s6 environment.
               command = ["python3", "manage.py", "document_exporter", local.export, "--delete", "--no-progress-bar"]
 
               dynamic "env" {
@@ -82,8 +75,7 @@ resource "kubernetes_cron_job_v1" "paperless_export" {
                 }
               }
 
-              # Read-write: the exporter holds MEDIA_ROOT/media.lock, the
-              # same lock live Paperless takes while writing documents.
+              # Read-write: the exporter takes MEDIA_ROOT/media.lock.
               volume_mount {
                 name       = "media"
                 mount_path = local.media
@@ -96,8 +88,7 @@ resource "kubernetes_cron_job_v1" "paperless_export" {
                 name       = "tmp"
                 mount_path = "/tmp"
               }
-              # Unused, but the startup check needs it writable; same as
-              # the Deployment's consume mount.
+              # Unused, but the startup check needs it writable.
               volume_mount {
                 name       = "consume"
                 mount_path = "/usr/src/paperless/consume"
