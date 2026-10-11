@@ -3,7 +3,7 @@
 # timer used. The ETag cache uses a host_path volume, not a
 # cluster-scoped PersistentVolume -- no real benefit on a single-node
 # cluster. Full cutover history and every bug found:
-# docs/home-infra-docs' current-state.md ("k3s learning
+# docs/home-infra-docs' history.md ("k3s learning
 # cluster").
 
 resource "kubernetes_cron_job_v1" "sankey_export" {
@@ -50,7 +50,7 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
 
             # A DirectoryOrCreate hostPath is created root-owned 0755 --
             # fs_group does NOT fix this for hostPath specifically (see
-            # current-state.md). This initContainer chowns it once
+            # history.md). This initContainer chowns it once
             # instead, the standard fix.
             init_container {
               name    = "fix-state-dir-ownership"
@@ -100,7 +100,7 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
                 value = "/etc/sankey-export/app-password"
               }
               # Nextcloud shares don't preserve the sharer's own path
-              # for the recipient -- see current-state.md for the
+              # for the recipient -- see history.md for the
               # 404s this caused before landing on this value.
               env {
                 name  = "SANKEY_EXPORT_REMOTE_DIR"
@@ -123,7 +123,7 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
               # (rendering with headless Chromium is the expensive
               # part), but requests stay low -- this Job bursts for a
               # few seconds once a minute, not continuously. See
-              # current-state.md for the scheduling failure a
+              # history.md for the scheduling failure a
               # Guaranteed-QoS request caused.
               resources {
                 requests = {

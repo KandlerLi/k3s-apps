@@ -3,7 +3,7 @@
 # over that socket, never a network. home_tools_service is the one
 # dependency that couldn't move this way -- reached over a TCP listener
 # at 192.168.101.1:8095 instead. Full cutover history and every bug
-# found: docs/home-infra-docs' current-state.md ("k3s learning
+# found: docs/home-infra-docs' history.md ("k3s learning
 # cluster").
 
 resource "kubernetes_deployment_v1" "home_agent" {
@@ -42,7 +42,7 @@ resource "kubernetes_deployment_v1" "home_agent" {
 
       spec {
         # Neither container talks to the Kubernetes API. See
-        # current-state.md for the /run/secrets collision this avoids.
+        # history.md for the /run/secrets collision this avoids.
         automount_service_account_token = false
 
         image_pull_secrets {
@@ -87,7 +87,7 @@ resource "kubernetes_deployment_v1" "home_agent" {
           }
 
           # I/O-bound (waiting on network calls, not burning CPU) -- see
-          # current-state.md for the scheduling failure an unmeasured
+          # history.md for the scheduling failure an unmeasured
           # 1000m limit caused.
           resources {
             limits = {
@@ -196,7 +196,7 @@ resource "kubernetes_deployment_v1" "home_agent" {
             # Shares home-agent's own GID (10001), not this container's
             # own UID's group -- the socket this process creates and
             # chmods 0660 needs to be group-readable/writable by
-            # home-agent's process specifically. See current-state.md.
+            # home-agent's process specifically. See history.md.
             run_as_group = 10001
             capabilities {
               drop = ["ALL"]

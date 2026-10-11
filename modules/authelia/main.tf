@@ -2,7 +2,7 @@
 # enough for a single-user homelab, no Postgres). A small Redis sidecar
 # keeps sessions across restarts. Full cutover history (the Basic Auth
 # replacement, the SQLite rollback/re-cutover): docs/home-infra-docs'
-# current-state.md ("k3s learning cluster", Authelia SSO entry).
+# history.md ("k3s learning cluster", Authelia SSO entry).
 #
 # The image declares no USER (defaults to root) -- security_context
 # below runs it as 65534/nobody instead, the same non-root UID already
@@ -59,7 +59,7 @@ resource "kubernetes_deployment_v1" "authelia" {
 
           # Sized for continuous forward-auth traffic from every gated
           # service's own background polling, not just page loads -- see
-          # current-state.md for the OOM that motivated this.
+          # history.md for the OOM that motivated this.
           resources {
             requests = {
               cpu    = "20m"
@@ -74,7 +74,7 @@ resource "kubernetes_deployment_v1" "authelia" {
           # read_only_root_filesystem deliberately NOT set (defaults to
           # false) -- this image crash-loops with it true, writing
           # somewhere on its own root filesystem at startup outside
-          # /data, /config, or /tmp. See current-state.md.
+          # /data, /config, or /tmp. See history.md.
           security_context {
             allow_privilege_escalation = false
             run_as_non_root            = true

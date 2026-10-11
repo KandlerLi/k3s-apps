@@ -32,7 +32,7 @@ resource "kubernetes_deployment_v1" "deluge" {
 
       spec {
         # Seeds web.conf into the config PVC as the real Deluge uid,
-        # not a subPath mount -- see current-state.md for the
+        # not a subPath mount -- see history.md for the
         # root_squash/CrashLoopBackOff this replaced. Only seeds if
         # missing: a later password rotation won't take effect on its
         # own (an existing web.conf is left alone), a known gap.

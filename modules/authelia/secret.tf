@@ -48,7 +48,7 @@ resource "kubernetes_secret_v1" "authelia_config" {
       # OIDC provider -- lets Grafana, Open WebUI, Nextcloud, and Bulwark
       # authenticate against Authelia directly (a real "Sign in with
       # Authelia" button), in addition to the ingress-level forwardAuth
-      # gate most of them also sit behind. See current-state.md ("k3s
+      # gate most of them also sit behind. See history.md ("k3s
       # learning cluster", Authelia SSO entry) for per-client gotchas.
       identity_providers:
         oidc:
@@ -59,11 +59,11 @@ resource "kubernetes_secret_v1" "authelia_config" {
               use: 'sig'
               # A double-quoted, single-physical-line scalar with
               # escaped \n sequences, not a YAML block scalar -- see
-              # current-state.md for why a block scalar corrupts this.
+              # history.md for why a block scalar corrupts this.
               key: "${replace(var.authelia_oidc_issuer_private_key, "\n", "\\n")}"
           # Grafana's own role_attribute_path only ever evaluates
           # against the ID Token (grafana/grafana#106686) -- see
-          # current-state.md.
+          # history.md.
           claims_policies:
             groups_in_id_token:
               id_token:
@@ -256,7 +256,7 @@ resource "kubernetes_secret_v1" "authelia_users" {
           groups:
             - admins
         # A second, separate identity purely so Stalwart's own "admin"
-        # account can SSO through Authelia too -- see current-state.md's
+        # account can SSO through Authelia too -- see history.md's
         # mail server section.
         admin:
           disabled: false
