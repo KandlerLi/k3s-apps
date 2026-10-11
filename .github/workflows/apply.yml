@@ -39,10 +39,10 @@ jobs:
       TF_PLUGIN_CACHE_DIR: /terraform-plugin-cache
       # No more TF_VAR_<secret> lines -- secrets.tf reads them directly
       # from AWS Secrets Manager now (the SOPS-to-Secrets-Manager
-      # cutover, PARKED.md), via the same AWS credentials this job
+      # cutover), via the same AWS credentials this job
       # already assumes below for state access. The one remaining
       # GitHub Actions secrets this repo declares
-      # (github/repo-infra's own config.yml) are gone for these; only
+      # (KandlerLi/repo-infra's own config.yml) are gone for these; only
       # non-secret repository variables (AWS_ACCOUNT_ID/AWS_ROLE_ARN
       # below) are left.
 

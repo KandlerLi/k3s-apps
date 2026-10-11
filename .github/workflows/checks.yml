@@ -81,8 +81,8 @@ jobs:
       TF_PLUGIN_CACHE_DIR: /terraform-plugin-cache
       # No more TF_VAR_<secret> lines -- secrets.tf reads them directly
       # from AWS Secrets Manager now (the SOPS-to-Secrets-Manager
-      # cutover, PARKED.md). This plan role needs GetSecretValue too,
-      # not just apply's (unlike aws/dyndns's own metadata-only plan
+      # cutover). This plan role needs GetSecretValue too,
+      # not just apply's (unlike KandlerLi/dyndns's own metadata-only plan
       # role) -- jsondecode() at plan time needs the real value to
       # compute a diff. See repo-infra's own aws_policies.tf.
 

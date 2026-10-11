@@ -1,5 +1,5 @@
 # Stalwart's runtime settings as code. These were originally set by hand in
-# its admin UI (see home-infra-docs/docs/runbooks/stalwart-mail-server.md);
+# its admin UI (see KandlerLi/home-infra-docs/docs/runbooks/stalwart-mail-server.md);
 # the provider adopts what already exists on first apply -- singletons
 # adopt the live settings, and a non-singleton whose key already exists
 # (like an allowed IP's address) is adopted rather than duplicated.
@@ -33,7 +33,7 @@ resource "stalwart_allowed_ip" "k3s_pods" {
 # router (modules/ingress) sends /.well-known/* on stalwart.jkandler.de to
 # Stalwart without Authelia. DNS-01 was deliberately NOT used: it needs
 # the domain's DNS management set to Automatic, which would let Stalwart
-# write records into the Route53 zone that aws/dyndns and aws/ses-relay
+# write records into the Route53 zone that KandlerLi/dyndns and KandlerLi/ses-relay
 # own (SPF, DMARC, MX ...) -- exactly the kind of second owner this
 # workspace avoids.
 #
@@ -58,7 +58,7 @@ resource "stalwart_domain" "jkandler_de" {
     type = "Enabled"
   }
 
-  # DNS stays with Terraform (aws/dyndns, aws/ses-relay), never Stalwart.
+  # DNS stays with Terraform (KandlerLi/dyndns, KandlerLi/ses-relay), never Stalwart.
   dns_management = {
     type = "Manual"
   }
@@ -86,7 +86,7 @@ resource "stalwart_domain" "jkandler_de" {
 
 # --- Outbound relay through Amazon SES -------------------------------------
 #
-# All outbound mail goes through SES (aws/ses-relay), not direct-to-MX
+# All outbound mail goes through SES (KandlerLi/ses-relay), not direct-to-MX
 # from the k3s VM's unproven IP. The password never reaches Stalwart's
 # database: the route reads it from the SES_SMTP_PASSWORD env var that
 # modules/stalwart injects from Secrets Manager. STARTTLS on 587, not

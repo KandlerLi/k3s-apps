@@ -1,6 +1,6 @@
 # The secret key and the database password are generated here, not kept
 # in Secrets Manager: nobody ever types either (see
-# aws/secrets-manager's runbooks/k3s-apps/paperless.md). Rotating the
+# KandlerLi/secrets-manager's runbooks/k3s-apps/paperless.md). Rotating the
 # secret key logs everyone out and invalidates API tokens.
 
 resource "random_password" "secret_key" {

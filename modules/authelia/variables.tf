@@ -172,7 +172,7 @@ variable "authelia_oidc_nextcloud_client_secret_hash" {
     "nextcloud" client) -- only the hash lives here. Unlike Grafana/
     Open WebUI, the matching plaintext never flows through this repo
     at all -- Nextcloud AIO runs on the homeserver
-    (infra/home-infra's own nextcloud_aio role), not in k3s, so the
+    (KandlerLi/home-infra's own nextcloud_aio role), not in k3s, so the
     plaintext lives in AWS Secrets Manager's own home-infra/nextcloud
     group instead, read directly by Ansible's
     amazon.aws.secretsmanager_secret lookup, no TF_VAR_/CI wiring

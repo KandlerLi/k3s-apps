@@ -1,7 +1,7 @@
-# Per-k3s-node resource visibility (BACKLOG.md's "Per-k3s-node Grafana
+# Per-k3s-node resource visibility (the private task list's "Per-k3s-node Grafana
 # dashboard + alerting"): before this module, the only Prometheus/
 # Grafana visibility into this cluster was the *physical homeserver's*
-# own node_exporter/cAdvisor (infra/home-infra's monitoring role) --
+# own node_exporter/cAdvisor (KandlerLi/home-infra's monitoring role) --
 # `kubectl top nodes`/`kubectl describe node` were the only way to see
 # either k3s node's own real CPU/mem/disk, which is exactly how a real
 # drift (k3s-node-1 requesting 94% of its CPU budget while actually
@@ -82,7 +82,7 @@ resource "kubernetes_daemon_set_v1" "node_exporter" {
 
         container {
           name = "node-exporter"
-          # Same tag+digest as infra/home-infra's own
+          # Same tag+digest as KandlerLi/home-infra's own
           # monitoring_node_exporter_image -- deliberately identical
           # across both the homeserver's and this cluster's copies, so
           # a metric name/label never differs between them for reasons
@@ -267,7 +267,7 @@ resource "kubernetes_deployment_v1" "kube_state_metrics" {
 # be reached from outside the cluster (Alertmanager, Blocky) -- k3s's
 # bundled ServiceLB binds this directly to a node's own address, giving
 # home-infra's own Prometheus a stable 192.168.101.10:8080 to scrape
-# (see infra/home-infra's monitoring_k3s_kube_state_metrics_upstream).
+# (see KandlerLi/home-infra's monitoring_k3s_kube_state_metrics_upstream).
 # No external_traffic_policy override needed here, unlike Blocky's own
 # Local policy -- this Service exists purely for Prometheus's own
 # scrape requests, which don't care about preserving a real client's

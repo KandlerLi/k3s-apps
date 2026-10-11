@@ -218,7 +218,7 @@ resource "kubernetes_secret_v1" "authelia_config" {
           path: /data/db.sqlite3
 
       # SES's own sandbox-mode single-verified-recipient limit (see
-      # aws/ses-relay's own variables.tf) is why startup_check_address
+      # KandlerLi/ses-relay's own variables.tf) is why startup_check_address
       # and every real recipient this ever sends to has to stay
       # julian.kandler@outlook.com -- the same address
       # modules/alertmanager's own alert_email already uses.
