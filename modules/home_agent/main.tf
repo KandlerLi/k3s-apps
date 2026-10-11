@@ -1,10 +1,4 @@
-# home_agent + nextcloud_tools as sidecars in one Pod, sharing a Unix
-# socket through an emptyDir -- nextcloud_tools stays reachable only
-# over that socket, never a network. home_tools_service is the one
-# dependency that couldn't move this way -- reached over a TCP listener
-# at 192.168.101.1:8095 instead. Full cutover history and every bug
-# found: KandlerLi/home-infra-docs' history.md ("k3s learning
-# cluster").
+# home_agent and nextcloud_tools share a Unix socket in one Pod; nextcloud_tools is never on the network.
 
 resource "kubernetes_deployment_v1" "home_agent" {
   metadata {
@@ -26,23 +20,18 @@ resource "kubernetes_deployment_v1" "home_agent" {
           app = "home-agent"
         }
 
-        # Same checksum-annotation pattern as modules/grafana/
-        # modules/alertmanager -- forces a rollout on rotation instead
-        # of leaving whether the process notices unconfirmed.
+        # Checksums force a rollout on rotation.
         annotations = {
           "checksum/openai-api-key"         = sha256(kubernetes_secret_v1.openai_api_key.data["openai_api_key"])
           "checksum/anthropic-api-key"      = sha256(kubernetes_secret_v1.anthropic_api_key.data["anthropic_api_key"])
           "checksum/nextcloud-app-password" = sha256(kubernetes_secret_v1.nextcloud_tools_app_password.data["app-password"])
-          # A ConfigMap change alone never restarts the sidecar that
-          # mounts it, so hash its script here to force a rollout
-          # whenever files/nextcloud_tools_service.py changes.
+          # A ConfigMap change alone never restarts the sidecar.
           "checksum/nextcloud-tools-source" = sha256(file("${path.module}/files/nextcloud_tools_service.py"))
         }
       }
 
       spec {
-        # Neither container talks to the Kubernetes API. See
-        # history.md for the /run/secrets collision this avoids.
+        # Neither container talks to the Kubernetes API.
         automount_service_account_token = false
 
         image_pull_secrets {
@@ -73,9 +62,7 @@ resource "kubernetes_deployment_v1" "home_agent" {
             name  = "NEXTCLOUD_TOOLS_SOCKET"
             value = "/run/nextcloud-tools/nextcloud-tools.sock"
           }
-          # Takes precedence over the (unset) Unix socket path in
-          # create_provider() -- switches HomeToolsClient to plain TCP,
-          # see home-infra's unix_socket_client.py/home_tools.py/api.py.
+          # Switches HomeToolsClient to TCP.
           env {
             name  = "HOME_TOOLS_TCP_BASE_URL"
             value = "http://192.168.101.1:8095"
@@ -86,9 +73,7 @@ resource "kubernetes_deployment_v1" "home_agent" {
             container_port = 8000
           }
 
-          # I/O-bound (waiting on network calls, not burning CPU) -- see
-          # history.md for the scheduling failure an unmeasured
-          # 1000m limit caused.
+          # I/O-bound: a small CPU request.
           resources {
             limits = {
               memory = "256Mi"
@@ -145,10 +130,7 @@ resource "kubernetes_deployment_v1" "home_agent" {
             name  = "NEXTCLOUD_TOOLS_SOCKET"
             value = "/run/nextcloud-tools/nextcloud-tools.sock"
           }
-          # This homeserver's own address on the k3s VM's isolated
-          # network -- see nextcloud_aio_apache_ip_binding's own comment
-          # in home-infra for the full reasoning; must stay in lockstep
-          # with that value.
+          # The homeserver's k3s-network address; must match home-infra's nextcloud_aio_apache_ip_binding.
           env {
             name  = "NEXTCLOUD_ENDPOINT_HOST"
             value = "192.168.101.1"
@@ -169,18 +151,13 @@ resource "kubernetes_deployment_v1" "home_agent" {
             name  = "NEXTCLOUD_APP_PASSWORD_FILE"
             value = "/etc/nextcloud-tools/app-password"
           }
-          # The agent sees every folder Julian explicitly shares with
-          # the home-agent account, and nothing else -- scope and
-          # read-only vs. editable are decided per share in Nextcloud
-          # itself, never here.
+          # Scope is whatever Julian shares with the home-agent account in Nextcloud.
           env {
             name  = "NEXTCLOUD_ALLOWED_ROOT"
             value = "Shared"
           }
 
-          # Same over-provisioning fix as the home-agent container above --
-          # this is a stdlib-only socket relay to Nextcloud's WebDAV API,
-          # not something that needs half a core.
+          # A stdlib socket relay: a small CPU request.
           resources {
             limits = {
               memory = "128Mi"
@@ -193,10 +170,7 @@ resource "kubernetes_deployment_v1" "home_agent" {
             allow_privilege_escalation = false
             run_as_non_root            = true
             run_as_user                = 10002
-            # Shares home-agent's own GID (10001), not this container's
-            # own UID's group -- the socket this process creates and
-            # chmods 0660 needs to be group-readable/writable by
-            # home-agent's process specifically. See history.md.
+            # home-agent's GID, so the 0660 socket is reachable for it.
             run_as_group = 10001
             capabilities {
               drop = ["ALL"]

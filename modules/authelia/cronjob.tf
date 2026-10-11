@@ -1,13 +1,4 @@
-# Backs up db.sqlite3 so a repeat of the private task list's "Authelia SQLite
-# storage lost data twice" is survivable, even without a confirmed root
-# cause. authelia_data (storage.tf) is a local-path/hostPath PVC, so
-# this backup runs from inside the cluster as a second reader alongside
-# Authelia's own Pod -- ReadWriteOnce restricts a PVC to one *node*, not
-# one Pod, and local-path's own PV carries a hard nodeAffinity that
-# guarantees both land on the same node. Uses the same SQLite
-# online-backup-API approach as home-infra's aux_backup role, since a
-# raw file copy of a WAL-mode database that's actively open elsewhere
-# isn't guaranteed to be a consistent snapshot.
+# Backs up db.sqlite3 off the node's disk, since its storage has lost data before.
 
 resource "kubernetes_cron_job_v1" "authelia_backup" {
   metadata {
@@ -56,11 +47,7 @@ resource "kubernetes_cron_job_v1" "authelia_backup" {
                 }
               }
 
-              # 984:979 -- must match home-infra's authelia_backup role
-              # service account exactly, so NFS's root_squash writes as
-              # an identity the homeserver already owns the export
-              # directory as. uid and gid are deliberately NOT the same
-              # number here, unlike open_webui's own account.
+              # Must match home-infra's authelia_backup account, so root_squash writes as the export's owner.
               security_context {
                 read_only_root_filesystem  = true
                 allow_privilege_escalation = false
@@ -111,9 +98,7 @@ resource "kubernetes_cron_job_v1" "authelia_backup" {
 }
 
 locals {
-  # RETENTION_DAYS matches aux_backup's own default (home-infra,
-  # aux_backup_retention_days) -- no shared source of truth between
-  # the two repos, kept in sync by convention rather than a variable.
+  # RETENTION_DAYS matches home-infra's aux_backup default by convention.
   authelia_backup_script = <<-PYTHON
     import glob
     import gzip

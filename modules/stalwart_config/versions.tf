@@ -1,7 +1,6 @@
 terraform {
   required_providers {
-    # Not a hashicorp/* provider, so it must be declared here too --
-    # a module without this looks for hashicorp/stalwart and fails.
+    # Not a hashicorp/* provider, so the module must declare it too.
     stalwart = {
       source  = "tahacodes/stalwart"
       version = "0.2.4"

@@ -1,6 +1,4 @@
-# Same provider config as home-infra's grafana_dashboards_provider.yml.j2
-# -- disableDeletion/editable: false, matching that role's own reasoning
-# (dashboards are provisioned from files, not click-through UI state).
+# Provisioned from files: no deletion, no editing in the UI.
 resource "kubernetes_config_map_v1" "grafana_dashboard_provider" {
   metadata {
     name = "grafana-dashboard-provider"
@@ -24,12 +22,7 @@ resource "kubernetes_config_map_v1" "grafana_dashboard_provider" {
   }
 }
 
-# Vendored copies of home-infra's own ansible/roles/monitoring/files/
-# dashboards/*.json -- canonical originals stay there, same "sync a
-# copy in, diff to confirm identical" pattern as nextcloud_tools_
-# service.py. All of them, unconditionally: unlike that role's own
-# Blocky-conditional loop, this module has no non-Blocky mode to
-# support -- Blocky stays enabled and host-bound regardless.
+# Vendored from home-infra's monitoring/files/dashboards; the originals stay canonical there.
 resource "kubernetes_config_map_v1" "grafana_dashboards" {
   metadata {
     name = "grafana-dashboards"

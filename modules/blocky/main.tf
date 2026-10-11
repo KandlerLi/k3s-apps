@@ -1,8 +1,4 @@
-# Blocky and Postgres share one Pod, not two -- Blocky's own
-# queryLog.target connects via 127.0.0.1, which a shared Pod network
-# namespace reproduces with no config changes. Full cutover history and
-# every bug found building this: KandlerLi/home-infra-docs'
-# history.md ("k3s learning cluster", Blocky entry).
+# Blocky and Postgres in one Pod: the query log connects via 127.0.0.1.
 
 resource "kubernetes_deployment_v1" "blocky" {
   metadata {
@@ -12,10 +8,7 @@ resource "kubernetes_deployment_v1" "blocky" {
   spec {
     replicas = 1
 
-    # Recreate, not the RollingUpdate default -- avoids two Pods'
-    # Postgres sidecars briefly mounting the same local-path data
-    # directory at once. See history.md for the corruption this
-    # caused.
+    # Recreate: two Postgres sidecars on one data directory corrupted it once.
     strategy {
       type = "Recreate"
     }
@@ -32,10 +25,7 @@ resource "kubernetes_deployment_v1" "blocky" {
           app = "blocky"
         }
 
-        # Neither Secret live-propagates -- config.yml is a sub_path
-        # mount, and blocky_postgres_credentials feeds the postgres
-        # sidecar via env_from, read once at container start. Same
-        # checksum-annotation fix as modules/ingress/modules/alertmanager.
+        # Neither Secret live-propagates, so checksums force a new Pod.
         annotations = {
           "checksum/config"               = sha256(kubernetes_secret_v1.blocky_config.data["config.yml"])
           "checksum/postgres-credentials" = sha256(jsonencode(kubernetes_secret_v1.blocky_postgres_credentials.data))
@@ -98,8 +88,7 @@ resource "kubernetes_deployment_v1" "blocky" {
             mount_path = "/tmp"
           }
 
-          # Blocky's own image is FROM scratch -- no shell, so its
-          # binary ships a "healthcheck" subcommand for exactly this.
+          # The image is FROM scratch, so the binary has a healthcheck subcommand.
           readiness_probe {
             exec {
               command = ["/app/blocky", "healthcheck"]
@@ -120,11 +109,7 @@ resource "kubernetes_deployment_v1" "blocky" {
           }
         }
 
-        # Blocky's own query-log Postgres writer has no reconnect logic
-        # and its `up` metric stays green through a silent logging gap
-        # -- see history.md. A regular container, not a native
-        # sidecar: it only needs Postgres reachable, not to start
-        # before it.
+        # Blocky's log writer never reconnects; this exporter exposes the gap.
         container {
           name  = "postgres-exporter"
           image = "quay.io/prometheuscommunity/postgres-exporter:v0.17.1@sha256:38606faa38c54787525fb0ff2fd6b41b4cfb75d455c1df294927c5f611699b17"
@@ -183,11 +168,7 @@ resource "kubernetes_deployment_v1" "blocky" {
           }
         }
 
-        # A native sidecar (restart_policy = "Always" on an
-        # init_container -- KEP-753), not a regular container -- starts
-        # before the Pod's main containers and blocks them until its
-        # own readiness_probe first succeeds. See history.md for
-        # the startup race this avoids.
+        # A native sidecar (KEP-753): Postgres is ready before Blocky starts.
         init_container {
           name  = "postgres"
           image = "postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73"
@@ -205,12 +186,7 @@ resource "kubernetes_deployment_v1" "blocky" {
             }
           }
 
-          # 0.0.0.0, not 127.0.0.1 -- blocky-svc's own postgres port
-          # DNATs to this Pod's real IP, unreachable if Postgres only
-          # listens on loopback. args, not command: command would
-          # bypass the image's own entrypoint (which chowns the data
-          # directory and drops root before exec'ing the server). See
-          # history.md.
+          # 0.0.0.0, since blocky-svc's postgres port DNATs to the Pod IP; args keep the image's entrypoint.
           args = ["-c", "listen_addresses=0.0.0.0"]
 
           resources {
@@ -273,11 +249,7 @@ resource "kubernetes_deployment_v1" "blocky" {
   }
 }
 
-# type = LoadBalancer -- k3s's bundled ServiceLB binds this to
-# k3s-node-1's own address, giving home-infra's k3s_ingress_forward
-# role a stable 192.168.101.10:53 (tcp+udp) DNAT target. postgres/http
-# don't need DNAT but ride along on the same Service for one stable
-# address.
+# LoadBalancer on k3s-node-1, the stable DNAT target for home-infra's k3s_ingress_forward.
 resource "kubernetes_service_v1" "blocky" {
   metadata {
     name = "blocky-svc"
@@ -287,11 +259,7 @@ resource "kubernetes_service_v1" "blocky" {
 
   spec {
     type = "LoadBalancer"
-    # Local, not the Cluster default -- Cluster masquerades the real
-    # LAN client's source IP before Blocky ever sees it, defeating the
-    # query log's whole purpose. Safe here since Blocky's Pod and this
-    # Service's LoadBalancer IP are both pinned to the same node. See
-    # history.md.
+    # Local keeps the real client IP for the query log.
     external_traffic_policy = "Local"
 
     selector = {

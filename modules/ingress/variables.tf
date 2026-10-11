@@ -36,8 +36,7 @@ variable "routes" {
     forward_auth   = bool
     rate_limit     = optional(object({ average = number, burst = number }))
     max_body_bytes = optional(number)
-    # no-referrer makes browsers send "Origin: null" on form POSTs,
-    # which Django's CSRF check rejects; such apps need same-origin.
+    # no-referrer sends Origin: null on form POSTs, which Django's CSRF check rejects.
     referrer_policy = optional(string, "no-referrer")
   }))
 }
