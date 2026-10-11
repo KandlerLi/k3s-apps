@@ -1,5 +1,5 @@
 # Stalwart's runtime settings as code. These were originally set by hand in
-# its admin UI (see docs/home-infra-docs/docs/runbooks/stalwart-mail-server.md);
+# its admin UI (see home-infra-docs/docs/runbooks/stalwart-mail-server.md);
 # the provider adopts what already exists on first apply -- singletons
 # adopt the live settings, and a non-singleton whose key already exists
 # (like an allowed IP's address) is adopted rather than duplicated.
