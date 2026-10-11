@@ -3,13 +3,13 @@
 # stalwart.jkandler.de, or `kubectl port-forward`). The plaintext
 # 143/587 are not exposed anywhere. STALWART_RECOVERY_ADMIN is
 # deliberately not wired yet -- needs a new Secrets Manager entry
-# first, a separate change. See docs/home-infra-docs'
+# first, a separate change. See KandlerLi/home-infra-docs'
 # history.md ("Mail server") for the fuller picture.
 
 # Outbound mail relay credential, exposed to Stalwart as environment
 # variables rather than typed into its own admin UI (its "Secret read
 # from environment variable" option under MTA -> Outbound -> Routes) --
-# the same SES SMTP credential aws/ses-relay's IAM policy already scopes
+# the same SES SMTP credential KandlerLi/ses-relay's IAM policy already scopes
 # to the whole jkandler.de domain, reused here rather than typed once
 # into Stalwart's own database with no rotation path. The route and
 # outbound strategy that use it are in modules/stalwart_config.

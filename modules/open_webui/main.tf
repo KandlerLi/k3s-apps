@@ -7,7 +7,7 @@
 # Guaranteed request copied from home-infra's own Docker ceiling --
 # that ceiling was never a reservation, and copying it as a k3s request
 # would starve the node's own scheduling budget. See
-# docs/home-infra-docs' history.md.
+# KandlerLi/home-infra-docs' history.md.
 
 resource "kubernetes_deployment_v1" "open_webui" {
   metadata {

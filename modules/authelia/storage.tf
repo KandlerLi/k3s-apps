@@ -37,10 +37,10 @@ module "authelia_redis" {
 # (cronjob.tf) writes a periodic snapshot here specifically so it
 # leaves this node's own disk, landing on the homeserver's real
 # filesystem instead. The matching PV (cluster-scoped, so it lives in
-# bootstrap/k3s-bootstrap's own storage.tf, same split as every other
+# KandlerLi/k3s-bootstrap's own storage.tf, same split as every other
 # NFS-backed PV this repo uses) points at
 # /mnt/red-hdd/authelia-backup, exported to this node by
-# infra/home-infra's own authelia_backup role.
+# KandlerLi/home-infra's own authelia_backup role.
 resource "kubernetes_persistent_volume_claim_v1" "authelia_backup" {
   metadata {
     name = "authelia-backup"

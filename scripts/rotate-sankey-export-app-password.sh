@@ -19,7 +19,7 @@
 #
 # It merges the token into the k3s-apps/sankey-export secret
 # (put-secret-value -- the blessed out-of-band write for these
-# container-only secrets, see aws/secrets-manager), runs
+# container-only secrets, see KandlerLi/secrets-manager), runs
 # `terraform apply` to roll the Kubernetes Secret, waits for the next
 # CronJob run to prove the new token works, and prints how to revoke the
 # old token. It never touches the old token itself -- both stay valid
@@ -31,7 +31,7 @@
 # one-time scp in README's "Running it from your laptop"), and `jq`.
 #
 # What it DOES set up: the SSH tunnel to the k3s apiserver -- same
-# pattern as bootstrap/k3s-bootstrap's own roll-out.sh: if one is
+# pattern as KandlerLi/k3s-bootstrap's own roll-out.sh: if one is
 # already open it's left alone, if this script opens it the script
 # closes it again on exit.
 

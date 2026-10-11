@@ -2,7 +2,7 @@
 # docs.jkandler.de. One Pod with PostgreSQL and Redis as native sidecars
 # (same pattern as modules/blocky), so the app reaches both on
 # 127.0.0.1. Runs rootless as 983:978, the paperless account
-# infra/home-infra's paperless_storage role pins, so NFS root_squash
+# KandlerLi/home-infra's paperless_storage role pins, so NFS root_squash
 # writes land as the owner of the media directory.
 
 locals {

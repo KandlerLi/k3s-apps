@@ -7,7 +7,7 @@
 # in sync. nextcloud is different: Nextcloud AIO runs on the
 # homeserver, not k3s, so after the same terraform apply (which only
 # rolls Authelia's own side here) this also re-runs
-# infra/home-infra's site.yml -- confirmed live 2026-09-11 that this
+# KandlerLi/home-infra's site.yml -- confirmed live 2026-09-11 that this
 # step is real, not just a formality: ansible/roles/nextcloud_aio/
 # tasks/oidc.yml's `occ user_oidc:provider --clientsecret=...` is a
 # genuine upsert into Nextcloud's own database, unlike
@@ -37,9 +37,9 @@
 # PutSecretValue on home-infra/authelia and the client's own group
 # (julian's own operator identity has both), a working kubeconfig at
 # ~/.kube/k3s-node-1.yaml. Opens the SSH tunnel to the k3s apiserver
-# itself (same pattern as bootstrap/k3s-bootstrap's own roll-out.sh):
+# itself (same pattern as KandlerLi/k3s-bootstrap's own roll-out.sh):
 # leaves an already-open one alone, closes one it started. For
-# nextcloud specifically, also needs infra/home-infra checked out as
+# nextcloud specifically, also needs KandlerLi/home-infra checked out as
 # this repo's own sibling (../home-infra, the fixed layout every
 # script in this workspace already assumes) with its own .venv set up,
 # and will prompt interactively for your sudo password
@@ -174,10 +174,10 @@ terraform apply
 
 if [ "${client}" = "nextcloud" ]; then
   home_infra_dir="${repo_root}/../home-infra"
-  [ -d "${home_infra_dir}" ] || fail "expected infra/home-infra as a sibling of this repo at ${home_infra_dir}, not found"
+  [ -d "${home_infra_dir}" ] || fail "expected KandlerLi/home-infra as a sibling of this repo at ${home_infra_dir}, not found"
   [ -x "${home_infra_dir}/.venv/bin/ansible-playbook" ] || fail "${home_infra_dir}/.venv/bin/ansible-playbook not found -- set up its venv first"
 
-  echo "==> re-running infra/home-infra's site.yml so Nextcloud's own occ config picks up the new plaintext"
+  echo "==> re-running KandlerLi/home-infra's site.yml so Nextcloud's own occ config picks up the new plaintext"
   echo "    (this is a real upsert, not a formality -- ansible/roles/nextcloud_aio/tasks/oidc.yml's own occ user_oidc:provider call)"
   ( cd "${home_infra_dir}" && ./.venv/bin/ansible-playbook ansible/playbooks/site.yml --ask-become-pass )
 

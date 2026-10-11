@@ -1,4 +1,4 @@
-# Backs up db.sqlite3 so a repeat of BACKLOG.md's "Authelia SQLite
+# Backs up db.sqlite3 so a repeat of the private task list's "Authelia SQLite
 # storage lost data twice" is survivable, even without a confirmed root
 # cause. authelia_data (storage.tf) is a local-path/hostPath PVC, so
 # this backup runs from inside the cluster as a second reader alongside
