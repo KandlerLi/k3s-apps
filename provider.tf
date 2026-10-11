@@ -1,17 +1,5 @@
-# Two auth modes, chosen by var.in_cluster:
-#
-# - false (the default, for a human's own local apply): config_path.
-#   The kubernetes provider does NOT read the standard KUBECONFIG
-#   environment variable the way kubectl does -- an earlier version of
-#   this file relied on that and silently fell back to querying
-#   http://localhost. config_path is set explicitly instead. See
-#   README.md for the tunnel + kubeconfig setup this path assumes.
-# - true (set only by this repo's own CI workflows): the standard
-#   in-cluster auth triple (host + token + CA, from the ServiceAccount
-#   token Kubernetes automatically mounts). Terraform's own conditional
-#   expressions short-circuit file() in the untaken branch, so this is
-#   safe to leave as the unconditional default rather than needing its
-#   own separate provider block.
+# var.in_cluster: false uses config_path (the provider ignores KUBECONFIG), true uses the
+# ServiceAccount token CI runs with. See the README.
 variable "in_cluster" {
   description = <<-EOT
     Selects which of the two provider auth modes above applies. Left
@@ -30,25 +18,12 @@ provider "kubernetes" {
   token                  = var.in_cluster ? file("/var/run/secrets/kubernetes.io/serviceaccount/token") : null
 }
 
-# Auth is ambient in both apply modes -- CI's own AWS OIDC role
-# assumption for the in-cluster case, a human's own `aws login` session
-# otherwise. Used by secrets.tf's own data sources.
+# Ambient auth: CI's OIDC role, or a local aws login session.
 provider "aws" {
   region = "eu-central-1"
 }
 
-# Stalwart's own settings, as code (modules/stalwart_config). Talks to
-# the management API over the private Service, never the public
-# hostname (Authelia would intercept it). Authenticates with an admin
-# API key from Secrets Manager -- a Bearer token, which Stalwart
-# validates as an internal credential regardless of its Authentication
-# Directory setting, so this keeps working while SSO is on.
-#
-# COUPLING WORTH KNOWING: unlike everything else in this root, this
-# provider talks to a live server at plan time -- a Stalwart outage
-# fails every plan in this repo. See
-# KandlerLi/home-infra-docs' history.md ("Mail server") for why
-# this was accepted over a separate root, and the -target workaround.
+# Talks to the management API over the private Service, never the public hostname Authelia guards.
 provider "stalwart" {
   endpoint = coalesce(var.stalwart_endpoint, var.in_cluster ? "http://stalwart-internal.default.svc.cluster.local:8080" : "http://127.0.0.1:18083")
   token    = local.k3s_apps_stalwart["stalwart_api_token"]

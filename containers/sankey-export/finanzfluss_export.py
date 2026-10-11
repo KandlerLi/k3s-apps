@@ -51,9 +51,7 @@ STATE_FILE = Path(
     os.environ.get("SANKEY_EXPORT_STATE_FILE", "/var/lib/sankey-export/last-etag")
 )
 
-# Node colors -- income green, the hub a neutral blue-grey, "Budget"
-# (money left over) gold, expense categories cycling through a
-# categorical palette. Subcategories inherit their own category's color.
+# Node colors: income green, hub blue-grey, Budget gold, categories from a palette.
 INCOME_COLOR = "#2e7d32"
 HUB_COLOR = "#455a64"
 BUDGET_COLOR = "#f9a825"
@@ -168,9 +166,7 @@ def percentage(amount: float, total: float) -> float:
     return amount / total * 100 if total else 0.0
 
 
-# The workbook's sheet/tab names ("Einnahmen"/"Ausgaben") and its budget
-# row name ("Budget") are the real template's literal structure, not our
-# own UI text -- they must match the actual spreadsheet, not be translated.
+# Sheet and row names are the real workbook template's, not UI text.
 def read_workbook(workbook_path: Path) -> tuple[list[IncomeRow], list[CostRow]]:
     wb = load_workbook(workbook_path, data_only=False)
     missing = {"Einnahmen", "Ausgaben"} - set(wb.sheetnames)
@@ -205,8 +201,7 @@ def read_workbook(workbook_path: Path) -> tuple[list[IncomeRow], list[CostRow]]:
         if not category:
             raise ValueError(f"'Ausgaben' sheet, row {row}: category is missing")
 
-        # "Budget" is calculated automatically from income minus real expenses.
-        # A legacy Budget row in the workbook is therefore ignored completely.
+        # Budget is computed from income minus expenses; a Budget row is ignored.
         if category.casefold() == "budget":
             continue
 
@@ -245,10 +240,7 @@ def summarize_budget(incomes: list[IncomeRow], costs: list[CostRow]) -> BudgetSu
         if has_named_subcategory:
             used_names: set[str] = set()
             for row in rows:
-                # "Sonstiges" ("Miscellaneous") stays German: it becomes a
-                # real label on the generated Sankey diagram, alongside the
-                # user's own German category names -- translating just this
-                # one fallback would look inconsistent on the chart itself.
+                # German on purpose: it is a label in the German diagram.
                 sub_name = row.subcategory or "Sonstiges"
                 original_name = sub_name
                 suffix = 2
@@ -369,8 +361,7 @@ def build_sankey_figure(summary: BudgetSummary):
 
 
 def render_sankey_png(summary: BudgetSummary, output_path: Path) -> None:
-    # scale=2 for a sharp, roughly-HiDPI PNG -- matches the resolution
-    # bump the old Highcharts export applied via its own "scale" param.
+    # scale=2 for a sharp PNG.
     build_sankey_figure(summary).write_image(str(output_path), scale=2)
 
 
@@ -473,11 +464,7 @@ def main() -> int:
 
     summary = summarize_budget(incomes, costs)
 
-    # Filename deliberately unchanged from the old Finanzfluss-scraping
-    # version -- an existing Nextcloud share link/embed pointed at this
-    # exact path, and renaming it would silently break that for a
-    # rendering-internals change that has nothing to do with the
-    # filename.
+    # The filename stays: an existing Nextcloud share link points at it.
     png_path = OUTPUT_DIR / "finanzfluss-diagramm.png"
     png_path.unlink(missing_ok=True)
     render_sankey_png(summary, png_path)
@@ -486,9 +473,7 @@ def main() -> int:
         remote_png = f"{REMOTE_DIR}/{png_path.name}"
         print(f"Uploading {png_path.name} to Nextcloud …")
         webdav.upload(png_path, remote_png)
-        # Only remember this ETag once a fresh PNG has actually been
-        # uploaded -- a failed export leaves the cache stale so the next
-        # (1-minute-later) tick retries automatically.
+        # Only after a successful upload, so a failed export retries on the next tick.
         save_cached_etag(STATE_FILE, etag)
 
     print(f"Income:   {summary.income_total:.2f} €")

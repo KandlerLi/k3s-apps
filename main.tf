@@ -1,10 +1,4 @@
-# Root module: wires this cluster's own workload modules together. Each
-# module is self-contained so a new one can be added the same way -- a
-# new modules/<service>/ directory plus a module block here -- without
-# touching an existing one's code. CI applies this root on every merge
-# to main; the PR review is the only gate. The self-hosted runner
-# itself and the cluster-scoped PVs this root's own PVCs bind to live
-# in the separate, local-only k3s-bootstrap repo instead.
+# Root module: one module block per service under modules/. See the README.
 
 module "landing_page" {
   source = "./modules/landing_page"
@@ -54,11 +48,7 @@ module "grafana" {
   blocky_postgres_password            = local.home_infra_blocky["blocky_postgres_password"]
   authelia_oidc_grafana_client_secret = local.home_infra_grafana["authelia_oidc_grafana_client_secret"]
 
-  # blocky-svc:5432, referenced as a plain string in this module's own
-  # datasources.yaml.tftpl (same convention modules/ingress's own
-  # dynamic.yml.j2 uses for every backend it routes to), not a live
-  # Terraform reference -- explicit here since nothing else would
-  # infer the ordering.
+  # Grafana's datasource names blocky-svc by string, so the ordering is explicit.
   depends_on = [module.blocky]
 }
 
@@ -82,9 +72,7 @@ module "stalwart" {
   stalwart_ses_smtp_password = local.home_infra_monitoring["monitoring_ses_smtp_password"]
 }
 
-# Stalwart's own runtime settings (CORS, IP allow-list, ...), adopted from
-# what was originally set by hand in its admin UI. Separate from
-# module "stalwart" above, which owns the Kubernetes objects.
+# Stalwart's runtime settings, separate from the Kubernetes objects in module "stalwart".
 module "stalwart_config" {
   source = "./modules/stalwart_config"
 

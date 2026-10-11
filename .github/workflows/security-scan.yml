@@ -1,19 +1,6 @@
 name: Security scan
 
-# trivy config IaC misconfiguration scan -- first step of the
-# workspace-level security audit. Its own workflow, separate
-# from checks.yml/apply.yml, so a finding on the push trigger below can
-# never block an apply (apply.yml has no needs: on this job either way).
-# See gha-common's own README.md for the reusable workflow's full
-# details.
-#
-# pull_request added 2026-09-14 so this can become a required status
-# check (blocking PR merges on any finding, via
-# required_status_check_contexts in repo-infra's own config.yml) --
-# this repo is confirmed clean (0 findings) already (k3s-apps#52 fixed
-# containers/sankey-export/Dockerfile's own findings), so unlike the
-# original dyndns/terraform-state rollout there's no open-findings
-# window to wait out here.
+# Separate from checks.yml/apply.yml so a finding can never block an apply.
 
 on:
   pull_request:
@@ -24,37 +11,13 @@ on:
 jobs:
   trivy-config:
     uses: KandlerLi/gha-common/.github/workflows/trivy-config.yml@v0.0.9
-    # Moved to a GitHub-hosted runner 2026-09-15 -- neither scan needs AWS
-    # credentials or in-cluster access, only outbound internet, so there's
-    # no reason to keep contending with apply.yml's terraform job for this
-    # repo's single self-hosted runner replica (the private task list's "Trivy scan
-    # and terraform apply serialize on the same self-hosted runner").
+    # Needs no AWS or cluster access, so it stays off the self-hosted runner.
     with:
       runs_on: '["ubuntu-latest"]'
     permissions:
       contents: read
 
-  # trivy image CVE scan -- second step of the same audit. Deliberately
-  # informational only (see trivy-image.yml's own header comment), so
-  # this is never added to required_status_check_contexts the way
-  # trivy-config above is. One matrix entry per pinned image this repo's
-  # Terraform deploys (modules/*/main.tf) -- kept in sync by hand, same
-  # as every other digest reference in this repo (see e.g. sankey-export's
-  # own image bump PRs): there's no automated extraction from the .tf
-  # files, so a digest bump here needs a matching edit in this matrix, or
-  # the scan silently drifts to scanning a stale image.
-  #
-  # home_agent_image is deliberately NOT in this matrix, unlike
-  # sankey_export_image -- found live 2026-09-15: a repo-scoped
-  # GITHUB_TOKEN only gets implicit read access to packages *that same
-  # repo* published (which is exactly why the live cluster's own
-  # image pull uses a dedicated long-lived PAT,
-  # k3s_apps_ghcr_pull_token, not GITHUB_TOKEN, for this one). home-agent
-  # is built by home-infra, not this repo, so trivy-image.yml's GHCR
-  # login here can't actually read it (GHCR returns MANIFEST_UNKNOWN,
-  # not an auth error, for a private package the caller can't see --
-  # looked like the image didn't exist at first). Scanned from
-  # home-infra's own security-scan.yml instead, where it does.
+  # trivy image scan, informational only, of every pinned image (kept in sync with modules/*/main.tf by hand).
   trivy-image:
     strategy:
       fail-fast: false
@@ -84,18 +47,14 @@ jobs:
             ref: ghcr.io/kandlerli/sankey-export@sha256:bb43a6ee10d568affd3cbd1388af05a4bfe4274cd0880f3827fb2cb7f755e806
           - name: paperless
             ref: ghcr.io/paperless-ngx/paperless-ngx:3.2.1@sha256:5fa76604a81df6945086e0837b14b56543d137e8ce4f311cc5d9ebe907e74e79
-          # home_agent's own sidecar container -- the one image in this
-          # repo NOT pinned by digest (modules/home_agent/main.tf), so
-          # this entry alone will drift to whatever :3.13-slim-bookworm
-          # resolves to on the day the scan runs, unlike every other row.
+          # The one image not pinned by digest, so this entry drifts.
           - name: home-agent-nextcloud-tools-sidecar
             ref: python:3.13-slim-bookworm
     uses: KandlerLi/gha-common/.github/workflows/trivy-image.yml@v0.0.10
     with:
       image_name: ${{ matrix.name }}
       image_ref: ${{ matrix.ref }}
-      # Same reasoning as trivy-config above -- GitHub-hosted, not this
-      # repo's single self-hosted runner replica.
+      # GitHub-hosted, like trivy-config above.
       runs_on: '["ubuntu-latest"]'
     permissions:
       contents: read

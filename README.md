@@ -260,6 +260,28 @@ code doesn't need touching.
   secret, tracked directly rather than read from Secrets Manager like
   the values above.
 
+## CI
+
+`checks.yml` (plan on every PR) and `apply.yml` (apply on merge to `main`)
+run directly on the runner, with no `container:` key, unlike the AWS
+repos' gha-common workflows. That way their steps share the runner Pod's
+filesystem and see the `k3s-apps-ci` ServiceAccount token Kubernetes
+mounts there (created by
+[`k3s-bootstrap`](https://github.com/KandlerLi/k3s-bootstrap)), which
+`provider.tf` uses when `TF_VAR_in_cluster` is `true`. They still assume
+an AWS role through OIDC, for the S3 state and the Secrets Manager reads
+in `secrets.tf`; this repo manages no AWS resources. The credentials step
+sets `action-timeout-s: "90"` as a cheap escape hatch for OIDC hangs on
+self-hosted runners, and the plan comment step is a copy of gha-common's,
+since this repo doesn't call that reusable workflow.
+
+`rotate-blocky-postgres.yml` rotates `blocky_postgres_password` monthly,
+the only secret in the workspace rotated unattended: mechanically simple,
+small blast radius, and no external UI to reconfigure. It ALTERs the role
+over `blocky-svc:5432`, writes the new value to Secrets Manager and
+applies, and the checksum annotations roll Blocky and Grafana. It has to
+run on the in-cluster runner, the only place `blocky-svc` is reachable.
+
 ## Running it from your laptop
 
 The k3s VM's network (`192.168.101.0/24`) only exists as a

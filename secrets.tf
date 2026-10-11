@@ -1,25 +1,4 @@
-# Reads the real secret values this root's own modules need directly
-# from AWS Secrets Manager -- the SOPS-to-Secrets-Manager cutover
-# (the private task list's writeup). Replaces the ~21 TF_VAR_* variables that
-# used to carry these in from either a human's own local
-# export-tf-vars.sh (KandlerLi/k3s-apps' own scripts/) or CI's own GitHub
-# Actions secrets (KandlerLi/repo-infra's action_secrets.tf) -- both of
-# those layers are gone for the secrets covered here; only the actual
-# non-secret variables (home_agent_image, sankey_export_image) remain
-# real root variables.
-#
-# One data source per Secrets Manager *group* (KandlerLi/terraform-state's
-# own secrets_manager.tf), not per key -- each group's value is a JSON
-# blob holding several related keys, jsondecode()'d once into a local
-# and indexed by key at each module call site below and in main.tf.
-# Read access (KandlerLi/repo-infra's aws_policies.tf) is granted to BOTH
-# the apply and plan CI roles, unlike KandlerLi/dyndns's own
-# apply-only-needs-the-real-value precedent -- jsondecode() at
-# `terraform plan` time needs the actual value too, to compute a diff.
-#
-# Excludes home-infra/nextcloud (consumed by KandlerLi/home-infra's own
-# Ansible only, never Terraform) and home-infra/github-runner
-# (KandlerLi/k3s-bootstrap's own, not this root's).
+# Secret values for the modules, read from Secrets Manager at plan time.
 
 data "aws_secretsmanager_secret_version" "home_infra_authelia" {
   secret_id = "home-infra/authelia"
@@ -53,31 +32,22 @@ data "aws_secretsmanager_secret_version" "k3s_apps_sankey_export" {
   secret_id = "k3s-apps/sankey-export"
 }
 
-# A single, account-scoped GitHub PAT (read:packages on KandlerLi)
-# authorizing two unrelated private packages: home-agent and
-# sankey-export. See KandlerLi/secrets-manager's own k3s-apps/ghcr-pull-token
-# module.
+# One account-scoped GHCR pull token for both private images.
 data "aws_secretsmanager_secret_version" "k3s_apps_ghcr_pull_token" {
   secret_id = "k3s-apps/ghcr-pull-token"
 }
 
-# Bulwark webmail's own Authelia OIDC client secret (plaintext half;
-# home-infra/authelia holds the matching hash) -- a genuinely new
-# secret, not a migration. See KandlerLi/secrets-manager's own
-# k3s-apps/bulwark module.
+# Bulwark's Authelia OIDC client secret (plaintext half).
 data "aws_secretsmanager_secret_version" "k3s_apps_bulwark" {
   secret_id = "k3s-apps/bulwark"
 }
 
-# The Stalwart management-API token (an admin API key minted for
-# Terraform) that provider "stalwart" authenticates with -- a genuinely
-# new secret. See KandlerLi/secrets-manager's own k3s-apps/stalwart module.
+# The admin API key provider "stalwart" authenticates with.
 data "aws_secretsmanager_secret_version" "k3s_apps_stalwart" {
   secret_id = "k3s-apps/stalwart"
 }
 
-# Paperless-ngx's own Authelia OIDC client secret (plaintext half;
-# home-infra/authelia holds the matching hash). ADR 0023.
+# Paperless-ngx's Authelia OIDC client secret (plaintext half), ADR 0023.
 data "aws_secretsmanager_secret_version" "k3s_apps_paperless" {
   secret_id = "k3s-apps/paperless"
 }
