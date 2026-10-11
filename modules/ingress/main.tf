@@ -3,7 +3,7 @@
 # defaults"). The iptables DNAT relay that gets public traffic to this
 # cluster at all lives in home-infra's k3s_ingress_forward role, not
 # here. Full migration history and the DNS-01-over-TLS-ALPN-01 ACME
-# decision: docs/home-infra-docs' current-state.md ("k3s
+# decision: docs/home-infra-docs' history.md ("k3s
 # learning cluster").
 
 resource "kubernetes_deployment_v1" "ingress" {
@@ -30,7 +30,7 @@ resource "kubernetes_deployment_v1" "ingress" {
         # on a ConfigMap/Secret change -- Kubernetes only picks up new
         # content on a real Pod recreation. These checksums force that
         # recreation whenever any of the three sources actually
-        # changes. See current-state.md for the incidents that found
+        # changes. See history.md for the incidents that found
         # this the hard way.
         annotations = {
           "checksum/static-config"          = sha256(kubernetes_config_map_v1.ingress_static_config.data["traefik.yml"])
@@ -199,7 +199,7 @@ resource "kubernetes_deployment_v1" "ingress" {
 #
 # wait_for_load_balancer = false: k3s's bundled Traefik holds these
 # same ports until it's disabled, so ServiceLB can't assign this
-# Service an external IP until then -- see current-state.md.
+# Service an external IP until then -- see history.md.
 resource "kubernetes_service_v1" "ingress" {
   metadata {
     name = "ingress-svc"

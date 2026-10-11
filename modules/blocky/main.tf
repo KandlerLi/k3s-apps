@@ -2,7 +2,7 @@
 # queryLog.target connects via 127.0.0.1, which a shared Pod network
 # namespace reproduces with no config changes. Full cutover history and
 # every bug found building this: docs/home-infra-docs'
-# current-state.md ("k3s learning cluster", Blocky entry).
+# history.md ("k3s learning cluster", Blocky entry).
 
 resource "kubernetes_deployment_v1" "blocky" {
   metadata {
@@ -14,7 +14,7 @@ resource "kubernetes_deployment_v1" "blocky" {
 
     # Recreate, not the RollingUpdate default -- avoids two Pods'
     # Postgres sidecars briefly mounting the same local-path data
-    # directory at once. See current-state.md for the corruption this
+    # directory at once. See history.md for the corruption this
     # caused.
     strategy {
       type = "Recreate"
@@ -122,7 +122,7 @@ resource "kubernetes_deployment_v1" "blocky" {
 
         # Blocky's own query-log Postgres writer has no reconnect logic
         # and its `up` metric stays green through a silent logging gap
-        # -- see current-state.md. A regular container, not a native
+        # -- see history.md. A regular container, not a native
         # sidecar: it only needs Postgres reachable, not to start
         # before it.
         container {
@@ -186,7 +186,7 @@ resource "kubernetes_deployment_v1" "blocky" {
         # A native sidecar (restart_policy = "Always" on an
         # init_container -- KEP-753), not a regular container -- starts
         # before the Pod's main containers and blocks them until its
-        # own readiness_probe first succeeds. See current-state.md for
+        # own readiness_probe first succeeds. See history.md for
         # the startup race this avoids.
         init_container {
           name  = "postgres"
@@ -210,7 +210,7 @@ resource "kubernetes_deployment_v1" "blocky" {
           # listens on loopback. args, not command: command would
           # bypass the image's own entrypoint (which chowns the data
           # directory and drops root before exec'ing the server). See
-          # current-state.md.
+          # history.md.
           args = ["-c", "listen_addresses=0.0.0.0"]
 
           resources {
@@ -291,7 +291,7 @@ resource "kubernetes_service_v1" "blocky" {
     # LAN client's source IP before Blocky ever sees it, defeating the
     # query log's whole purpose. Safe here since Blocky's Pod and this
     # Service's LoadBalancer IP are both pinned to the same node. See
-    # current-state.md.
+    # history.md.
     external_traffic_policy = "Local"
 
     selector = {

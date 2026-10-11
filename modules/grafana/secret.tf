@@ -34,7 +34,7 @@ resource "kubernetes_secret_v1" "grafana_admin_password" {
 # /etc/grafana/grafana.ini, layering underneath every other
 # GF_AUTH_GENERIC_OAUTH_* env var in main.tf -- Grafana resolves each
 # config key independently, so this only affects client_secret. See
-# current-state.md.
+# history.md.
 resource "kubernetes_secret_v1" "grafana_oidc_client_secret" {
   metadata {
     name = "grafana-oidc-client-secret"

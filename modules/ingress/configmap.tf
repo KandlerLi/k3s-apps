@@ -44,7 +44,7 @@ resource "kubernetes_config_map_v1" "ingress_static_config" {
           directory: /etc/traefik/dynamic
           watch: true
 
-      # DNS-01, not TLS-ALPN-01 -- see current-state.md ("k3s learning
+      # DNS-01, not TLS-ALPN-01 -- see history.md ("k3s learning
       # cluster") for why. Credentials come from dyndns's own
       # traefik-acme-dns01 IAM user (main.tf's container env).
       certificatesResolvers:
@@ -193,7 +193,7 @@ locals {
       chain = { middlewares = ["nextcloud-secure-headers"] }
     }
     # No Basic Auth fallback: if Authelia's storage loses data again,
-    # recovery is recreating db.sqlite3 (current-state.md, "k3s
+    # recovery is recreating db.sqlite3 (history.md, "k3s
     # learning cluster"). Response headers match Authelia's documented
     # Traefik integration.
     authelia-forward-auth = {

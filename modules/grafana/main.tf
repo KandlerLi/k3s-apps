@@ -4,7 +4,7 @@
 # everything Grafana needs is provisioned from files below;
 # /var/lib/grafana is a plain emptyDir, genuinely disposable. Full
 # cutover history and bugs found: docs/home-infra-docs'
-# current-state.md ("k3s learning cluster").
+# history.md ("k3s learning cluster").
 
 resource "kubernetes_deployment_v1" "grafana" {
   metadata {
@@ -38,7 +38,7 @@ resource "kubernetes_deployment_v1" "grafana" {
       spec {
         # Collides with the admin-password Secret at /run/secrets
         # otherwise -- kubelet's own serviceaccount-token auto-mount
-        # aliases into the same path. See current-state.md.
+        # aliases into the same path. See history.md.
         automount_service_account_token = false
 
         container {
@@ -83,7 +83,7 @@ resource "kubernetes_deployment_v1" "grafana" {
           # disable_login_form alone only hides the UI -- the old
           # password still works over HTTP Basic Auth with the form
           # hidden, so auth.basic is disabled too, the actual
-          # protocol-level switch. See current-state.md.
+          # protocol-level switch. See history.md.
           env {
             name  = "GF_AUTH_DISABLE_LOGIN_FORM"
             value = "true"
@@ -157,7 +157,7 @@ resource "kubernetes_deployment_v1" "grafana" {
           }
 
           # 512Mi limit -- Grafana 13's unified storage layer builds an
-          # in-memory bleve index on every startup; see current-state.md
+          # in-memory bleve index on every startup; see history.md
           # for the OOM this fixed.
           resources {
             requests = {
