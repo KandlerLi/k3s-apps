@@ -198,26 +198,33 @@ resource "kubernetes_deployment_v1" "grafana" {
             mount_path = "/tmp"
           }
 
-          # Readiness and liveness on /api/health.
+          # Up to 15 min to start, so a slow disk doesn't trip liveness into a restart loop.
+          startup_probe {
+            http_get {
+              path = "/api/health"
+              port = 3000
+            }
+            period_seconds    = 10
+            timeout_seconds   = 5
+            failure_threshold = 90
+          }
           readiness_probe {
             http_get {
               path = "/api/health"
               port = 3000
             }
-            initial_delay_seconds = 30
-            period_seconds        = 30
-            timeout_seconds       = 5
-            failure_threshold     = 5
+            period_seconds    = 30
+            timeout_seconds   = 5
+            failure_threshold = 5
           }
           liveness_probe {
             http_get {
               path = "/api/health"
               port = 3000
             }
-            initial_delay_seconds = 30
-            period_seconds        = 30
-            timeout_seconds       = 5
-            failure_threshold     = 5
+            period_seconds    = 30
+            timeout_seconds   = 5
+            failure_threshold = 5
           }
         }
 
