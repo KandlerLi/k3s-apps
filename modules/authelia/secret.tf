@@ -1,11 +1,6 @@
-# Both files below are wholly credential-bearing (every secret
-# Authelia needs is inlined directly into its own YAML, the same shape
-# Authelia's own docs assume for a single-file deployment) -- Secrets,
-# never ConfigMaps, matching modules/blocky's own config.yml precedent
-# for exactly the same reason.
+# Both files carry credentials inline, the single-file shape Authelia's docs assume.
 
-# auth.jkandler.de is bypass -- the login portal has to be reachable to
-# unauthenticated users, or nobody could ever log in.
+# auth.jkandler.de is bypass: the login portal must be reachable to log in.
 resource "kubernetes_secret_v1" "authelia_config" {
   metadata {
     name = "authelia-config"
@@ -236,10 +231,7 @@ resource "kubernetes_secret_v1" "authelia_config" {
   type = "Opaque"
 }
 
-# The file authentication_backend's own user database -- one user,
-# argon2id-hashed (Authelia's own default algorithm/parameters, not
-# overridden above). See variables.tf's own comment on
-# authelia_admin_password_hash for exactly how this hash is generated.
+# The file backend's user database: one user, argon2id with Authelia's defaults.
 resource "kubernetes_secret_v1" "authelia_users" {
   metadata {
     name = "authelia-users"

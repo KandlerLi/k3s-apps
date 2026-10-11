@@ -1,13 +1,4 @@
-# Authelia, not Authentik -- needs no second stateful sidecar (SQLite is
-# enough for a single-user homelab, no Postgres). A small Redis sidecar
-# keeps sessions across restarts. Full cutover history (the Basic Auth
-# replacement, the SQLite rollback/re-cutover): KandlerLi/home-infra-docs'
-# history.md ("k3s learning cluster", Authelia SSO entry).
-#
-# The image declares no USER (defaults to root) -- security_context
-# below runs it as 65534/nobody instead, the same non-root UID already
-# proven writing into a local-path PVC with no chown step elsewhere in
-# this repo.
+# Authelia: SQLite is enough for one user; a Redis sidecar keeps sessions across restarts.
 
 resource "kubernetes_deployment_v1" "authelia" {
   metadata {
@@ -17,9 +8,7 @@ resource "kubernetes_deployment_v1" "authelia" {
   spec {
     replicas = 1
 
-    # Recreate, not the RollingUpdate default -- avoids two Pods briefly
-    # mounting the same local-path-backed SQLite database at once (see
-    # modules/blocky's own strategy block for the same risk).
+    # Recreate: two Pods must never mount the same SQLite database at once.
     strategy {
       type = "Recreate"
     }
@@ -36,9 +25,7 @@ resource "kubernetes_deployment_v1" "authelia" {
           app = "authelia"
         }
 
-        # Neither Secret live-propagates into a sub_path mount -- only a
-        # Pod recreation picks up new content (see modules/ingress's own
-        # identical checksum-annotation fix).
+        # sub_path mounts never live-refresh, so a checksum forces a new Pod.
         annotations = {
           "checksum/config" = sha256(kubernetes_secret_v1.authelia_config.data["configuration.yml"])
           "checksum/users"  = sha256(kubernetes_secret_v1.authelia_users.data["users_database.yml"])
@@ -57,9 +44,7 @@ resource "kubernetes_deployment_v1" "authelia" {
             container_port = 9091
           }
 
-          # Sized for continuous forward-auth traffic from every gated
-          # service's own background polling, not just page loads -- see
-          # history.md for the OOM that motivated this.
+          # Sized for continuous forward-auth traffic, not just page loads.
           resources {
             requests = {
               cpu    = "20m"
@@ -71,10 +56,7 @@ resource "kubernetes_deployment_v1" "authelia" {
             }
           }
 
-          # read_only_root_filesystem deliberately NOT set (defaults to
-          # false) -- this image crash-loops with it true, writing
-          # somewhere on its own root filesystem at startup outside
-          # /data, /config, or /tmp. See history.md.
+          # No read_only_root_filesystem: this image writes to its root filesystem at startup.
           security_context {
             allow_privilege_escalation = false
             run_as_non_root            = true
@@ -126,14 +108,7 @@ resource "kubernetes_deployment_v1" "authelia" {
           }
         }
 
-        # Session store: Authelia's only way to keep sessions across a
-        # restart is an external Redis (session.redis in secret.tf); its
-        # SQLite database does not hold them. A sidecar rather than a
-        # second Deployment -- one Pod, one lifecycle, and bound to
-        # 127.0.0.1 so nothing else in the cluster can reach it.
-        # Append-only persistence on its own PVC is what carries the
-        # sessions over the Pod recreation (strategy Recreate above)
-        # and a node reboot.
+        # Sessions only survive restarts in Redis: a sidecar on 127.0.0.1, its AOF on a PVC.
         container {
           name  = "redis"
           image = "redis:8-alpine@sha256:ba6e394f6acc2a695ef1b6944f161b9ca813711739be68319fa0db3470673f1d"
@@ -220,12 +195,7 @@ resource "kubernetes_deployment_v1" "authelia" {
   }
 }
 
-# ClusterIP, not LoadBalancer -- unlike Blocky/ingress, nothing outside
-# the cluster ever needs to reach this Pod directly. Traefik's own
-# forwardAuth middleware (authelia-forward-auth in
-# modules/ingress/configmap.tf) and the portal router (this module's
-# outputs.tf) both reach it over this Service's
-# in-cluster DNS name only.
+# ClusterIP: only Traefik's forwardAuth middleware reaches it.
 resource "kubernetes_service_v1" "authelia" {
   metadata {
     name = "authelia-svc"

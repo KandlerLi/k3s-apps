@@ -1,8 +1,4 @@
-# Credentials for the ACME DNS-01 challenge's own route53 provider (see
-# configmap.tf's own comment on certificatesResolvers for why DNS-01
-# over TLS-ALPN-01). dyndns's own traefik-acme-dns01 IAM user, scoped to
-# exactly route53:ChangeResourceRecordSets/GetChange on the
-# jkandler.de zone and nothing else -- see that repo's own main.tf.
+# Credentials for the ACME DNS-01 route53 provider (dyndns's traefik-acme-dns01 user).
 resource "kubernetes_secret_v1" "ingress_acme_dns01_credentials" {
   metadata {
     name = "ingress-acme-dns01-credentials"

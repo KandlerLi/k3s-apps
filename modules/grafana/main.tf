@@ -1,10 +1,4 @@
-# Prometheus stays on the homeserver permanently (node_exporter/
-# cAdvisor report this physical host's own hardware) -- Grafana reaches
-# it over the additive 192.168.101.1 listener. No PVC, deliberately --
-# everything Grafana needs is provisioned from files below;
-# /var/lib/grafana is a plain emptyDir, genuinely disposable. Full
-# cutover history and bugs found: KandlerLi/home-infra-docs'
-# history.md ("k3s learning cluster").
+# Prometheus stays on the homeserver, reached via 192.168.101.1. No PVC: everything is provisioned.
 
 resource "kubernetes_deployment_v1" "grafana" {
   metadata {
@@ -26,8 +20,7 @@ resource "kubernetes_deployment_v1" "grafana" {
           app = "grafana"
         }
 
-        # Grafana's own provisioning system only reads these once at
-        # startup -- same checksum-annotation fix as modules/ingress.
+        # Provisioning is only read at startup, so checksums force a new Pod.
         annotations = {
           "checksum/oidc-client-secret" = sha256(kubernetes_secret_v1.grafana_oidc_client_secret.data["grafana.ini"])
           "checksum/datasources"        = sha256(kubernetes_secret_v1.grafana_datasources.data["datasources.yaml"])
@@ -36,9 +29,7 @@ resource "kubernetes_deployment_v1" "grafana" {
       }
 
       spec {
-        # Collides with the admin-password Secret at /run/secrets
-        # otherwise -- kubelet's own serviceaccount-token auto-mount
-        # aliases into the same path. See history.md.
+        # The token mount would collide with the admin-password Secret at /run/secrets.
         automount_service_account_token = false
 
         container {
@@ -54,8 +45,7 @@ resource "kubernetes_deployment_v1" "grafana" {
             name  = "GF_SECURITY_ADMIN_USER"
             value = "admin"
           }
-          # Same "_FILE suffix, not a raw env var" convention as
-          # home-infra's own deployment.
+          # _FILE suffix, not a raw env var.
           env {
             name  = "GF_SECURITY_ADMIN_PASSWORD__FILE"
             value = "/run/secrets/grafana_admin_password"
@@ -80,10 +70,7 @@ resource "kubernetes_deployment_v1" "grafana" {
             name  = "GF_USERS_ALLOW_SIGN_UP"
             value = "false"
           }
-          # disable_login_form alone only hides the UI -- the old
-          # password still works over HTTP Basic Auth with the form
-          # hidden, so auth.basic is disabled too, the actual
-          # protocol-level switch. See history.md.
+          # Hiding the form isn't enough; auth.basic must be off too.
           env {
             name  = "GF_AUTH_DISABLE_LOGIN_FORM"
             value = "true"
@@ -93,8 +80,7 @@ resource "kubernetes_deployment_v1" "grafana" {
             value = "false"
           }
 
-          # OIDC SSO against Authelia -- the "admins" group becomes
-          # Grafana Admin, everyone else defaults to Viewer.
+          # OIDC against Authelia: admins become Grafana Admin, everyone else Viewer.
           env {
             name  = "GF_AUTH_GENERIC_OAUTH_ENABLED"
             value = "true"
@@ -107,10 +93,7 @@ resource "kubernetes_deployment_v1" "grafana" {
             name  = "GF_AUTH_GENERIC_OAUTH_CLIENT_ID"
             value = "grafana"
           }
-          # client_secret deliberately NOT set here -- see the mounted
-          # grafana.ini (secret.tf's own comment) for why
-          # GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE doesn't actually
-          # work for this specific setting.
+          # No client_secret env var: see secret.tf for why it lives in grafana.ini.
           env {
             name  = "GF_AUTH_GENERIC_OAUTH_SCOPES"
             value = "openid profile email groups"
@@ -156,9 +139,7 @@ resource "kubernetes_deployment_v1" "grafana" {
             value = "InHeader"
           }
 
-          # 512Mi limit -- Grafana 13's unified storage layer builds an
-          # in-memory bleve index on every startup; see history.md
-          # for the OOM this fixed.
+          # 512Mi: Grafana 13 builds an in-memory index on startup.
           resources {
             requests = {
               cpu    = "100m"
@@ -170,9 +151,7 @@ resource "kubernetes_deployment_v1" "grafana" {
             }
           }
 
-          # UID 472, GID 0 -- Grafana's official image's own documented
-          # non-root default, paired with the root group it ships
-          # group-writable permissions for.
+          # UID 472, GID 0: the official image's non-root default.
           security_context {
             allow_privilege_escalation = false
             run_as_non_root            = true
@@ -203,8 +182,7 @@ resource "kubernetes_deployment_v1" "grafana" {
             mount_path = "/run/secrets"
             read_only  = true
           }
-          # /etc/grafana/grafana.ini -- see secret.tf's own comment for
-          # why this one setting needs a real ini file, not an env var.
+          # grafana.ini, see secret.tf.
           volume_mount {
             name       = "oidc-client-secret"
             mount_path = "/etc/grafana/grafana.ini"
@@ -220,9 +198,7 @@ resource "kubernetes_deployment_v1" "grafana" {
             mount_path = "/tmp"
           }
 
-          # Mirrors home-infra's own Docker healthcheck (wget --spider
-          # http://127.0.0.1:3000/api/health, 30s start_period) as
-          # readiness/liveness probes.
+          # Readiness and liveness on /api/health.
           readiness_probe {
             http_get {
               path = "/api/health"

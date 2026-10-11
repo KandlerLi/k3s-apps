@@ -1,8 +1,4 @@
-# Nextcloud AIO's own Apache isn't a k3s Service -- it stays on the
-# homeserver (192.168.101.1:11000, reachable from inside the k3s VM).
-# ExternalName needs a real DNS hostname, not a bare IP, so this uses a
-# selector-less Service + matching Endpoints instead, letting Traefik
-# reference it exactly like any in-cluster backend.
+# Nextcloud AIO stays on the homeserver (192.168.101.1:11000); ExternalName needs a hostname, hence a selector-less Service plus Endpoints.
 resource "kubernetes_service_v1" "nextcloud_aio_backend" {
   metadata {
     name = "nextcloud-aio-backend"

@@ -1,8 +1,7 @@
 output "ingress_routes" {
   description = "Traefik routes for modules/ingress (see its routes variable)."
   value = {
-    # Only the API paths; everything else on this host is Open WebUI
-    # (modules/open_webui), hence the higher priority.
+    # Only the API paths; the rest of the host is Open WebUI, hence the higher priority.
     home-agent-api = {
       rule           = "Host(`ai.jkandler.de`) && (Path(`/healthz`) || Path(`/v1/chat`))"
       priority       = 100

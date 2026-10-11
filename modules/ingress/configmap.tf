@@ -1,5 +1,4 @@
-# The "health" entryPoint is container-internal only -- never exposed
-# via the LoadBalancer Service, just used by Kubernetes' own probes.
+# The health entryPoint is for probes only, never exposed.
 resource "kubernetes_config_map_v1" "ingress_static_config" {
   metadata {
     name = "ingress-static-config"
@@ -68,12 +67,7 @@ resource "kubernetes_config_map_v1" "ingress_static_config" {
   }
 }
 
-# Routers come from each app module's own ingress_routes output
-# (var.routes); only what isn't one app's -- Nextcloud (not in the
-# cluster), the apex redirect, and Authelia's forward-auth hook every
-# gated chain shares -- is defined here. Every chain is built by the
-# same pattern: optional forward-auth, optional rate limit, optional
-# body-size limit, then the shared security headers.
+# App routers come from each module's ingress_routes; only cross-cutting ones live here.
 resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
   metadata {
     name = "ingress-dynamic-config"
@@ -192,10 +186,7 @@ locals {
     nextcloud-chain = {
       chain = { middlewares = ["nextcloud-secure-headers"] }
     }
-    # No Basic Auth fallback: if Authelia's storage loses data again,
-    # recovery is recreating db.sqlite3 (history.md, "k3s
-    # learning cluster"). Response headers match Authelia's documented
-    # Traefik integration.
+    # No Basic Auth fallback; headers as in Authelia's Traefik docs.
     authelia-forward-auth = {
       forwardAuth = {
         address             = "http://authelia-svc:9091/api/authz/forward-auth"

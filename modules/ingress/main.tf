@@ -1,10 +1,4 @@
-# Dedicated Traefik Deployment -- k3s's own bundled instance stays
-# disabled (k3s_node's one departure from "everything else stays at
-# defaults"). The iptables DNAT relay that gets public traffic to this
-# cluster at all lives in home-infra's k3s_ingress_forward role, not
-# here. Full migration history and the DNS-01-over-TLS-ALPN-01 ACME
-# decision: KandlerLi/home-infra-docs' history.md ("k3s
-# learning cluster").
+# Our own Traefik; k3s's bundled one is disabled. Public traffic arrives via home-infra's DNAT.
 
 resource "kubernetes_deployment_v1" "ingress" {
   metadata {
@@ -26,12 +20,7 @@ resource "kubernetes_deployment_v1" "ingress" {
           app = "ingress"
         }
 
-        # sub_path mounts and secretKeyRef env vars never live-refresh
-        # on a ConfigMap/Secret change -- Kubernetes only picks up new
-        # content on a real Pod recreation. These checksums force that
-        # recreation whenever any of the three sources actually
-        # changes. See history.md for the incidents that found
-        # this the hard way.
+        # sub_path mounts and secretKeyRef env vars never live-refresh, so checksums force a new Pod.
         annotations = {
           "checksum/static-config"          = sha256(kubernetes_config_map_v1.ingress_static_config.data["traefik.yml"])
           "checksum/dynamic-config"         = sha256(kubernetes_config_map_v1.ingress_dynamic_config.data["routes.yml"])
@@ -51,10 +40,7 @@ resource "kubernetes_deployment_v1" "ingress" {
             "--configFile=/etc/traefik/traefik.yml",
           ]
 
-          # lego's own route53 provider reads these directly from the
-          # environment. Zone ID/region are non-secret literals;
-          # setting AWS_HOSTED_ZONE_ID explicitly also skips lego's own
-          # zone-lookup call, matching the IAM user's narrow policy.
+          # lego's route53 provider reads these; a preset zone ID skips its zone lookup.
           env {
             name  = "AWS_HOSTED_ZONE_ID"
             value = "Z07879811I86VC8PAL8HX"
@@ -106,8 +92,7 @@ resource "kubernetes_deployment_v1" "ingress" {
             }
           }
 
-          # NET_BIND_SERVICE is the one added capability -- needed to
-          # bind ports 80/443 as a non-root user.
+          # NET_BIND_SERVICE, to bind 80/443 as non-root.
           security_context {
             read_only_root_filesystem  = true
             allow_privilege_escalation = false
@@ -193,13 +178,7 @@ resource "kubernetes_deployment_v1" "ingress" {
   }
 }
 
-# type = LoadBalancer -- k3s's bundled ServiceLB binds this to
-# k3s-node-1's own address, giving home-infra's k3s_ingress_forward
-# role a stable 192.168.101.10:80/:443 DNAT target.
-#
-# wait_for_load_balancer = false: k3s's bundled Traefik holds these
-# same ports until it's disabled, so ServiceLB can't assign this
-# Service an external IP until then -- see history.md.
+# LoadBalancer on k3s-node-1, the stable DNAT target for home-infra's k3s_ingress_forward.
 resource "kubernetes_service_v1" "ingress" {
   metadata {
     name = "ingress-svc"

@@ -1,6 +1,4 @@
-# A Secret, not a ConfigMap -- queryLog.target embeds the Postgres
-# password directly in its connection string, and Blocky has no
-# separate credentials-file mechanism for this.
+# A Secret: queryLog.target embeds the Postgres password.
 resource "kubernetes_secret_v1" "blocky_config" {
   metadata {
     name = "blocky-config"
@@ -45,10 +43,7 @@ resource "kubernetes_secret_v1" "blocky_config" {
   type = "Opaque"
 }
 
-# Postgres's own credentials, read via env vars by the postgres
-# container below -- separate from the config.yml Secret above since
-# these two Secrets have different consumers (Postgres itself vs.
-# Blocky reading its own connection string).
+# Postgres's own credentials, a separate consumer from config.yml.
 resource "kubernetes_secret_v1" "blocky_postgres_credentials" {
   metadata {
     name = "blocky-postgres-credentials"
@@ -63,10 +58,7 @@ resource "kubernetes_secret_v1" "blocky_postgres_credentials" {
   type = "Opaque"
 }
 
-# postgres_exporter's own connection string -- same credentials as
-# above, but DATA_SOURCE_NAME needs a single URI, not the separate
-# POSTGRES_USER/PASSWORD/DB keys the postgres image's own entrypoint
-# expects.
+# postgres_exporter needs a single DATA_SOURCE_NAME URI.
 resource "kubernetes_secret_v1" "blocky_postgres_exporter_dsn" {
   metadata {
     name = "blocky-postgres-exporter-dsn"
