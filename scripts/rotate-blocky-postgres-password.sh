@@ -1,33 +1,6 @@
 #!/usr/bin/env bash
-# Rotates blocky_postgres_password end-to-end: generates a new
-# password, ALTERs the live Postgres role directly over the network
-# (blocky-svc:5432 -- the same in-cluster Service modules/grafana's own
-# datasource already reaches directly), writes the new value to
-# Secrets Manager, then runs terraform apply (rolls both Blocky's and
-# Grafana's Deployments via their own checksum annotations -- added
-# 2026-09-12 specifically so this works; without them neither Pod
-# would pick up the new value on its own).
-#
-# The only secret in this whole workspace judged genuinely safe to
-# rotate unattended: mechanically simple, low blast radius, and no
-# external system whose own UI needs separate reconfiguring the way
-# every OIDC pair or dyndns/fritzbox's router-side credential does.
-#
-# Built to run from this repo's own scheduled GitHub Actions workflow
-# (rotate-blocky-postgres.yml) on the self-hosted runner living inside
-# the same cluster -- blocky-svc is only reachable from in-cluster, so
-# unlike the other rotate-*.sh scripts here, this one genuinely can't
-# run from an arbitrary outside machine. TF_VAR_in_cluster=true (set
-# by that workflow, same as apply.yml) is what makes the kubernetes
-# provider use the runner Pod's own ServiceAccount token instead of a
-# local kubeconfig/SSH tunnel.
-#
-# Needs, which it does NOT set up: an AWS session with GetSecretValue/
-# PutSecretValue on home-infra/blocky (the workflow's own OIDC role
-# assumption covers this), network reachability to blocky-svc:5432 and
-# grafana-svc:80 (true only from inside the cluster), and `psql` on
-# PATH (installed by the calling workflow -- not baked into the shared
-# CI image, gha-common's own Dockerfile has no Postgres client at all).
+# Rotates blocky_postgres_password end-to-end, unattended and in-cluster only: see the README, "CI",
+# and secrets-manager's home-infra/blocky runbook.
 
 set -euo pipefail
 
@@ -60,9 +33,7 @@ old_password="$(echo "${current_json}" | jq -r '.blocky_postgres_password')"
 [ -n "${old_password}" ] && [ "${old_password}" != "null" ] || fail "${secret_id} has no blocky_postgres_password value"
 
 echo "==> generating a new password"
-# Alphanumeric only -- this value ends up in a postgres://user:PASSWORD@...
-# URL inside Blocky's own config.yml, so the same characters that broke
-# dyndns/fritzbox's URL authority (:, @, /) have to be avoided here too.
+# Alphanumeric only: the password goes into a postgres:// URL.
 new_password="$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 40)"
 [ ${#new_password} -eq 40 ] || fail "failed to generate a 40-character password"
 

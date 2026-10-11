@@ -1,15 +1,10 @@
 name: Rotate blocky_postgres_password
 
-# The only secret in this workspace rotated unattended -- see
-# scripts/rotate-blocky-postgres-password.sh's own header comment for
-# why this one specifically is judged safe. Runs on the same
-# self-hosted runner apply.yml uses, since blocky-svc is only
-# reachable from inside the cluster.
+# The only unattended secret rotation: see the README, "CI". Needs the in-cluster runner.
 
 on:
   schedule:
-    # 03:17 UTC on the 1st of every month -- an arbitrary off-peak time,
-    # not aligned to any other scheduled job in this workspace.
+    # Monthly, off-peak.
     - cron: "17 3 1 * *"
   workflow_dispatch: {}
 
@@ -42,8 +37,7 @@ jobs:
         with:
           terraform_version: "1.16.0"
 
-      # Not in gha-common's own shared CI image -- this workflow is the
-      # only thing in this repo that needs a Postgres client at all.
+      # The only job in this repo that needs a Postgres client.
       - name: Install postgresql-client
         run: |
           apt-get update

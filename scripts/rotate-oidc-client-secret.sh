@@ -1,50 +1,6 @@
 #!/usr/bin/env bash
-# Rotate an Authelia OIDC client secret pair: Authelia holds a pbkdf2
-# hash (home-infra/authelia), the client holds the matching plaintext
-# (its own Secrets Manager group). Covers grafana, openwebui, and
-# nextcloud -- grafana/openwebui are both Terraform-consumed, one
-# `terraform apply` rolls Authelia and the client Deployment together,
-# in sync. nextcloud is different: Nextcloud AIO runs on the
-# homeserver, not k3s, so after the same terraform apply (which only
-# rolls Authelia's own side here) this also re-runs
-# KandlerLi/home-infra's site.yml -- confirmed live 2026-09-11 that this
-# step is real, not just a formality: ansible/roles/nextcloud_aio/
-# tasks/oidc.yml's `occ user_oidc:provider --clientsecret=...` is a
-# genuine upsert into Nextcloud's own database, unlike
-# home-infra/monitoring's SES creds turning out to be assert-only.
-#
-# Generate a fresh plaintext + its hash together first, in one command
-# (prints both):
-#
-#   docker run --rm authelia/authelia:4.39.22 \
-#     authelia crypto hash generate pbkdf2 --variant sha512 \
-#     --random --random.length 64 --random.charset alphanumeric
-#
-# then:
-#
-#   scripts/rotate-oidc-client-secret.sh grafana
-#   scripts/rotate-oidc-client-secret.sh openwebui
-#   scripts/rotate-oidc-client-secret.sh bulwark
-#   scripts/rotate-oidc-client-secret.sh paperless
-#   scripts/rotate-oidc-client-secret.sh nextcloud
-#
-# Prompts silently for each value in turn -- nothing echoed, nothing in
-# shell history. Rejects an obviously-swapped pair (Authelia's own
-# pbkdf2-sha512 hashes are modular crypt format, always starting with
-# "$"; the random plaintext never does).
-#
-# Needs, which it does NOT set up: an `aws login` session with
-# PutSecretValue on home-infra/authelia and the client's own group
-# (julian's own operator identity has both), a working kubeconfig at
-# ~/.kube/k3s-node-1.yaml. Opens the SSH tunnel to the k3s apiserver
-# itself (same pattern as KandlerLi/k3s-bootstrap's own roll-out.sh):
-# leaves an already-open one alone, closes one it started. For
-# nextcloud specifically, also needs KandlerLi/home-infra checked out as
-# this repo's own sibling (../home-infra, the fixed layout every
-# script in this workspace already assumes) with its own .venv set up,
-# and will prompt interactively for your sudo password
-# (--ask-become-pass) -- run this one yourself, in your own terminal,
-# not via an agent session.
+# Usage: rotate-oidc-client-secret.sh <grafana|openwebui|bulwark|paperless|nextcloud>
+# Rotates an Authelia OIDC client secret pair; procedure per client in secrets-manager's runbooks.
 
 set -euo pipefail
 

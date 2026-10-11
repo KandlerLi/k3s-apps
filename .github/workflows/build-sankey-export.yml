@@ -1,15 +1,6 @@
 name: Build sankey-export image
 
-# Builds and pushes sankey_export's image to GHCR on the self-hosted CI
-# runner. Moved here from home-infra 2026-09-07: home-infra's own
-# sankey_export Ansible role was deleted outright once the k3s CronJob
-# below was confirmed live, leaving containers/sankey-export/ a bare,
-# disconnected directory there with nothing else tying it to that repo
-# -- this is the repo that actually deploys and owns the image
-# (modules/sankey_export/), so the source/build live here now too.
-# Same shape as home-infra's own build-home-agent.yml (same runner,
-# same GITHUB_TOKEN-based GHCR login, no long-lived write credential
-# needed).
+# Builds sankey_export's image on the self-hosted runner and pushes it to GHCR.
 
 on:
   push:
@@ -50,11 +41,7 @@ jobs:
       - name: Push sankey-export image
         run: docker push ghcr.io/kandlerli/sankey-export:${{ github.sha }}
 
-      # Prints the real, immutable pushed digest -- this repo pins every
-      # image by digest, not a moving tag (see e.g. home_agent/deluge/
-      # blocky/monitoring), so this is what actually gets copied into
-      # terraform.tfvars' own sankey_export_image once this build is
-      # ready to use.
+      # The immutable digest is what terraform.tfvars pins.
       - name: Print pushed image digest
         run: >-
           docker inspect

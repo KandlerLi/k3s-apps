@@ -1,22 +1,6 @@
 name: Checks
 
-# No container: key, unlike every AWS-family repo's own checks.yml/
-# apply.yml -- this repo needs no Docker image at all, and running
-# steps directly on the runner's own host (not inside a nested
-# docker:dind container) means they share the runner Pod's own
-# filesystem namespace, so they automatically see the k3s-apps-ci
-# ServiceAccount token Kubernetes mounts into the Pod -- no volume-mount
-# plumbing needed to get it into a job-specific container the way AWS
-# repos need for other things. See the separate k3s-bootstrap repo's
-# own main.tf and modules/github_runner comments for the ServiceAccount
-# itself and how it's wired onto this repo's own runner Deployment.
-#
-# Still needs AWS OIDC credentials, though -- found live (2026-09-03):
-# this root's own Terraform *state* lives in S3 (see versions.tf), an
-# entirely separate concern from the in-cluster ServiceAccount, which
-# only covers the kubernetes provider's own actions. repo-infra's own
-# aws_policies.tf has a k3s-apps entry scoped to exactly its state key,
-# nothing more -- this repo manages zero real AWS resources.
+# Runs on the runner itself, no container: key, so it sees the k3s-apps-ci token; AWS OIDC is for state access. See the README, "CI".
 
 on:
   pull_request:
@@ -31,7 +15,7 @@ jobs:
     runs-on: [self-hosted, home, debian]
     timeout-minutes: 10
     env:
-      # See the plan job's own identical setting for why.
+      # The runner Pod's host_path plugin cache.
       TF_PLUGIN_CACHE_DIR: /terraform-plugin-cache
 
     steps:
@@ -63,28 +47,17 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      # Needed by the "Post plan to pull request" step below.
+      # For the "Post plan to pull request" step.
       pull-requests: write
     env:
       AWS_REGION: eu-central-1
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "false"
-      # Selects the in-cluster auth branch in provider.tf -- see that
-      # file's own comment for the two modes and why this is safe.
+      # Selects provider.tf's in-cluster auth.
       TF_VAR_in_cluster: "true"
-      # Points at the runner Pod's own host_path-backed cache volume
-      # (k3s-bootstrap's modules/github_runner, mounted directly into
-      # this container -- no container: job here to bind-mount it into,
-      # unlike gha-common's terraform-checks.yml/terraform-apply.yml)
-      # so `terraform init` reuses providers already downloaded on this
-      # node instead of fetching them cold on every ephemeral runner Pod.
+      # The runner Pod's host_path plugin cache (k3s-bootstrap's github_runner).
       TF_PLUGIN_CACHE_DIR: /terraform-plugin-cache
-      # No more TF_VAR_<secret> lines -- secrets.tf reads them directly
-      # from AWS Secrets Manager now (the SOPS-to-Secrets-Manager
-      # cutover). This plan role needs GetSecretValue too,
-      # not just apply's (unlike KandlerLi/dyndns's own metadata-only plan
-      # role) -- jsondecode() at plan time needs the real value to
-      # compute a diff. See repo-infra's own aws_policies.tf.
+      # Secrets come from Secrets Manager via secrets.tf; the plan role needs GetSecretValue too.
 
     steps:
       - name: Check out repository
@@ -116,16 +89,7 @@ jobs:
           role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
           role-session-name: GitHubPlan-${{ github.run_id }}
           allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
-          # See gha-common's own terraform-checks.yml for the original,
-          # confirmed-live OIDC connection hang this guards against --
-          # that one was root-caused to dind's own *inner* bridge
-          # network defaulting to MTU 1500, which doesn't apply here
-          # (no container: job, no nested dind at all, so this
-          # container already sees the Pod's real MTU-1450 overlay
-          # directly). Kept anyway as a cheap, general escape hatch --
-          # the action's own maintainers added it for self-hosted-
-          # runner OIDC hangs broadly, not only that one specific
-          # cause, and an untriggered timeout costs nothing.
+          # A cheap escape hatch for OIDC hangs on self-hosted runners: see the README, "CI".
           action-timeout-s: "90"
 
       - name: Initialize Terraform
@@ -136,10 +100,7 @@ jobs:
           set -o pipefail
           terraform plan -input=false -lock=false -no-color | tee plan_output.txt
 
-      # Same as gha-common's terraform-checks.yml own "Post plan to pull
-      # request" step -- this repo's plan job doesn't call that reusable
-      # workflow (see this file's own header comment for why), so it's
-      # duplicated here rather than shared.
+      # Duplicated from gha-common's terraform-checks.yml, which this repo doesn't call.
       - name: Post plan to pull request
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:

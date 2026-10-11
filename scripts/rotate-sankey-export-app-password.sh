@@ -1,39 +1,6 @@
 #!/usr/bin/env bash
-# Rotate the sankey-export Nextcloud account's app password.
-#
-# The one step this can't do is minting the new token -- a Nextcloud app
-# password cannot mint another (a deliberate Nextcloud boundary), and the
-# only things that can (occ on the homeserver, or the account's login
-# password) aren't reachable from here by design. So mint it yourself
-# first, on the homeserver:
-#
-#   docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:add \
-#     --name "rotate-$(date +%F)" -- sankey-export
-#
-# then give it the printed token. Default is a silent prompt -- nothing
-# echoed, nothing in shell history:
-#
-#   scripts/rotate-sankey-export-app-password.sh          # prompts silently
-#   scripts/rotate-sankey-export-app-password.sh -        # read from a pipe
-#   scripts/rotate-sankey-export-app-password.sh 'token'  # arg (lands in history)
-#
-# It merges the token into the k3s-apps/sankey-export secret
-# (put-secret-value -- the blessed out-of-band write for these
-# container-only secrets, see KandlerLi/secrets-manager), runs
-# `terraform apply` to roll the Kubernetes Secret, waits for the next
-# CronJob run to prove the new token works, and prints how to revoke the
-# old token. It never touches the old token itself -- both stay valid
-# until you delete the old one, so there's no blackout window.
-#
-# Needs, which it does NOT set up: an `aws login` session with
-# PutSecretValue on k3s-apps/sankey-export (julian's own operator
-# identity has it), a working kubeconfig at ~/.kube/k3s-node-1.yaml (the
-# one-time scp in README's "Running it from your laptop"), and `jq`.
-#
-# What it DOES set up: the SSH tunnel to the k3s apiserver -- same
-# pattern as KandlerLi/k3s-bootstrap's own roll-out.sh: if one is
-# already open it's left alone, if this script opens it the script
-# closes it again on exit.
+# Usage: rotate-sankey-export-app-password.sh [<new-token>|-]  (no argument prompts silently)
+# Procedure: secrets-manager's k3s-apps/sankey-export runbook.
 
 set -euo pipefail
 
@@ -68,8 +35,7 @@ command -v ssh >/dev/null || fail "ssh not found"
 arg="${1:--prompt}"
 case "${arg}" in
   -prompt)
-    # silent read -- not echoed, not in shell history (the command has
-    # no token argument). Paste + Enter.
+    # Silent read: not echoed, not in shell history.
     read -rsp "paste the new sankey-export token (input hidden): " new_token
     echo >&2
     ;;
@@ -91,8 +57,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(dirname "${script_dir}")"
 cd "${repo_root}"
 
-# terraform reads its own kubeconfig from provider.tf's config_path; kubectl
-# (used only for the post-apply CronJob check) needs to be told the same one.
+# kubectl needs the same kubeconfig terraform reads via provider.tf.
 export KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/k3s-node-1.yaml}"
 [ -f "${KUBECONFIG}" ] || fail "${KUBECONFIG} not found -- see README's 'Running it from your laptop'"
 
@@ -135,13 +100,7 @@ echo "    review the plan -- it should touch only module.sankey_export's app-pas
 terraform init -input=false >/dev/null
 terraform apply
 
-# Verify the new token by watching the next CronJob run. The pod list is
-# sorted here in `sort`, not via kubectl --sort-by (that throws "the
-# server rejected our request" against this k3s version). This whole
-# check also silently no-ops if the local kubectl binary is too old for
-# the cluster (k3s moves fast; "couldn't get current server API group
-# list ... BadRequest" is the tell) -- probe for that up front and fall
-# back to the node's own bundled kubectl over SSH.
+# Watches the next CronJob run; sorted with sort, since kubectl --sort-by fails on this k3s version.
 node_kubectl='ssh -J julian@192.168.178.100 ansible@192.168.101.10 sudo k3s kubectl -n default'
 ok=0
 if kubectl get pods -l app=sankey-export -o name >/dev/null 2>&1; then
@@ -180,7 +139,6 @@ else
 fi
 cat <<'EOF'
   docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:list sankey-export
-  # then delete every id EXCEPT the one you just minted for this rotation
-  # (note: :delete takes <uid> then <id>, the opposite order from :add):
+  # Then delete every id except the new one (:delete takes <uid> then <id>).
   docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:delete sankey-export <OLD_ID>
 EOF

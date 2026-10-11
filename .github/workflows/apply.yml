@@ -1,9 +1,6 @@
 name: Apply
 
-# See checks.yml's own header comment for why there's no container:
-# key here either, and why this still needs AWS OIDC credentials
-# despite managing zero real AWS resources (this root's own Terraform
-# state, not any resource this root creates).
+# Runs on the runner itself, no container: key; AWS OIDC is for state access. See the README, "CI".
 
 on:
   push:
@@ -30,21 +27,9 @@ jobs:
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "false"
       TF_VAR_in_cluster: "true"
-      # Points at the runner Pod's own host_path-backed cache volume
-      # (k3s-bootstrap's modules/github_runner, mounted directly into
-      # this container -- no container: job here to bind-mount it into,
-      # unlike gha-common's terraform-checks.yml/terraform-apply.yml)
-      # so `terraform init` reuses providers already downloaded on this
-      # node instead of fetching them cold on every ephemeral runner Pod.
+      # The runner Pod's host_path plugin cache (k3s-bootstrap's github_runner).
       TF_PLUGIN_CACHE_DIR: /terraform-plugin-cache
-      # No more TF_VAR_<secret> lines -- secrets.tf reads them directly
-      # from AWS Secrets Manager now (the SOPS-to-Secrets-Manager
-      # cutover), via the same AWS credentials this job
-      # already assumes below for state access. The one remaining
-      # GitHub Actions secrets this repo declares
-      # (KandlerLi/repo-infra's own config.yml) are gone for these; only
-      # non-secret repository variables (AWS_ACCOUNT_ID/AWS_ROLE_ARN
-      # below) are left.
+      # Secrets come from Secrets Manager via secrets.tf, with the same AWS credentials.
 
     steps:
       - name: Check out repository
@@ -76,7 +61,7 @@ jobs:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           role-session-name: GitHubActions-${{ github.run_id }}
           allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
-          # See checks.yml's own identical setting for why.
+          # A cheap escape hatch for OIDC hangs on self-hosted runners: see the README, "CI".
           action-timeout-s: "90"
 
       - name: Initialize Terraform
