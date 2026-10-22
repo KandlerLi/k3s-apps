@@ -80,6 +80,8 @@ resource "kubernetes_secret_v1" "authelia_config" {
               client_secret: '${var.authelia_oidc_grafana_client_secret_hash}'
               public: false
               authorization_policy: 'two_factor'
+              consent_mode: 'pre-configured'
+              pre_configured_consent_duration: '1y'
               claims_policy: 'groups_in_id_token'
               require_pkce: true
               pkce_challenge_method: 'S256'
@@ -106,6 +108,8 @@ resource "kubernetes_secret_v1" "authelia_config" {
               client_secret: '${var.authelia_oidc_openwebui_client_secret_hash}'
               public: false
               authorization_policy: 'two_factor'
+              consent_mode: 'pre-configured'
+              pre_configured_consent_duration: '1y'
               claims_policy: 'groups_in_id_token'
               require_pkce: true
               pkce_challenge_method: 'S256'
@@ -131,6 +135,8 @@ resource "kubernetes_secret_v1" "authelia_config" {
               client_secret: '${var.authelia_oidc_bulwark_client_secret_hash}'
               public: false
               authorization_policy: 'two_factor'
+              consent_mode: 'pre-configured'
+              pre_configured_consent_duration: '1y'
               claims_policy: 'groups_in_id_token'
               require_pkce: true
               pkce_challenge_method: 'S256'
@@ -155,6 +161,8 @@ resource "kubernetes_secret_v1" "authelia_config" {
               client_secret: '${var.authelia_oidc_nextcloud_client_secret_hash}'
               public: false
               authorization_policy: 'two_factor'
+              consent_mode: 'pre-configured'
+              pre_configured_consent_duration: '1y'
               claims_policy: 'groups_in_id_token'
               require_pkce: true
               pkce_challenge_method: 'S256'
@@ -177,6 +185,8 @@ resource "kubernetes_secret_v1" "authelia_config" {
               client_secret: '${var.authelia_oidc_paperless_client_secret_hash}'
               public: false
               authorization_policy: 'julian_only'
+              consent_mode: 'pre-configured'
+              pre_configured_consent_duration: '1y'
               claims_policy: 'groups_in_id_token'
               require_pkce: true
               pkce_challenge_method: 'S256'
