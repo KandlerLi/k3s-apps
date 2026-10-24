@@ -110,7 +110,7 @@ code doesn't need touching.
   `monitoring_prometheus_k3s_bind_address`), confirmed reachable from
   inside the cluster (`kubectl exec` + `curl`/`nc`) before this module
   was built. No PVC, deliberately -- everything Grafana needs
-  (datasources, dashboard provider, the five dashboard JSONs vendored
+  (datasources, dashboard provider, the dashboard JSONs vendored
   from `home-infra`'s `ansible/roles/monitoring/files/dashboards/*.json`,
   checksummed identical) is provisioned from files, confirmed with
   Julian first that there's no click-through UI state worth migrating
