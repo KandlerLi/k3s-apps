@@ -66,6 +66,11 @@ resource "kubernetes_deployment_v1" "grafana" {
             name  = "GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES"
             value = "false"
           }
+          # Only Prometheus and Postgres are used; the preinstalled plugins cost memory, a download per Pod and startup time.
+          env {
+            name  = "GF_PLUGINS_PREINSTALL_DISABLED"
+            value = "true"
+          }
           env {
             name  = "GF_USERS_ALLOW_SIGN_UP"
             value = "false"
@@ -139,15 +144,15 @@ resource "kubernetes_deployment_v1" "grafana" {
             value = "InHeader"
           }
 
-          # 512Mi: Grafana 13 builds an in-memory index on startup.
+          # ~160Mi anon, but page cache (grafana.db, search index) counts too: 512Mi OOMed under HDD load (2026-10-11).
           resources {
             requests = {
               cpu    = "100m"
-              memory = "256Mi"
+              memory = "384Mi"
             }
             limits = {
               cpu    = "300m"
-              memory = "512Mi"
+              memory = "1Gi"
             }
           }
 
