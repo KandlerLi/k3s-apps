@@ -21,11 +21,13 @@ locals {
 
 resource "kubernetes_deployment_v1" "paperless" {
   metadata {
-    name = "paperless"
+    namespace = "apps"
+    name      = "paperless"
   }
 
   spec {
-    replicas = 1
+    # Held at 0 while its data is copied into the apps volume (tracker #32); back to 1 in the next PR.
+    replicas = 0
 
     # RWO local-path volumes: stop the old Pod before starting the new.
     strategy {
@@ -282,7 +284,8 @@ resource "kubernetes_deployment_v1" "paperless" {
 
 resource "kubernetes_service_v1" "paperless" {
   metadata {
-    name = "paperless-svc"
+    namespace = "apps"
+    name      = "paperless-svc"
   }
 
   spec {

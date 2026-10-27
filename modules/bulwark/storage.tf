@@ -7,6 +7,8 @@ moved {
 module "bulwark_data" {
   source = "../pvc_local_path"
 
-  name = "bulwark"
-  size = "1Gi"
+  name        = "bulwark"
+  namespace   = "apps"
+  volume_name = "bulwark-pv"
+  size        = "1Gi"
 }

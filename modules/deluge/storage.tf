@@ -2,7 +2,8 @@
 
 resource "kubernetes_persistent_volume_claim_v1" "deluge_downloads" {
   metadata {
-    name = "deluge-downloads"
+    namespace = "apps"
+    name      = "deluge-downloads"
   }
 
   spec {
@@ -20,7 +21,8 @@ resource "kubernetes_persistent_volume_claim_v1" "deluge_downloads" {
 
 resource "kubernetes_persistent_volume_claim_v1" "deluge_config" {
   metadata {
-    name = "deluge-config"
+    namespace = "apps"
+    name      = "deluge-config"
   }
 
   spec {

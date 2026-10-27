@@ -6,7 +6,8 @@ resource "random_id" "session" {
 
 resource "kubernetes_secret_v1" "bulwark_session" {
   metadata {
-    name = "bulwark-session"
+    namespace = "apps"
+    name      = "bulwark-session"
   }
 
   data = {
@@ -19,7 +20,8 @@ resource "kubernetes_secret_v1" "bulwark_session" {
 # Authelia OIDC for Bulwark's own login screen, separate from the forward-auth gate in front of it.
 resource "kubernetes_secret_v1" "bulwark_oidc" {
   metadata {
-    name = "bulwark-oidc"
+    namespace = "apps"
+    name      = "bulwark-oidc"
   }
 
   data = {
@@ -31,11 +33,13 @@ resource "kubernetes_secret_v1" "bulwark_oidc" {
 
 resource "kubernetes_deployment_v1" "bulwark" {
   metadata {
-    name = "bulwark"
+    namespace = "apps"
+    name      = "bulwark"
   }
 
   spec {
-    replicas = 1
+    # Held at 0 while its data is copied into the apps volume (tracker #32); back to 1 in the next PR.
+    replicas = 0
 
     # One RWO local-path volume: stop the old Pod before starting the new.
     strategy {
@@ -195,7 +199,8 @@ resource "kubernetes_deployment_v1" "bulwark" {
 # Port 80, so modules/ingress reaches it as bulwark-svc:80.
 resource "kubernetes_service_v1" "bulwark" {
   metadata {
-    name = "bulwark-svc"
+    namespace = "apps"
+    name      = "bulwark-svc"
   }
 
   spec {

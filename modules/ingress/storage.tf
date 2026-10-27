@@ -7,6 +7,8 @@ moved {
 module "ingress_acme" {
   source = "../pvc_local_path"
 
-  name = "ingress-acme"
-  size = "128Mi"
+  name        = "ingress-acme"
+  namespace   = "apps"
+  volume_name = "ingress-acme-pv"
+  size        = "128Mi"
 }

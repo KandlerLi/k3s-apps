@@ -1,7 +1,8 @@
 # Binds k3s-bootstrap's host-path PV on k3s-node-1, so the Pod has no hostPath volume of its own (PSA baseline).
 resource "kubernetes_persistent_volume_claim_v1" "sankey_export_state" {
   metadata {
-    name = "sankey-export-state"
+    namespace = "apps"
+    name      = "sankey-export-state"
   }
 
   spec {

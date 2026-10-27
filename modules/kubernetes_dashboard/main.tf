@@ -2,7 +2,8 @@
 
 resource "kubernetes_deployment_v1" "kubernetes_dashboard" {
   metadata {
-    name = "kubernetes-dashboard"
+    namespace = "apps"
+    name      = "kubernetes-dashboard"
   }
 
   # The Dashboard panics on startup if either Secret is missing.
@@ -36,7 +37,7 @@ resource "kubernetes_deployment_v1" "kubernetes_dashboard" {
           image = "kubernetesui/dashboard:v2.7.0@sha256:2e500d29e9d5f4a086b908eb8dfe7ecac57d2ab09d65b24f588b1d449841ef93"
 
           args = [
-            "--namespace=default",
+            "--namespace=apps",
             "--insecure-bind-address=0.0.0.0",
             "--insecure-port=9090",
             "--enable-skip-login",
@@ -100,7 +101,8 @@ resource "kubernetes_deployment_v1" "kubernetes_dashboard" {
 
 resource "kubernetes_service_v1" "kubernetes_dashboard" {
   metadata {
-    name = "kubernetes-dashboard-svc"
+    namespace = "apps"
+    name      = "kubernetes-dashboard-svc"
   }
 
   spec {

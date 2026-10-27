@@ -2,7 +2,8 @@
 
 resource "kubernetes_cron_job_v1" "sankey_export" {
   metadata {
-    name = "sankey-export"
+    namespace = "apps"
+    name      = "sankey-export"
   }
 
   spec {

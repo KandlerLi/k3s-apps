@@ -3,7 +3,8 @@
 # The SES relay credential via environment variables, rotatable, instead of typed into Stalwart's UI.
 resource "kubernetes_secret_v1" "stalwart_ses_smtp" {
   metadata {
-    name = "stalwart-ses-smtp"
+    namespace = "apps"
+    name      = "stalwart-ses-smtp"
   }
 
   data = {
@@ -16,11 +17,13 @@ resource "kubernetes_secret_v1" "stalwart_ses_smtp" {
 
 resource "kubernetes_deployment_v1" "stalwart" {
   metadata {
-    name = "stalwart"
+    namespace = "apps"
+    name      = "stalwart"
   }
 
   spec {
-    replicas = 1
+    # Held at 0 while its data is copied into the apps volume (tracker #32); back to 1 in the next PR.
+    replicas = 0
 
     # One RWO local-path volume: a rolling update would try to run two
     strategy {
@@ -156,7 +159,8 @@ resource "kubernetes_deployment_v1" "stalwart" {
 # 25, 993 and 465 only; the name stays, renaming would change the LoadBalancer address. Local keeps the client IP.
 resource "kubernetes_service_v1" "stalwart_smtp" {
   metadata {
-    name = "stalwart-smtp"
+    namespace = "apps"
+    name      = "stalwart-smtp"
   }
 
   wait_for_load_balancer = false
@@ -190,7 +194,8 @@ resource "kubernetes_service_v1" "stalwart_smtp" {
 # In-cluster only: the web admin/wizard (reach via kubectl port-forward).
 resource "kubernetes_service_v1" "stalwart_internal" {
   metadata {
-    name = "stalwart-internal"
+    namespace = "apps"
+    name      = "stalwart-internal"
   }
 
   spec {

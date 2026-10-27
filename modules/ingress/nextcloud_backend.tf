@@ -1,7 +1,8 @@
 # Nextcloud AIO stays on the homeserver (192.168.101.1:11000); ExternalName needs a hostname, hence a selector-less Service plus Endpoints.
 resource "kubernetes_service_v1" "nextcloud_aio_backend" {
   metadata {
-    name = "nextcloud-aio-backend"
+    namespace = "apps"
+    name      = "nextcloud-aio-backend"
   }
 
   spec {
@@ -14,7 +15,8 @@ resource "kubernetes_service_v1" "nextcloud_aio_backend" {
 
 resource "kubernetes_endpoints_v1" "nextcloud_aio_backend" {
   metadata {
-    name = "nextcloud-aio-backend"
+    namespace = "apps"
+    name      = "nextcloud-aio-backend"
   }
 
   subset {

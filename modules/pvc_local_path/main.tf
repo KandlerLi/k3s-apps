@@ -11,6 +11,12 @@ variable "namespace" {
   default     = "default"
 }
 
+variable "volume_name" {
+  description = "A static PV to bind instead of dynamic provisioning."
+  type        = string
+  default     = null
+}
+
 variable "size" {
   description = "Requested storage size (e.g. \"128Mi\")."
   type        = string
@@ -27,6 +33,7 @@ resource "kubernetes_persistent_volume_claim_v1" "this" {
   spec {
     access_modes       = ["ReadWriteOnce"]
     storage_class_name = "local-path"
+    volume_name        = var.volume_name
 
     resources {
       requests = {

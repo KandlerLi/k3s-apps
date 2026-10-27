@@ -5,6 +5,11 @@ variable "name" {
   type        = string
 }
 
+variable "namespace" {
+  description = "Kubernetes namespace of the Secret."
+  type        = string
+}
+
 variable "token" {
   description = "GHCR PAT (read:packages) used to pull the private image."
   type        = string
@@ -13,7 +18,8 @@ variable "token" {
 
 resource "kubernetes_secret_v1" "this" {
   metadata {
-    name = var.name
+    name      = var.name
+    namespace = var.namespace
   }
 
   type = "kubernetes.io/dockerconfigjson"

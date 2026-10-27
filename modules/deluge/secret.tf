@@ -42,7 +42,8 @@ locals {
 
 resource "kubernetes_secret_v1" "deluge_web_conf" {
   metadata {
-    name = "deluge-web-conf"
+    namespace = "apps"
+    name      = "deluge-web-conf"
   }
 
   data = {

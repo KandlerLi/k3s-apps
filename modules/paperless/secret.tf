@@ -12,7 +12,8 @@ resource "random_password" "postgres" {
 
 resource "kubernetes_secret_v1" "paperless_postgres" {
   metadata {
-    name = "paperless-postgres"
+    namespace = "apps"
+    name      = "paperless-postgres"
   }
 
   data = {
@@ -26,7 +27,8 @@ resource "kubernetes_secret_v1" "paperless_postgres" {
 
 resource "kubernetes_secret_v1" "paperless_env" {
   metadata {
-    name = "paperless-env"
+    namespace = "apps"
+    name      = "paperless-env"
   }
 
   data = {

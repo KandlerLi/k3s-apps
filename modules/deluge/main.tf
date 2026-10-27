@@ -2,7 +2,8 @@
 
 resource "kubernetes_deployment_v1" "deluge" {
   metadata {
-    name = "deluge"
+    namespace = "apps"
+    name      = "deluge"
   }
 
   spec {
@@ -122,7 +123,8 @@ resource "kubernetes_deployment_v1" "deluge" {
 
 resource "kubernetes_service_v1" "deluge_web" {
   metadata {
-    name = "deluge-web-svc"
+    namespace = "apps"
+    name      = "deluge-web-svc"
   }
 
   spec {
@@ -140,7 +142,8 @@ resource "kubernetes_service_v1" "deluge_web" {
 # Peer traffic isn't HTTP, so a LoadBalancer on a fixed port.
 resource "kubernetes_service_v1" "deluge_peer" {
   metadata {
-    name = "deluge-peer-svc"
+    namespace = "apps"
+    name      = "deluge-peer-svc"
   }
 
   spec {

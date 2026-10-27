@@ -2,7 +2,8 @@
 
 resource "kubernetes_deployment_v1" "open_webui" {
   metadata {
-    name = "open-webui"
+    namespace = "apps"
+    name      = "open-webui"
   }
 
   spec {
@@ -406,7 +407,8 @@ resource "kubernetes_deployment_v1" "open_webui" {
 
 resource "kubernetes_service_v1" "open_webui" {
   metadata {
-    name = "open-webui-svc"
+    namespace = "apps"
+    name      = "open-webui-svc"
   }
 
   spec {
