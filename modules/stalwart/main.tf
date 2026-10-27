@@ -22,8 +22,7 @@ resource "kubernetes_deployment_v1" "stalwart" {
   }
 
   spec {
-    # Held at 0 while its data is copied into the apps volume (tracker #32); back to 1 in the next PR.
-    replicas = 0
+    replicas = 1
 
     # One RWO local-path volume: a rolling update would try to run two
     strategy {
