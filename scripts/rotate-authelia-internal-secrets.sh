@@ -69,14 +69,14 @@ for k in "${keys[@]}"; do
 done
 
 echo "==> checking the live database still matches the current storage key"
-kubectl exec deploy/authelia -c authelia -- \
+kubectl -n auth exec deploy/authelia -c authelia -- \
   authelia storage encryption check --config /config/configuration.yml | grep SUCCESS >/dev/null \
   || fail "current storage key doesn't validate against the live database -- not touching it"
 
 echo "==> taking a fresh Authelia backup before touching the database"
 backup_job="authelia-backup-pre-rotation-$(date +%Y%m%d%H%M%S)"
-kubectl create job --from=cronjob/authelia-backup "${backup_job}" >/dev/null
-kubectl wait --for=condition=complete "job/${backup_job}" --timeout=300s >/dev/null \
+kubectl -n auth create job --from=cronjob/authelia-backup "${backup_job}" >/dev/null
+kubectl -n auth wait --for=condition=complete "job/${backup_job}" --timeout=300s >/dev/null \
   || fail "backup job ${backup_job} didn't complete -- not touching the database"
 
 cat <<EOF
@@ -108,7 +108,7 @@ printf '%s' "${new_json}" | aws secretsmanager put-secret-value --secret-id "${s
   || fail "put-secret-value failed -- nothing changed"
 
 echo "==> re-encrypting the live database with the new storage key"
-if ! printf '%s\n' "${new_storage_key}" | kubectl exec -i deploy/authelia -c authelia -- sh -c \
+if ! printf '%s\n' "${new_storage_key}" | kubectl -n auth exec -i deploy/authelia -c authelia -- sh -c \
   'IFS= read -r k; authelia storage encryption change-key --config /config/configuration.yml --new-encryption-key "$k"'; then
   echo "==> change-key failed, putting the previous values back into ${secret_id}" >&2
   printf '%s' "${old_json}" | aws secretsmanager put-secret-value --secret-id "${secret_id}" --region "${region}" \
@@ -118,7 +118,7 @@ if ! printf '%s\n' "${new_storage_key}" | kubectl exec -i deploy/authelia -c aut
 fi
 db_rekeyed=1
 
-printf '%s\n' "${new_storage_key}" | kubectl exec -i deploy/authelia -c authelia -- sh -c \
+printf '%s\n' "${new_storage_key}" | kubectl -n auth exec -i deploy/authelia -c authelia -- sh -c \
   'IFS= read -r k; authelia storage encryption check --config /config/configuration.yml --encryption-key "$k"' \
   | grep SUCCESS >/dev/null || fail "the database doesn't validate against the new key"
 echo "==> database validates against the new key"

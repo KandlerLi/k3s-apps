@@ -7,8 +7,7 @@ resource "kubernetes_deployment_v1" "ingress" {
   }
 
   spec {
-    # Held at 0 while its data is copied into the apps volume (tracker #32); back to 1 in the next PR.
-    replicas = 0
+    replicas = 1
 
     selector {
       match_labels = {
