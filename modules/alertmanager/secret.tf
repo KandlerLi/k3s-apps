@@ -1,7 +1,8 @@
 # A Secret: the rendered file carries the SES SMTP password.
 resource "kubernetes_secret_v1" "alertmanager_config" {
   metadata {
-    name = "alertmanager-config"
+    name      = "alertmanager-config"
+    namespace = "monitoring"
   }
 
   data = {

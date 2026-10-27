@@ -120,7 +120,8 @@ resource "kubernetes_daemon_set_v1" "node_exporter" {
 # kube-state-metrics: cluster object state that the exporters can't see.
 resource "kubernetes_deployment_v1" "kube_state_metrics" {
   metadata {
-    name = "kube-state-metrics"
+    name      = "kube-state-metrics"
+    namespace = "monitoring"
   }
 
   spec {
@@ -197,7 +198,8 @@ resource "kubernetes_deployment_v1" "kube_state_metrics" {
 # LoadBalancer, so the homeserver's Prometheus can scrape it.
 resource "kubernetes_service_v1" "kube_state_metrics" {
   metadata {
-    name = "kube-state-metrics-svc"
+    name      = "kube-state-metrics-svc"
+    namespace = "monitoring"
   }
 
   spec {

@@ -2,7 +2,8 @@
 
 resource "kubernetes_deployment_v1" "grafana" {
   metadata {
-    name = "grafana"
+    name      = "grafana"
+    namespace = "monitoring"
   }
 
   spec {
@@ -281,7 +282,8 @@ resource "kubernetes_deployment_v1" "grafana" {
 
 resource "kubernetes_service_v1" "grafana" {
   metadata {
-    name = "grafana-svc"
+    name      = "grafana-svc"
+    namespace = "monitoring"
   }
 
   spec {
