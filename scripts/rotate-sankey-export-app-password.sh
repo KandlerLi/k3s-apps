@@ -101,14 +101,14 @@ terraform init -input=false >/dev/null
 terraform apply
 
 # Watches the next CronJob run; sorted with sort, since kubectl --sort-by fails on this k3s version.
-node_kubectl='ssh -J julian@192.168.178.100 ansible@192.168.101.10 sudo k3s kubectl -n default'
+node_kubectl='ssh -J julian@192.168.178.100 ansible@192.168.101.10 sudo k3s kubectl -n apps'
 ok=0
-if kubectl get pods -l app=sankey-export -o name >/dev/null 2>&1; then
+if kubectl -n apps get pods -l app=sankey-export -o name >/dev/null 2>&1; then
   echo "==> waiting for the next sankey-export CronJob run to finish (up to 3 min)"
   deadline=$(( $(date +%s) + 180 ))
   last_seen=""
   while [ "$(date +%s)" -lt "${deadline}" ]; do
-    newest="$(kubectl get pods -l app=sankey-export \
+    newest="$(kubectl -n apps get pods -l app=sankey-export \
       -o jsonpath='{range .items[*]}{.metadata.creationTimestamp}{"\t"}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}' \
       2>/dev/null | sort | tail -n1 | cut -f2,3 || true)"
     if [ -n "${newest}" ] && [ "${newest}" != "${last_seen}" ]; then
@@ -118,7 +118,7 @@ if kubectl get pods -l app=sankey-export -o name >/dev/null 2>&1; then
     case "${newest}" in
       *$'\t'"Succeeded") echo "==> new token works -- the CronJob completed."; ok=1; break ;;
       *$'\t'"Failed")    echo "==> newest run FAILED -- check its logs before revoking anything:"; \
-                         echo "    kubectl logs $(echo "${newest}" | cut -f1)"; ok=0; break ;;
+                         echo "    kubectl -n apps logs $(echo "${newest}" | cut -f1)"; ok=0; break ;;
     esac
     sleep 5
   done
@@ -131,8 +131,8 @@ if [ "${ok}" = "1" ]; then
   echo "Rotation applied and verified. Now revoke the OLD token on the homeserver:"
 else
   echo "Verify the next CronJob run succeeded before revoking. Local kubectl:"
-  echo "  kubectl get pods -l app=sankey-export -o wide"
-  echo "  kubectl logs -l app=sankey-export --tail=30"
+  echo "  kubectl -n apps get pods -l app=sankey-export -o wide"
+  echo "  kubectl -n apps logs -l app=sankey-export --tail=30"
   echo "or the node's own bundled kubectl over SSH (works regardless of local version):"
   echo "  ${node_kubectl} get pods -l app=sankey-export -o wide"
   echo "  ${node_kubectl} logs -l app=sankey-export --tail=30"
