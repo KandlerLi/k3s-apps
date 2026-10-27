@@ -189,7 +189,7 @@ locals {
     # No Basic Auth fallback; headers as in Authelia's Traefik docs.
     authelia-forward-auth = {
       forwardAuth = {
-        address             = "http://authelia-svc:9091/api/authz/forward-auth"
+        address             = "http://authelia-svc.auth.svc.cluster.local:9091/api/authz/forward-auth"
         trustForwardHeader  = true
         authResponseHeaders = ["Remote-User", "Remote-Groups", "Remote-Email", "Remote-Name"]
       }

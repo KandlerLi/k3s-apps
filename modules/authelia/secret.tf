@@ -3,7 +3,8 @@
 # auth.jkandler.de is bypass: the login portal must be reachable to log in.
 resource "kubernetes_secret_v1" "authelia_config" {
   metadata {
-    name = "authelia-config"
+    name      = "authelia-config"
+    namespace = "auth"
   }
 
   data = {
@@ -244,7 +245,8 @@ resource "kubernetes_secret_v1" "authelia_config" {
 # The file backend's user database: one user, argon2id with Authelia's defaults.
 resource "kubernetes_secret_v1" "authelia_users" {
   metadata {
-    name = "authelia-users"
+    name      = "authelia-users"
+    namespace = "auth"
   }
 
   data = {

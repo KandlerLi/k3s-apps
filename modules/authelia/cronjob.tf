@@ -2,7 +2,8 @@
 
 resource "kubernetes_cron_job_v1" "authelia_backup" {
   metadata {
-    name = "authelia-backup"
+    name      = "authelia-backup"
+    namespace = "auth"
   }
 
   spec {

@@ -7,8 +7,9 @@ moved {
 module "authelia_data" {
   source = "../pvc_local_path"
 
-  name = "authelia-data"
-  size = "128Mi"
+  name      = "authelia-data"
+  namespace = "auth"
+  size      = "128Mi"
 }
 
 # Redis's append-only file (the session store).
@@ -20,14 +21,16 @@ moved {
 module "authelia_redis" {
   source = "../pvc_local_path"
 
-  name = "authelia-redis"
-  size = "128Mi"
+  name      = "authelia-redis"
+  namespace = "auth"
+  size      = "128Mi"
 }
 
 # NFS-backed, so the backup snapshot leaves the node's disk.
 resource "kubernetes_persistent_volume_claim_v1" "authelia_backup" {
   metadata {
-    name = "authelia-backup"
+    name      = "authelia-backup"
+    namespace = "auth"
   }
 
   spec {

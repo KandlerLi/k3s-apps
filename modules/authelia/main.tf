@@ -2,7 +2,8 @@
 
 resource "kubernetes_deployment_v1" "authelia" {
   metadata {
-    name = "authelia"
+    name      = "authelia"
+    namespace = "auth"
   }
 
   spec {
@@ -198,7 +199,8 @@ resource "kubernetes_deployment_v1" "authelia" {
 # ClusterIP: only Traefik's forwardAuth middleware reaches it.
 resource "kubernetes_service_v1" "authelia" {
   metadata {
-    name = "authelia-svc"
+    name      = "authelia-svc"
+    namespace = "auth"
   }
 
   spec {
