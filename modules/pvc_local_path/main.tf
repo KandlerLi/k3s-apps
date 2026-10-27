@@ -5,6 +5,12 @@ variable "name" {
   type        = string
 }
 
+variable "namespace" {
+  description = "Kubernetes namespace of the claim."
+  type        = string
+  default     = "default"
+}
+
 variable "size" {
   description = "Requested storage size (e.g. \"128Mi\")."
   type        = string
@@ -12,7 +18,8 @@ variable "size" {
 
 resource "kubernetes_persistent_volume_claim_v1" "this" {
   metadata {
-    name = var.name
+    name      = var.name
+    namespace = var.namespace
   }
 
   wait_until_bound = false
