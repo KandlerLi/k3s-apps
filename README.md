@@ -281,6 +281,10 @@ small blast radius, and no external UI to reconfigure. It ALTERs the role
 over `blocky-svc:5432`, writes the new value to Secrets Manager and
 applies, and the checksum annotations roll Blocky and Grafana. It has to
 run on the in-cluster runner, the only place `blocky-svc` is reachable.
+The runner sits in the `ci` namespace, so the script names Services by
+their full `<svc>.default.svc.cluster.local` name, and `k3s-bootstrap`'s
+runner NetworkPolicy opens exactly Blocky's 5432/4000 and Grafana's 3000
+for it.
 
 ## Running it from your laptop
 
