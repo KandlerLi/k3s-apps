@@ -152,12 +152,10 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
               name = "tmp"
               empty_dir {}
             }
-            # DirectoryOrCreate, so the first run needs no manual setup.
             volume {
               name = "state"
-              host_path {
-                path = "/var/lib/k3s-sankey-export"
-                type = "DirectoryOrCreate"
+              persistent_volume_claim {
+                claim_name = kubernetes_persistent_volume_claim_v1.sankey_export_state.metadata[0].name
               }
             }
           }

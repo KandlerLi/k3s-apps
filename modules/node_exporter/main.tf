@@ -1,9 +1,10 @@
 # node-exporter and kube-state-metrics for per-k3s-node visibility in the homeserver's Prometheus.
 
-# A DaemonSet: one Pod per node, the runner node included.
+# A DaemonSet: one Pod per node, the runner node included. Its own privileged namespace: k3s-bootstrap's README, "Namespaces".
 resource "kubernetes_daemon_set_v1" "node_exporter" {
   metadata {
-    name = "node-exporter"
+    name      = "node-exporter"
+    namespace = "node-exporter"
   }
 
   spec {
