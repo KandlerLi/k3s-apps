@@ -1,7 +1,8 @@
 # Provisioned from files: no deletion, no editing in the UI.
 resource "kubernetes_config_map_v1" "grafana_dashboard_provider" {
   metadata {
-    name = "grafana-dashboard-provider"
+    name      = "grafana-dashboard-provider"
+    namespace = "monitoring"
   }
 
   data = {
@@ -25,7 +26,8 @@ resource "kubernetes_config_map_v1" "grafana_dashboard_provider" {
 # Vendored from home-infra's monitoring/files/dashboards; the originals stay canonical there.
 resource "kubernetes_config_map_v1" "grafana_dashboards" {
   metadata {
-    name = "grafana-dashboards"
+    name      = "grafana-dashboards"
+    namespace = "monitoring"
   }
 
   data = {

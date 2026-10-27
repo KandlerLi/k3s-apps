@@ -12,7 +12,7 @@ datasources:
     uid: blocky-postgres
     type: postgres
     access: proxy
-    url: blocky-svc:5432
+    url: blocky-svc.default.svc.cluster.local:5432
     user: blocky
     # database belongs in jsonData, not as a top-level field -- same
     # fix home-infra's own grafana_datasources.yml.j2 already needed

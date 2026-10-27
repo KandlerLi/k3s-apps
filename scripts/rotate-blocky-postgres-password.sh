@@ -69,6 +69,6 @@ done
 
 echo "==> verifying Blocky and Grafana are actually up afterward"
 curl -fsS -o /dev/null "http://blocky-svc.default.svc.cluster.local:4000/metrics" || fail "blocky-svc:4000/metrics did not respond"
-curl -fsS -o /dev/null "http://grafana-svc.default.svc.cluster.local:80/api/health" || fail "grafana-svc:80/api/health did not respond"
+curl -fsS -o /dev/null "http://grafana-svc.monitoring.svc.cluster.local:80/api/health" || fail "grafana-svc:80/api/health did not respond"
 
 echo "==> done. blocky_postgres_password rotated, applied, and verified end-to-end."

@@ -2,7 +2,8 @@
 
 resource "kubernetes_deployment_v1" "alertmanager" {
   metadata {
-    name = "alertmanager"
+    name      = "alertmanager"
+    namespace = "monitoring"
   }
 
   spec {
@@ -128,7 +129,8 @@ resource "kubernetes_deployment_v1" "alertmanager" {
 # LoadBalancer: Prometheus needs a plain IP:port (192.168.101.10:9093), not Host routing.
 resource "kubernetes_service_v1" "alertmanager" {
   metadata {
-    name = "alertmanager-svc"
+    name      = "alertmanager-svc"
+    namespace = "monitoring"
   }
 
   spec {
