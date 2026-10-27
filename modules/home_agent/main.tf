@@ -2,7 +2,8 @@
 
 resource "kubernetes_deployment_v1" "home_agent" {
   metadata {
-    name = "home-agent"
+    namespace = "apps"
+    name      = "home-agent"
   }
 
   spec {
@@ -240,7 +241,8 @@ resource "kubernetes_deployment_v1" "home_agent" {
 
 resource "kubernetes_service_v1" "home_agent" {
   metadata {
-    name = "home-agent-svc"
+    namespace = "apps"
+    name      = "home-agent-svc"
   }
 
   spec {

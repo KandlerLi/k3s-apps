@@ -1,7 +1,8 @@
 # The health entryPoint is for probes only, never exposed.
 resource "kubernetes_config_map_v1" "ingress_static_config" {
   metadata {
-    name = "ingress-static-config"
+    namespace = "apps"
+    name      = "ingress-static-config"
   }
 
   data = {
@@ -70,7 +71,8 @@ resource "kubernetes_config_map_v1" "ingress_static_config" {
 # App routers come from each module's ingress_routes; only cross-cutting ones live here.
 resource "kubernetes_config_map_v1" "ingress_dynamic_config" {
   metadata {
-    name = "ingress-dynamic-config"
+    namespace = "apps"
+    name      = "ingress-dynamic-config"
   }
 
   data = {

@@ -1,7 +1,8 @@
 # Credentials for the ACME DNS-01 route53 provider (dyndns's traefik-acme-dns01 user).
 resource "kubernetes_secret_v1" "ingress_acme_dns01_credentials" {
   metadata {
-    name = "ingress-acme-dns01-credentials"
+    namespace = "apps"
+    name      = "ingress-acme-dns01-credentials"
   }
 
   data = {

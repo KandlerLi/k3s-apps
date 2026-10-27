@@ -2,7 +2,8 @@
 
 resource "kubernetes_cron_job_v1" "paperless_export" {
   metadata {
-    name = "paperless-export"
+    namespace = "apps"
+    name      = "paperless-export"
   }
 
   spec {

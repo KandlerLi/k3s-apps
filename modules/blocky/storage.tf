@@ -7,6 +7,8 @@ moved {
 module "blocky_postgres" {
   source = "../pvc_local_path"
 
-  name = "blocky-postgres"
-  size = "256Mi"
+  name        = "blocky-postgres"
+  namespace   = "apps"
+  volume_name = "blocky-postgres-pv"
+  size        = "256Mi"
 }

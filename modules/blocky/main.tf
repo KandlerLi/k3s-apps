@@ -2,11 +2,13 @@
 
 resource "kubernetes_deployment_v1" "blocky" {
   metadata {
-    name = "blocky"
+    namespace = "apps"
+    name      = "blocky"
   }
 
   spec {
-    replicas = 1
+    # Held at 0 while its data is copied into the apps volume (tracker #32); back to 1 in the next PR.
+    replicas = 0
 
     # Recreate: two Postgres sidecars on one data directory corrupted it once.
     strategy {
@@ -252,7 +254,8 @@ resource "kubernetes_deployment_v1" "blocky" {
 # LoadBalancer on k3s-node-1, the stable DNAT target for home-infra's k3s_ingress_forward.
 resource "kubernetes_service_v1" "blocky" {
   metadata {
-    name = "blocky-svc"
+    namespace = "apps"
+    name      = "blocky-svc"
   }
 
   wait_for_load_balancer = false

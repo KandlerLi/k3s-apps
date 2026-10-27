@@ -2,7 +2,8 @@
 
 resource "kubernetes_persistent_volume_claim_v1" "open_webui_data" {
   metadata {
-    name = "open-webui-data"
+    namespace = "apps"
+    name      = "open-webui-data"
   }
 
   spec {

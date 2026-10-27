@@ -2,7 +2,8 @@
 
 resource "kubernetes_persistent_volume_claim_v1" "paperless_media" {
   metadata {
-    name = "paperless-media"
+    namespace = "apps"
+    name      = "paperless-media"
   }
 
   spec {
@@ -20,7 +21,8 @@ resource "kubernetes_persistent_volume_claim_v1" "paperless_media" {
 
 resource "kubernetes_persistent_volume_claim_v1" "paperless_export" {
   metadata {
-    name = "paperless-export"
+    namespace = "apps"
+    name      = "paperless-export"
   }
 
   spec {
@@ -39,13 +41,17 @@ resource "kubernetes_persistent_volume_claim_v1" "paperless_export" {
 module "paperless_data" {
   source = "../pvc_local_path"
 
-  name = "paperless-data"
-  size = "5Gi"
+  name        = "paperless-data"
+  namespace   = "apps"
+  volume_name = "paperless-data-pv"
+  size        = "5Gi"
 }
 
 module "paperless_postgres" {
   source = "../pvc_local_path"
 
-  name = "paperless-postgres"
-  size = "2Gi"
+  name        = "paperless-postgres"
+  namespace   = "apps"
+  volume_name = "paperless-postgres-pv"
+  size        = "2Gi"
 }

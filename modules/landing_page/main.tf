@@ -2,7 +2,8 @@
 
 resource "kubernetes_config_map_v1" "landing_page_html" {
   metadata {
-    name = "landing-page-html"
+    namespace = "apps"
+    name      = "landing-page-html"
   }
 
   data = {
@@ -17,7 +18,8 @@ resource "kubernetes_config_map_v1" "landing_page_html" {
 
 resource "kubernetes_deployment_v1" "landing_page" {
   metadata {
-    name = "landing-page"
+    namespace = "apps"
+    name      = "landing-page"
   }
 
   spec {
@@ -67,7 +69,8 @@ resource "kubernetes_deployment_v1" "landing_page" {
 
 resource "kubernetes_service_v1" "landing_page" {
   metadata {
-    name = "landing-page-svc"
+    namespace = "apps"
+    name      = "landing-page-svc"
   }
 
   spec {

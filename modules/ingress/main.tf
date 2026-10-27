@@ -2,11 +2,13 @@
 
 resource "kubernetes_deployment_v1" "ingress" {
   metadata {
-    name = "ingress"
+    namespace = "apps"
+    name      = "ingress"
   }
 
   spec {
-    replicas = 1
+    # Held at 0 while its data is copied into the apps volume (tracker #32); back to 1 in the next PR.
+    replicas = 0
 
     selector {
       match_labels = {
@@ -181,7 +183,8 @@ resource "kubernetes_deployment_v1" "ingress" {
 # LoadBalancer on k3s-node-1, the stable DNAT target for home-infra's k3s_ingress_forward.
 resource "kubernetes_service_v1" "ingress" {
   metadata {
-    name = "ingress-svc"
+    namespace = "apps"
+    name      = "ingress-svc"
   }
 
   wait_for_load_balancer = false

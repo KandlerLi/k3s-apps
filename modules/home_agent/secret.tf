@@ -7,14 +7,16 @@ moved {
 module "ghcr_pull_secret" {
   source = "../ghcr_pull_secret"
 
-  name  = "ghcr-pull-secret"
-  token = var.home_agent_ghcr_token
+  name      = "ghcr-pull-secret"
+  namespace = "apps"
+  token     = var.home_agent_ghcr_token
 }
 
 # Mounted at OPENAI_API_KEY_FILE's default path.
 resource "kubernetes_secret_v1" "openai_api_key" {
   metadata {
-    name = "home-agent-openai-api-key"
+    namespace = "apps"
+    name      = "home-agent-openai-api-key"
   }
 
   data = {
@@ -27,7 +29,8 @@ resource "kubernetes_secret_v1" "openai_api_key" {
 # Mounted at ANTHROPIC_API_KEY_FILE's default path.
 resource "kubernetes_secret_v1" "anthropic_api_key" {
   metadata {
-    name = "home-agent-anthropic-api-key"
+    namespace = "apps"
+    name      = "home-agent-anthropic-api-key"
   }
 
   data = {
@@ -40,7 +43,8 @@ resource "kubernetes_secret_v1" "anthropic_api_key" {
 # Mounted at NEXTCLOUD_APP_PASSWORD_FILE's default path.
 resource "kubernetes_secret_v1" "nextcloud_tools_app_password" {
   metadata {
-    name = "nextcloud-tools-app-password"
+    namespace = "apps"
+    name      = "nextcloud-tools-app-password"
   }
 
   data = {
