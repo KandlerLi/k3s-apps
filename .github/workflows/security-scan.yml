@@ -7,6 +7,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Weekly: new CVEs in unchanged images, see trivy-image below.
+  schedule:
+    - cron: "23 5 * * 1"
 
 jobs:
   trivy-config:
@@ -17,43 +20,36 @@ jobs:
     permissions:
       contents: read
 
-  # trivy image scan, informational only, of every pinned image (kept in sync with modules/*/main.tf by hand).
+  # Every image ref in the Terraform code; home-agent is private to home-infra and scanned there.
+  discover-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.find.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: find
+        run: |
+          {
+            grep -rhoE '[a-z0-9.-]+(/[a-z0-9._-]+)*(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}' --include='*.tf' --include='*.tfvars' .
+            grep -rhoE '^\s*image\s*=\s*"[^"@$]+:[^"@]+"' --include='*.tf' . | sed -E 's/.*"(.*)"/\1/'
+          } | grep -v '^ghcr.io/kandlerli/home-agent@' | sort -u \
+            | jq -Rnc '[inputs | {name: (split("@")[0] | split("/")[-1]), ref: .}]' > matrix.json
+          echo "matrix=$(cat matrix.json)" >> "$GITHUB_OUTPUT"
+
+  # Informational on PR/push; the weekly run fails on fixable CRITICALs, which GitHub emails about.
   trivy-image:
+    needs: discover-images
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: authelia
-            ref: ghcr.io/authelia/authelia:4.39.22@sha256:936134132eaf01bfa2faf85055afbc1e0cc1cc5ca4547e9c06408fd0dd784646
-          - name: blocky
-            ref: ghcr.io/0xerr0r/blocky:v0.34.0@sha256:595136fb127f4c952b621113e668c09acdcf15ac054d96ee6d4c51a76c35f5fd
-          - name: blocky-postgres
-            ref: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
-          - name: alertmanager
-            ref: prom/alertmanager:v0.34.0@sha256:690c7b525f4367aa91f73e2f91c632206d32e97c6384bdbf2fb7a861b420340d
-          - name: deluge
-            ref: linuxserver/deluge:2.2.0-ls381@sha256:33a939576f7ecfc1227db1a0cb2afce030ce983e620ec9d93c956e3700e21fe9
-          - name: landing-page
-            ref: nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
-          - name: traefik
-            ref: traefik:v3.7.1@sha256:6b9cbca6fac42ab0075f5437d8dc1685cfd188626d8d515839ea94f8b6271c42
-          - name: open-webui
-            ref: ghcr.io/open-webui/open-webui:v0.11.0-slim@sha256:88da9f0e08b8ada8e40bc6d6291494e2c6775a62d24b67b0cefb74ffee4ce621
-          - name: grafana
-            ref: grafana/grafana:13.1.4@sha256:9be3a3ccdb06bcbb127f888b0c4c1d151837443e478887897a63a27d7b348043
-          - name: k8s-dashboard
-            ref: kubernetesui/dashboard:v2.7.0@sha256:2e500d29e9d5f4a086b908eb8dfe7ecac57d2ab09d65b24f588b1d449841ef93
-          - name: sankey-export
-            ref: ghcr.io/kandlerli/sankey-export@sha256:bb43a6ee10d568affd3cbd1388af05a4bfe4274cd0880f3827fb2cb7f755e806
-          - name: paperless
-            ref: ghcr.io/paperless-ngx/paperless-ngx:3.2.1@sha256:5fa76604a81df6945086e0837b14b56543d137e8ce4f311cc5d9ebe907e74e79
-          # The one image not pinned by digest, so this entry drifts.
-          - name: home-agent-nextcloud-tools-sidecar
-            ref: python:3.13-slim-bookworm
-    uses: KandlerLi/gha-common/.github/workflows/trivy-image.yml@v0.0.10
+        include: ${{ fromJSON(needs.discover-images.outputs.matrix) }}
+    uses: KandlerLi/gha-common/.github/workflows/trivy-image.yml@v0.0.15
     with:
       image_name: ${{ matrix.name }}
       image_ref: ${{ matrix.ref }}
+      fail_on_severity: ${{ github.event_name == 'schedule' && 'CRITICAL' || '' }}
       # GitHub-hosted, like trivy-config above.
       runs_on: '["ubuntu-latest"]'
     permissions:
