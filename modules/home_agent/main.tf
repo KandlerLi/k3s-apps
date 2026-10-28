@@ -116,7 +116,7 @@ resource "kubernetes_deployment_v1" "home_agent" {
 
         container {
           name    = "nextcloud-tools"
-          image   = "python:3.13-slim-bookworm"
+          image   = "python:3.13-slim-trixie@sha256:2d44738ebf4ce5f63b9d9ea871e9c7cfdc0426f7b0c97cac915fd88ded1d86bb"
           command = ["python3", "/app/nextcloud_tools_service.py"]
 
           env {
