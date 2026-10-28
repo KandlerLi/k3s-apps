@@ -4,8 +4,8 @@ module "landing_page" {
   source = "./modules/landing_page"
 }
 
-module "kubernetes_dashboard" {
-  source = "./modules/kubernetes_dashboard"
+module "headlamp" {
+  source = "./modules/headlamp"
 }
 
 module "deluge" {
@@ -122,7 +122,7 @@ module "ingress" {
     module.deluge.ingress_routes,
     module.grafana.ingress_routes,
     module.landing_page.ingress_routes,
-    module.kubernetes_dashboard.ingress_routes,
+    module.headlamp.ingress_routes,
     module.authelia.ingress_routes,
     module.bulwark.ingress_routes,
     module.stalwart.ingress_routes,
