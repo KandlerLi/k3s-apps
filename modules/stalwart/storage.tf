@@ -1,4 +1,4 @@
-# Mailboxes and generated config on one PVC; real mail, off-node backup still to do. See history.md.
+# Mailboxes and generated config on one PVC; backed up nightly to the red HDD by backup.tf.
 resource "kubernetes_persistent_volume_claim_v1" "stalwart" {
   metadata {
     namespace = "apps"
