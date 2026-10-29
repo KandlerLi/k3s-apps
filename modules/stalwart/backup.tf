@@ -130,7 +130,8 @@ locals {
     API = "https://kubernetes.default.svc"
     SA = "/var/run/secrets/kubernetes.io/serviceaccount"
     DEPLOYMENT = "/apis/apps/v1/namespaces/apps/deployments/stalwart/scale"
-    PODS = "/api/v1/namespaces/apps/pods?labelSelector=app%3Dstalwart"
+    # Only live Pods: a node shutdown leaves the old Pod behind as Succeeded/Failed until it's garbage-collected.
+    PODS = "/api/v1/namespaces/apps/pods?labelSelector=app%3Dstalwart&fieldSelector=status.phase%21%3DSucceeded%2Cstatus.phase%21%3DFailed"
     DEST_DIR = "/backup"
     RETENTION_DAYS = 14
 
