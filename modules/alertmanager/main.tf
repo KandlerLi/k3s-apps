@@ -32,6 +32,9 @@ resource "kubernetes_deployment_v1" "alertmanager" {
         automount_service_account_token = false
 
         security_context {
+          # The provider otherwise sends false, which the namespace's restricted level rejects.
+          run_as_non_root = true
+
           seccomp_profile {
             type = "RuntimeDefault"
           }
