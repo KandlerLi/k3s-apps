@@ -31,6 +31,12 @@ resource "kubernetes_cron_job_v1" "paperless_export" {
             restart_policy                  = "Never"
             automount_service_account_token = false
 
+            security_context {
+              seccomp_profile {
+                type = "RuntimeDefault"
+              }
+            }
+
             container {
               name        = "paperless-export"
               image       = local.image

@@ -28,6 +28,12 @@ resource "kubernetes_deployment_v1" "open_webui" {
       }
 
       spec {
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         container {
           name  = "open-webui"
           image = "ghcr.io/open-webui/open-webui:v0.11.0-slim@sha256:88da9f0e08b8ada8e40bc6d6291494e2c6775a62d24b67b0cefb74ffee4ce621"

@@ -27,6 +27,12 @@ resource "kubernetes_deployment_v1" "deluge" {
       }
 
       spec {
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         # Seeds web.conf as the Deluge uid if missing; a later password change isn't applied by itself.
         init_container {
           name    = "seed-web-conf"

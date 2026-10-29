@@ -33,6 +33,12 @@ resource "kubernetes_deployment_v1" "grafana" {
         # The token mount would collide with the admin-password Secret at /run/secrets.
         automount_service_account_token = false
 
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         container {
           name  = "grafana"
           image = "grafana/grafana:13.1.4@sha256:9be3a3ccdb06bcbb127f888b0c4c1d151837443e478887897a63a27d7b348043"

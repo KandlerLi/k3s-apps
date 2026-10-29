@@ -37,6 +37,12 @@ resource "kubernetes_deployment_v1" "blocky" {
         # Neither container talks to the Kubernetes API.
         automount_service_account_token = false
 
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         container {
           name  = "blocky"
           image = "ghcr.io/0xerr0r/blocky:v0.34.0@sha256:595136fb127f4c952b621113e668c09acdcf15ac054d96ee6d4c51a76c35f5fd"
