@@ -9,6 +9,11 @@ resource "kubernetes_deployment_v1" "deluge" {
   spec {
     replicas = 1
 
+    # One instance per config/state: a rolling update would also need room for a second 1-CPU Pod on the node.
+    strategy {
+      type = "Recreate"
+    }
+
     selector {
       match_labels = {
         app = "deluge"
