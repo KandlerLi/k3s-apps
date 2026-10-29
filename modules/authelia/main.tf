@@ -36,6 +36,12 @@ resource "kubernetes_deployment_v1" "authelia" {
       spec {
         automount_service_account_token = false
 
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         container {
           name  = "authelia"
           image = "ghcr.io/authelia/authelia:4.39.22@sha256:936134132eaf01bfa2faf85055afbc1e0cc1cc5ca4547e9c06408fd0dd784646"

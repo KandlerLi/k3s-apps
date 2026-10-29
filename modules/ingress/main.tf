@@ -33,6 +33,12 @@ resource "kubernetes_deployment_v1" "ingress" {
         # Doesn't talk to the Kubernetes API.
         automount_service_account_token = false
 
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         container {
           name  = "traefik"
           image = "traefik:v3.7.1@sha256:6b9cbca6fac42ab0075f5437d8dc1685cfd188626d8d515839ea94f8b6271c42"

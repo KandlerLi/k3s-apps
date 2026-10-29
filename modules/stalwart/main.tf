@@ -52,6 +52,9 @@ resource "kubernetes_deployment_v1" "stalwart" {
         # Volume ownership for the image's UID 2000.
         security_context {
           fs_group = 2000
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
         }
 
         container {

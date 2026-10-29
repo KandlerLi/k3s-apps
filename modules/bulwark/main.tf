@@ -68,6 +68,9 @@ resource "kubernetes_deployment_v1" "bulwark" {
 
         security_context {
           fs_group = 1001
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
         }
 
         container {

@@ -39,6 +39,12 @@ resource "kubernetes_deployment_v1" "home_agent" {
           name = module.ghcr_pull_secret.name
         }
 
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         container {
           name  = "home-agent"
           image = var.home_agent_image
