@@ -56,6 +56,10 @@ resource "kubernetes_deployment_v1" "grafana" {
             value = "https://grafana.jkandler.de/"
           }
           env {
+            name  = "GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH"
+            value = "/var/lib/grafana-dashboards/overview.json"
+          }
+          env {
             name  = "GF_ANALYTICS_REPORTING_ENABLED"
             value = "false"
           }
