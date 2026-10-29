@@ -13,4 +13,4 @@ platformdirs==4.11.7
 plotly==7.0.0
 requests==2.34.2
 simplejson==4.1.2
-urllib3==2.7.0
+urllib3==2.8.0
