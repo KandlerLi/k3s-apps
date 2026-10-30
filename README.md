@@ -317,8 +317,8 @@ for the S3 state backend below. Your own `aws login` session (the
 group this repo touches ([`terraform-state`](https://github.com/KandlerLi/terraform-state)'s own
 `operator.tf`). `home_agent_image` isn't a secret -- it's just a
 pinned public digest string, tracked directly in this repo's own
-`terraform.tfvars` instead, updated by hand after each meaningful
-`home-agent` build.
+`terraform.tfvars` instead, as `:main@sha256:…`; Renovate proposes
+each new `home-agent` build's digest.
 
 No `KUBECONFIG=...` prefix needed for the `terraform` commands above --
 unlike `kubectl`, the `kubernetes` provider does **not** read that

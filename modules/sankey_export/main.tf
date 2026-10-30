@@ -38,6 +38,12 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
               name = module.ghcr_pull_secret.name
             }
 
+            security_context {
+              seccomp_profile {
+                type = "RuntimeDefault"
+              }
+            }
+
             # fs_group doesn't fix hostPath ownership, so an initContainer chowns it.
             init_container {
               name    = "fix-state-dir-ownership"

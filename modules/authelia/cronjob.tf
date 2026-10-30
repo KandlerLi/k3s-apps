@@ -31,6 +31,15 @@ resource "kubernetes_cron_job_v1" "authelia_backup" {
             restart_policy                  = "Never"
             automount_service_account_token = false
 
+            security_context {
+              # The provider otherwise sends false, which the namespace's restricted level rejects.
+              run_as_non_root = true
+
+              seccomp_profile {
+                type = "RuntimeDefault"
+              }
+            }
+
             container {
               name  = "authelia-backup"
               image = "python:3.13-alpine@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a"

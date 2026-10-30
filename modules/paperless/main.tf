@@ -54,6 +54,12 @@ resource "kubernetes_deployment_v1" "paperless" {
       spec {
         automount_service_account_token = false
 
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         # 0.0.0.0 so the export CronJob reaches it; args keep the image's entrypoint.
         init_container {
           name           = "postgres"

@@ -55,6 +55,12 @@ resource "kubernetes_cron_job_v1" "stalwart_backup" {
             service_account_name            = "stalwart-backup"
             automount_service_account_token = true
 
+            security_context {
+              seccomp_profile {
+                type = "RuntimeDefault"
+              }
+            }
+
             container {
               name  = "stalwart-backup"
               image = "python:3.13-alpine@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a"
@@ -130,7 +136,8 @@ locals {
     API = "https://kubernetes.default.svc"
     SA = "/var/run/secrets/kubernetes.io/serviceaccount"
     DEPLOYMENT = "/apis/apps/v1/namespaces/apps/deployments/stalwart/scale"
-    PODS = "/api/v1/namespaces/apps/pods?labelSelector=app%3Dstalwart"
+    # Only live Pods: a node shutdown leaves the old Pod behind as Succeeded/Failed until it's garbage-collected.
+    PODS = "/api/v1/namespaces/apps/pods?labelSelector=app%3Dstalwart&fieldSelector=status.phase%21%3DSucceeded%2Cstatus.phase%21%3DFailed"
     DEST_DIR = "/backup"
     RETENTION_DAYS = 14
 
