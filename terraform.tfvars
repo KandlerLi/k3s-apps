@@ -8,4 +8,4 @@ home_agent_image = "ghcr.io/kandlerli/home-agent:main@sha256:4ed81690c46095f6730
 
 # Same as home_agent_image above, except this image's source and build
 # (build-sankey-export.yml) live in this repo: containers/sankey-export/.
-sankey_export_image = "ghcr.io/kandlerli/sankey-export:main@sha256:1df729d09e40440c1f92f06e292a3cd0a3db5802ce57de7d4db1a1c1958a2eca"
+sankey_export_image = "ghcr.io/kandlerli/sankey-export:main@sha256:8edab0e2e19f8ac0d0756af7705cceb1c20de88692d4aa0719cd379f03b88bae"
