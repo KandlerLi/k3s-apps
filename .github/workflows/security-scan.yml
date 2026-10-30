@@ -34,7 +34,7 @@ jobs:
           {
             grep -rhoE '[a-z0-9.-]+(/[a-z0-9._-]+)*(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}' --include='*.tf' --include='*.tfvars' .
             grep -rhoE '^\s*image\s*=\s*"[^"@$]+:[^"@]+"' --include='*.tf' . | sed -E 's/.*"(.*)"/\1/'
-          } | grep -v '^ghcr.io/kandlerli/home-agent@' | sort -u \
+          } | grep -v '^ghcr.io/kandlerli/home-agent[:@]' | sort -u \
             | jq -Rnc '[inputs | {name: (split("@")[0] | split("/")[-1]), ref: .}]' > matrix.json
           echo "matrix=$(cat matrix.json)" >> "$GITHUB_OUTPUT"
 
