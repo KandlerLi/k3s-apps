@@ -36,10 +36,14 @@ jobs:
         run: >-
           docker build
           -t ghcr.io/kandlerli/sankey-export:${{ github.sha }}
+          -t ghcr.io/kandlerli/sankey-export:main
           containers/sankey-export
 
+      # :main is what Renovate follows to propose the new digest in terraform.tfvars.
       - name: Push sankey-export image
-        run: docker push ghcr.io/kandlerli/sankey-export:${{ github.sha }}
+        run: |
+          docker push ghcr.io/kandlerli/sankey-export:${{ github.sha }}
+          docker push ghcr.io/kandlerli/sankey-export:main
 
       # The immutable digest is what terraform.tfvars pins.
       - name: Print pushed image digest
