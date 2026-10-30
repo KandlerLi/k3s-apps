@@ -26,6 +26,12 @@ resource "kubernetes_deployment_v1" "headlamp" {
         # Pre-created in k3s-bootstrap.
         service_account_name = "headlamp"
 
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         container {
           name  = "headlamp"
           image = "ghcr.io/headlamp-k8s/headlamp:v0.46.0@sha256:8a0ef97527544baa2b35825940ddf4db6e2d09c30cd5aa31fd269ff604cc8b75"

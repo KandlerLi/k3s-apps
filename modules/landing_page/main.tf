@@ -39,6 +39,12 @@ resource "kubernetes_deployment_v1" "landing_page" {
       }
 
       spec {
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         container {
           name = "landing-page"
           # Same pinned digest the old role used.

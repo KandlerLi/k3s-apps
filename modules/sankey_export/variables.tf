@@ -1,7 +1,7 @@
 variable "sankey_export_image" {
   description = <<-EOT
     Full ghcr.io/kandlerli/sankey-export reference, pinned by digest.
-    Built by home-infra's build-sankey-export.yml workflow.
+    Built by this repo's build-sankey-export.yml workflow.
   EOT
   type        = string
 }

@@ -36,6 +36,12 @@ resource "kubernetes_daemon_set_v1" "node_exporter" {
         host_pid     = true
         dns_policy   = "ClusterFirstWithHostNet"
 
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         container {
           name = "node-exporter"
           # Same image as home-infra's node_exporter, so metric names never diverge.
@@ -143,6 +149,15 @@ resource "kubernetes_deployment_v1" "kube_state_metrics" {
       spec {
         # Pre-created in k3s-bootstrap.
         service_account_name = "kube-state-metrics"
+
+        security_context {
+          # The provider otherwise sends false, which the namespace's restricted level rejects.
+          run_as_non_root = true
+
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
 
         container {
           name  = "kube-state-metrics"

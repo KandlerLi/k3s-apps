@@ -2,9 +2,8 @@ variable "home_agent_image" {
   description = <<-EOT
     Full ghcr.io/kandlerli/home-agent reference, pinned by digest --
     built and pushed by home-infra's build-home-agent.yml workflow on
-    its self-hosted CI runner, never on the homeserver itself. Update
-    this by hand after each meaningful build (see that workflow's
-    "Print pushed image digest" step output).
+    its self-hosted CI runner, never on the homeserver itself. Pinned
+    as :main@sha256:...; Renovate proposes each new build's digest.
   EOT
   type        = string
 }
