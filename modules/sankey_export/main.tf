@@ -39,32 +39,11 @@ resource "kubernetes_cron_job_v1" "sankey_export" {
             }
 
             security_context {
+              # The provider otherwise sends false, which the restricted level rejects.
+              run_as_non_root = true
+
               seccomp_profile {
                 type = "RuntimeDefault"
-              }
-            }
-
-            # fs_group doesn't fix hostPath ownership, so an initContainer chowns it.
-            init_container {
-              name    = "fix-state-dir-ownership"
-              image   = var.sankey_export_image
-              command = ["chown", "10010:10010", "/var/lib/sankey-export"]
-
-              security_context {
-                run_as_user                = 0
-                run_as_group               = 0
-                run_as_non_root            = false
-                read_only_root_filesystem  = true
-                allow_privilege_escalation = false
-                capabilities {
-                  drop = ["ALL"]
-                  add  = ["CHOWN"]
-                }
-              }
-
-              volume_mount {
-                name       = "state"
-                mount_path = "/var/lib/sankey-export"
               }
             }
 
