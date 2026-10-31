@@ -40,6 +40,9 @@ resource "kubernetes_deployment_v1" "landing_page" {
 
       spec {
         security_context {
+          # The provider otherwise sends false, which the restricted level rejects.
+          run_as_non_root = true
+
           seccomp_profile {
             type = "RuntimeDefault"
           }
@@ -52,6 +55,17 @@ resource "kubernetes_deployment_v1" "landing_page" {
 
           port {
             container_port = 8080
+          }
+
+          # The image's own nginx user.
+          security_context {
+            allow_privilege_escalation = false
+            run_as_non_root            = true
+            run_as_user                = 101
+            run_as_group               = 101
+            capabilities {
+              drop = ["ALL"]
+            }
           }
 
           volume_mount {
