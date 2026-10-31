@@ -56,6 +56,9 @@ resource "kubernetes_cron_job_v1" "stalwart_backup" {
             automount_service_account_token = true
 
             security_context {
+              # The provider otherwise sends false, which the restricted level rejects.
+              run_as_non_root = true
+
               seccomp_profile {
                 type = "RuntimeDefault"
               }

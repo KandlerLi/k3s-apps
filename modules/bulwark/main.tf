@@ -67,6 +67,9 @@ resource "kubernetes_deployment_v1" "bulwark" {
         automount_service_account_token = false
 
         security_context {
+          # The provider otherwise sends false, which the restricted level rejects.
+          run_as_non_root = true
+
           fs_group = 1001
           seccomp_profile {
             type = "RuntimeDefault"

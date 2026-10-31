@@ -40,6 +40,9 @@ resource "kubernetes_deployment_v1" "home_agent" {
         }
 
         security_context {
+          # The provider otherwise sends false, which the restricted level rejects.
+          run_as_non_root = true
+
           seccomp_profile {
             type = "RuntimeDefault"
           }
