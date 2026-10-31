@@ -55,6 +55,9 @@ resource "kubernetes_deployment_v1" "paperless" {
         automount_service_account_token = false
 
         security_context {
+          # The provider otherwise sends false, which the restricted level rejects.
+          run_as_non_root = true
+
           seccomp_profile {
             type = "RuntimeDefault"
           }
@@ -66,6 +69,17 @@ resource "kubernetes_deployment_v1" "paperless" {
           image          = "postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73"
           restart_policy = "Always"
           args           = ["-c", "listen_addresses=0.0.0.0"]
+
+          # The alpine image's postgres user; owns the data directory already.
+          security_context {
+            allow_privilege_escalation = false
+            run_as_non_root            = true
+            run_as_user                = 70
+            run_as_group               = 70
+            capabilities {
+              drop = ["ALL"]
+            }
+          }
 
           port {
             name           = "postgres"
