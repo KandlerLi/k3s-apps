@@ -30,12 +30,12 @@ code doesn't need touching.
   acts as its ServiceAccount without a token prompt; that ServiceAccount
   and its read-only RBAC live in `k3s-bootstrap`, since granting RBAC is
   privilege-defining and this CI-applied root can't do it to itself.
-- `modules/deluge/` -- statically-provisioned NFS storage bound to
-  `home-infra`'s `nfs_server` exports (`storage.tf`), Deluge's own
-  web-login Secret reproducing its salted-SHA1 scheme (`secret.tf`), and
-  the Deployment/Services/Ingress (`main.tf`, with an init container
-  working around a Kubernetes `subPath`/NFS `root_squash`
-  incompatibility). Serves `torrent.jkandler.de` in production.
+- `modules/qbittorrent/` -- qBittorrent (replaced Deluge, tracker
+  #50) on Deluge's statically-provisioned NFS storage and uid/gid
+  (`storage.tf`). `qBittorrent.conf` is rewritten from a ConfigMap on
+  every start; its Web UI skips the login for the pod CIDR, and a
+  NetworkPolicy admits only Traefik to that port. Serves
+  `torrent.jkandler.de` in production.
 - `modules/home_agent/` -- `home_agent` + `nextcloud_tools` as sidecars
   in one Pod, sharing a Unix socket through an `emptyDir` (preserves the
   exact trust shape `home-infra`'s own deployment has today, just
@@ -127,8 +127,8 @@ code doesn't need touching.
   needing a network exception in both directions -- but the direction
   here is reversed from Grafana's own: Prometheus (staying on the
   homeserver) has to reach *this*, not the other way around, over a
-  `type = "LoadBalancer"` Service (`modules/deluge`'s own
-  `deluge-peer-svc` precedent -- k3s's bundled ServiceLB binds it
+  `type = "LoadBalancer"` Service (`modules/qbittorrent`'s own
+  `qbittorrent-peer-svc` precedent -- k3s's bundled ServiceLB binds it
   directly to `192.168.101.10:9093`) rather than a ClusterIP +
   Ingress, since this isn't a browser-facing app and needs a plain
   `IP:port` target. Alertmanager itself keeps reaching the ntfy relay,
@@ -207,7 +207,7 @@ code doesn't need touching.
   possible translation, not a rewrite into Kubernetes'
   `IngressRoute`/`Middleware` CRDs), but every backend now routes to
   this cluster's own in-cluster Service DNS names directly
-  (`home-agent-svc`, `open-webui-svc`, `deluge-web-svc`,
+  (`home-agent-svc`, `open-webui-svc`, `qbittorrent-web-svc`,
   `grafana-svc`, `landing-page-svc`) instead of bouncing back out
   through the node's own external address -- this Traefik lives
   inside the cluster now, so it doesn't need to. Nextcloud AIO's own
