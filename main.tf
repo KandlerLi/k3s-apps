@@ -8,8 +8,31 @@ module "headlamp" {
   source = "./modules/headlamp"
 }
 
-module "deluge" {
-  source = "./modules/deluge"
+module "qbittorrent" {
+  source = "./modules/qbittorrent"
+}
+
+# Replaced Deluge in place (tracker #50): same storage, uid/gid, peer port and hostname.
+moved {
+  from = module.deluge.kubernetes_persistent_volume_claim_v1.deluge_downloads
+  to   = module.qbittorrent.kubernetes_persistent_volume_claim_v1.deluge_downloads
+}
+moved {
+  from = module.deluge.kubernetes_persistent_volume_claim_v1.deluge_config
+  to   = module.qbittorrent.kubernetes_persistent_volume_claim_v1.deluge_config
+}
+# Same addresses, so the old object is destroyed before its replacement claims port 6881.
+moved {
+  from = module.deluge.kubernetes_deployment_v1.deluge
+  to   = module.qbittorrent.kubernetes_deployment_v1.qbittorrent
+}
+moved {
+  from = module.deluge.kubernetes_service_v1.deluge_web
+  to   = module.qbittorrent.kubernetes_service_v1.web
+}
+moved {
+  from = module.deluge.kubernetes_service_v1.deluge_peer
+  to   = module.qbittorrent.kubernetes_service_v1.peer
 }
 
 module "home_agent" {
@@ -119,7 +142,7 @@ module "ingress" {
   routes = merge(
     module.home_agent.ingress_routes,
     module.open_webui.ingress_routes,
-    module.deluge.ingress_routes,
+    module.qbittorrent.ingress_routes,
     module.grafana.ingress_routes,
     module.landing_page.ingress_routes,
     module.headlamp.ingress_routes,
