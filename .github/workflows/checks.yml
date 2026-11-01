@@ -15,7 +15,7 @@ jobs:
     runs-on: [self-hosted, home, debian]
     timeout-minutes: 10
     env:
-      # The runner Pod's host_path plugin cache.
+      # Exists in every ARC runner Pod (k3s-bootstrap's github_runner); empty per job, see tracker #52.
       TF_PLUGIN_CACHE_DIR: /terraform-plugin-cache
 
     steps:
@@ -55,7 +55,7 @@ jobs:
       TF_INPUT: "false"
       # Selects provider.tf's in-cluster auth.
       TF_VAR_in_cluster: "true"
-      # The runner Pod's host_path plugin cache (k3s-bootstrap's github_runner).
+      # Exists in every ARC runner Pod (k3s-bootstrap's github_runner); empty per job, see tracker #52.
       TF_PLUGIN_CACHE_DIR: /terraform-plugin-cache
       # Secrets come from Secrets Manager via secrets.tf; the plan role needs GetSecretValue too.
 
