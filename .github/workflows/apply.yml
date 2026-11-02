@@ -27,13 +27,13 @@ jobs:
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "false"
       TF_VAR_in_cluster: "true"
-      # The runner Pod's host_path plugin cache (k3s-bootstrap's github_runner).
+      # Exists in every ARC runner Pod (k3s-bootstrap's github_runner); empty per job, see tracker #52.
       TF_PLUGIN_CACHE_DIR: /terraform-plugin-cache
       # Secrets come from Secrets Manager via secrets.tf, with the same AWS credentials.
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
@@ -55,7 +55,7 @@ jobs:
           fi
 
       - name: Configure short-lived AWS credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}

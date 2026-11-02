@@ -193,6 +193,11 @@ code doesn't need touching.
   replaced entirely by the runner container's own `umask 000` instead,
   which fixes the same race at the actual point files get created,
   no polling and nothing left to fight a later legitimate `chmod`.
+  The module has since moved to
+  [`k3s-bootstrap`](https://github.com/KandlerLi/k3s-bootstrap), and
+  since 2026-11-01 its per-repository Deployments are replaced by ARC
+  runner scale sets that create one Pod per job (tracker #39). Current
+  design: that repo's README, "Runner design".
 - `modules/ingress/` -- moving `shared_ingress` to k3s, the last and
   highest-stakes piece of this whole project: unlike every service
   before it, there's no safe additive window (only one thing can hold
@@ -257,7 +262,8 @@ code doesn't need touching.
 `checks.yml` (plan on every PR) and `apply.yml` (apply on merge to `main`)
 run directly on the runner, with no `container:` key, unlike the AWS
 repos' gha-common workflows. That way their steps share the runner Pod's
-filesystem and see the `k3s-apps-ci` ServiceAccount token Kubernetes
+filesystem and use the runner image's own `node` (for `setup-terraform`'s
+wrapper) and AWS CLI. They also see the `k3s-apps-ci` ServiceAccount token Kubernetes
 mounts there (created by
 [`k3s-bootstrap`](https://github.com/KandlerLi/k3s-bootstrap)), which
 `provider.tf` uses when `TF_VAR_in_cluster` is `true`. They still assume
