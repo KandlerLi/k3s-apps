@@ -62,7 +62,7 @@ resource "kubernetes_deployment_v1" "stalwart" {
 
         container {
           name  = "stalwart"
-          image = "stalwartlabs/stalwart:v0.16.22@sha256:388dcb75a70727c5b551249a6d34b1f1321294852489e4fa3a4e6be698b7c4f0"
+          image = "stalwartlabs/stalwart:v0.16.27@sha256:c429b311c93db5606598abc1c68225a85a6953183848ae01bee9c6a98885836c"
 
           # The public base URL, so redirects and JMAP session URLs use it.
           env {
