@@ -42,7 +42,7 @@ resource "kubernetes_deployment_v1" "alertmanager" {
 
         container {
           name  = "alertmanager"
-          image = "prom/alertmanager:v0.34.0@sha256:690c7b525f4367aa91f73e2f91c632206d32e97c6384bdbf2fb7a861b420340d"
+          image = "prom/alertmanager:v0.34.2@sha256:39d8bb3966c694a124428a3a88fbcffd40bd069129ecd47c059f8a3f17c55f3b"
 
           port {
             name           = "http"
