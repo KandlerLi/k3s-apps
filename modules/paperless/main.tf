@@ -1,7 +1,7 @@
 # Paperless-ngx (ADR 0023) with PostgreSQL and Redis as native sidecars; rootless as home-infra's paperless account 983:978.
 
 locals {
-  image    = "ghcr.io/paperless-ngx/paperless-ngx:3.2.1@sha256:5fa76604a81df6945086e0837b14b56543d137e8ce4f311cc5d9ebe907e74e79"
+  image    = "ghcr.io/paperless-ngx/paperless-ngx:3.4.1@sha256:1a08d8dfc2b51a08de09652dd86ad4d0c611c362382f944533ad38b73125fbc4"
   uid      = 983
   gid      = 978
   src_dir  = "/usr/src/paperless/src"
