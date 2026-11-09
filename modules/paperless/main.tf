@@ -1,7 +1,7 @@
 # Paperless-ngx (ADR 0023) with PostgreSQL and Redis as native sidecars; rootless as home-infra's paperless account 983:978.
 
 locals {
-  image    = "ghcr.io/paperless-ngx/paperless-ngx:3.4.1@sha256:1a08d8dfc2b51a08de09652dd86ad4d0c611c362382f944533ad38b73125fbc4"
+  image    = "ghcr.io/paperless-ngx/paperless-ngx:3.4.2@sha256:d704e84f88300eb6ab001ab15720a2330ff99169cf9f94d6b8fcc44b63a84c84"
   uid      = 983
   gid      = 978
   src_dir  = "/usr/src/paperless/src"
@@ -66,7 +66,7 @@ resource "kubernetes_deployment_v1" "paperless" {
         # 0.0.0.0 so the export CronJob reaches it; args keep the image's entrypoint.
         init_container {
           name           = "postgres"
-          image          = "postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73"
+          image          = "postgres:17-alpine@sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac"
           restart_policy = "Always"
           args           = ["-c", "listen_addresses=0.0.0.0"]
 
@@ -131,7 +131,7 @@ resource "kubernetes_deployment_v1" "paperless" {
         # Task broker only; losing queued tasks on restart is acceptable.
         init_container {
           name           = "redis"
-          image          = "redis:8-alpine@sha256:ba6e394f6acc2a695ef1b6944f161b9ca813711739be68319fa0db3470673f1d"
+          image          = "redis:8-alpine@sha256:71885d8cc6e42f2bc0aa2eb853bfc4be200b5108a46ac50e117ae1df0531fb80"
           restart_policy = "Always"
           args           = ["--bind", "127.0.0.1", "--save", "", "--appendonly", "no"]
 

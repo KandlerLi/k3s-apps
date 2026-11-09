@@ -78,7 +78,7 @@ resource "kubernetes_deployment_v1" "bulwark" {
 
         container {
           name  = "bulwark"
-          image = "ghcr.io/bulwarkmail/webmail:1.19.1@sha256:dcb6ef96e3b020fa30d8a161b94ea39431f4a21a97a663cbc980b515e894879b"
+          image = "ghcr.io/bulwarkmail/webmail:1.21.0@sha256:420069671e7776f49cf40882f35bc37b57593f224c7dddbeb6f78e52341fa207"
 
           port {
             name           = "http"

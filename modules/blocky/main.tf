@@ -48,7 +48,7 @@ resource "kubernetes_deployment_v1" "blocky" {
 
         container {
           name  = "blocky"
-          image = "ghcr.io/0xerr0r/blocky:v0.34.0@sha256:595136fb127f4c952b621113e668c09acdcf15ac054d96ee6d4c51a76c35f5fd"
+          image = "ghcr.io/0xerr0r/blocky:v0.35.0@sha256:4f165b63db0d76c96ecc47c7a8f57caeedc003a912bdce29abb0e283ce02e16b"
 
           port {
             name           = "dns-tcp"
@@ -122,7 +122,7 @@ resource "kubernetes_deployment_v1" "blocky" {
         # Blocky's log writer never reconnects; this exporter exposes the gap.
         container {
           name  = "postgres-exporter"
-          image = "quay.io/prometheuscommunity/postgres-exporter:v0.17.1@sha256:38606faa38c54787525fb0ff2fd6b41b4cfb75d455c1df294927c5f611699b17"
+          image = "quay.io/prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e"
 
           port {
             name           = "metrics"
@@ -181,7 +181,7 @@ resource "kubernetes_deployment_v1" "blocky" {
         # A native sidecar (KEP-753): Postgres is ready before Blocky starts.
         init_container {
           name  = "postgres"
-          image = "postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73"
+          image = "postgres:17-alpine@sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac"
 
           restart_policy = "Always"
 
