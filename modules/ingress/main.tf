@@ -199,6 +199,8 @@ resource "kubernetes_service_v1" "ingress" {
 
   spec {
     type = "LoadBalancer"
+    # Cluster would SNAT clients to a pod IP; safe here because the acme volume pins Traefik to the DNAT target node.
+    external_traffic_policy = "Local"
 
     selector = {
       app = "ingress"
