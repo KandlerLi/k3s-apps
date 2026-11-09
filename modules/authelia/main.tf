@@ -47,7 +47,7 @@ resource "kubernetes_deployment_v1" "authelia" {
 
         container {
           name  = "authelia"
-          image = "ghcr.io/authelia/authelia:4.39.22@sha256:936134132eaf01bfa2faf85055afbc1e0cc1cc5ca4547e9c06408fd0dd784646"
+          image = "ghcr.io/authelia/authelia:4.39.28@sha256:bd97cff4fcbf715b5ff1f9ae286afbe6033afce385302520b0368122d43a6f54"
 
           port {
             name           = "http"
@@ -121,7 +121,7 @@ resource "kubernetes_deployment_v1" "authelia" {
         # Sessions only survive restarts in Redis: a sidecar on 127.0.0.1, its AOF on a PVC.
         container {
           name  = "redis"
-          image = "redis:8-alpine@sha256:ba6e394f6acc2a695ef1b6944f161b9ca813711739be68319fa0db3470673f1d"
+          image = "redis:8-alpine@sha256:71885d8cc6e42f2bc0aa2eb853bfc4be200b5108a46ac50e117ae1df0531fb80"
 
           args = [
             "--bind", "127.0.0.1",

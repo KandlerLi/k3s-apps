@@ -51,7 +51,7 @@ resource "kubernetes_deployment_v1" "landing_page" {
         container {
           name = "landing-page"
           # Same pinned digest the old role used.
-          image = "nginxinc/nginx-unprivileged:1.30.6-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03"
+          image = "nginxinc/nginx-unprivileged:1.31.7-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e"
 
           port {
             container_port = 8080
