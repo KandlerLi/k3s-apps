@@ -44,7 +44,7 @@ resource "kubernetes_deployment_v1" "ingress" {
 
         container {
           name  = "traefik"
-          image = "traefik:v3.7.17@sha256:30ff62491aacdb862ceb8c9edcf2627da638d7deafdd4b6dab32fe34f8aa3e90"
+          image = "traefik:v3.7.17@sha256:f4bb143d1135a579b630ed491e17ec50f6f7c9c6a30585ff3d385471d2a86f5a"
 
           args = [
             "--configFile=/etc/traefik/traefik.yml",

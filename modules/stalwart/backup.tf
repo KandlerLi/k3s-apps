@@ -66,7 +66,7 @@ resource "kubernetes_cron_job_v1" "stalwart_backup" {
 
             container {
               name  = "stalwart-backup"
-              image = "python:3.13-alpine@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a"
+              image = "python:3.15-alpine@sha256:a0f2e268f2ce8f3709611a90054ec6a8ae31f6251f5896b8648b9bb99835e30a"
 
               command = ["python3", "-c", local.stalwart_backup_script]
 
