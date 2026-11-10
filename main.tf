@@ -117,27 +117,31 @@ module "paperless" {
 module "vaultwarden" {
   source = "./modules/vaultwarden"
 
-  # Flip to false once the first account exists: closes signups, opens the client API (ADR 0028).
+  # Flip to false once the first account exists: closes SSO signups, opens the client API (ADR 0028).
   initial_signup = true
+
+  ingress_cluster_ip          = module.ingress.cluster_ip
+  authelia_oidc_client_secret = local.k3s_apps_vaultwarden["authelia_oidc_vaultwarden_client_secret"]
 }
 
 module "authelia" {
   source = "./modules/authelia"
 
-  authelia_session_secret                    = local.home_infra_authelia["authelia_session_secret"]
-  authelia_storage_encryption_key            = local.home_infra_authelia["authelia_storage_encryption_key"]
-  authelia_reset_password_jwt_secret         = local.home_infra_authelia["authelia_reset_password_jwt_secret"]
-  authelia_admin_password_hash               = local.home_infra_authelia["authelia_admin_password_hash"]
-  authelia_stalwart_admin_password_hash      = local.home_infra_authelia["authelia_stalwart_admin_password_hash"]
-  alertmanager_ses_smtp_username             = local.home_infra_monitoring["monitoring_ses_smtp_username"]
-  alertmanager_ses_smtp_password             = local.home_infra_monitoring["monitoring_ses_smtp_password"]
-  authelia_oidc_hmac_secret                  = local.home_infra_authelia["authelia_oidc_hmac_secret"]
-  authelia_oidc_issuer_private_key           = local.home_infra_authelia["authelia_oidc_issuer_private_key"]
-  authelia_oidc_grafana_client_secret_hash   = local.home_infra_authelia["authelia_oidc_grafana_client_secret_hash"]
-  authelia_oidc_openwebui_client_secret_hash = local.home_infra_authelia["authelia_oidc_openwebui_client_secret_hash"]
-  authelia_oidc_nextcloud_client_secret_hash = local.home_infra_authelia["authelia_oidc_nextcloud_client_secret_hash"]
-  authelia_oidc_bulwark_client_secret_hash   = local.home_infra_authelia["authelia_oidc_bulwark_client_secret_hash"]
-  authelia_oidc_paperless_client_secret_hash = local.home_infra_authelia["authelia_oidc_paperless_client_secret_hash"]
+  authelia_session_secret                      = local.home_infra_authelia["authelia_session_secret"]
+  authelia_storage_encryption_key              = local.home_infra_authelia["authelia_storage_encryption_key"]
+  authelia_reset_password_jwt_secret           = local.home_infra_authelia["authelia_reset_password_jwt_secret"]
+  authelia_admin_password_hash                 = local.home_infra_authelia["authelia_admin_password_hash"]
+  authelia_stalwart_admin_password_hash        = local.home_infra_authelia["authelia_stalwart_admin_password_hash"]
+  alertmanager_ses_smtp_username               = local.home_infra_monitoring["monitoring_ses_smtp_username"]
+  alertmanager_ses_smtp_password               = local.home_infra_monitoring["monitoring_ses_smtp_password"]
+  authelia_oidc_hmac_secret                    = local.home_infra_authelia["authelia_oidc_hmac_secret"]
+  authelia_oidc_issuer_private_key             = local.home_infra_authelia["authelia_oidc_issuer_private_key"]
+  authelia_oidc_grafana_client_secret_hash     = local.home_infra_authelia["authelia_oidc_grafana_client_secret_hash"]
+  authelia_oidc_openwebui_client_secret_hash   = local.home_infra_authelia["authelia_oidc_openwebui_client_secret_hash"]
+  authelia_oidc_nextcloud_client_secret_hash   = local.home_infra_authelia["authelia_oidc_nextcloud_client_secret_hash"]
+  authelia_oidc_bulwark_client_secret_hash     = local.home_infra_authelia["authelia_oidc_bulwark_client_secret_hash"]
+  authelia_oidc_paperless_client_secret_hash   = local.home_infra_authelia["authelia_oidc_paperless_client_secret_hash"]
+  authelia_oidc_vaultwarden_client_secret_hash = local.home_infra_authelia["authelia_oidc_vaultwarden_client_secret_hash"]
 }
 
 module "ingress" {

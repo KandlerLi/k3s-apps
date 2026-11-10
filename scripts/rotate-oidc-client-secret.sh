@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: rotate-oidc-client-secret.sh <grafana|openwebui|bulwark|paperless|nextcloud>
+# Usage: rotate-oidc-client-secret.sh <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud>
 # Rotates an Authelia OIDC client secret pair; procedure per client in secrets-manager's runbooks.
 
 set -euo pipefail
@@ -13,7 +13,7 @@ fail() {
   exit 1
 }
 
-[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|nextcloud>"
+[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud>"
 client="$1"
 case "$client" in
   grafana)
@@ -28,11 +28,14 @@ case "$client" in
   paperless)
     client_secret_id="k3s-apps/paperless"
     ;;
+  vaultwarden)
+    client_secret_id="k3s-apps/vaultwarden"
+    ;;
   nextcloud)
     client_secret_id="home-infra/nextcloud"
     ;;
   *)
-    fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|nextcloud>"
+    fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud>"
     ;;
 esac
 hash_key="authelia_oidc_${client}_client_secret_hash"
