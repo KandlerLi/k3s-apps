@@ -114,6 +114,13 @@ module "paperless" {
   paperless_oidc_client_secret = local.k3s_apps_paperless["authelia_oidc_paperless_client_secret"]
 }
 
+module "vaultwarden" {
+  source = "./modules/vaultwarden"
+
+  # Flip to false once the first account exists: closes signups, opens the client API (ADR 0028).
+  initial_signup = true
+}
+
 module "authelia" {
   source = "./modules/authelia"
 
@@ -150,5 +157,6 @@ module "ingress" {
     module.bulwark.ingress_routes,
     module.stalwart.ingress_routes,
     module.paperless.ingress_routes,
+    module.vaultwarden.ingress_routes,
   )
 }
