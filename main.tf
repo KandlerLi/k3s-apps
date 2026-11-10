@@ -117,8 +117,8 @@ module "paperless" {
 module "vaultwarden" {
   source = "./modules/vaultwarden"
 
-  # Flip to false once the first account exists: closes SSO signups, opens the client API (ADR 0028).
-  initial_signup = true
+  # false: SSO signups closed, client API public (ADR 0028). true only while creating an account.
+  initial_signup = false
 
   ingress_cluster_ip          = module.ingress.cluster_ip
   authelia_oidc_client_secret = local.k3s_apps_vaultwarden["authelia_oidc_vaultwarden_client_secret"]
