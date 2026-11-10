@@ -1,4 +1,4 @@
-# Vaultwarden (ADR 0028): features beyond the personal vault are off, and so is all egress.
+# Vaultwarden (ADR 0028, 0029): login only through Authelia, features beyond the personal vault off, egress only to DNS and Traefik.
 
 locals {
   backend_url = "http://${kubernetes_service_v1.vaultwarden.metadata[0].name}:${kubernetes_service_v1.vaultwarden.spec[0].port[0].port}"
@@ -7,7 +7,15 @@ locals {
     DOMAIN          = "https://vault.jkandler.de"
     DATA_FOLDER     = "/data"
     ROCKET_PORT     = "8080"
-    SIGNUPS_ALLOWED = tostring(var.initial_signup)
+    SIGNUPS_ALLOWED = "false"
+    # Authelia's julian_only policy limits who can sign up; the master password still decrypts the vault.
+    SSO_ENABLED         = "true"
+    SSO_ONLY            = "true"
+    SSO_SIGNUPS_ALLOWED = tostring(var.initial_signup)
+    SSO_AUTHORITY       = "https://auth.jkandler.de"
+    SSO_CLIENT_ID       = "vaultwarden"
+    SSO_SCOPES          = "email profile offline_access"
+    SSO_PKCE            = "true"
     # Unset ADMIN_TOKEN already disables /admin; never set DISABLE_ADMIN_TOKEN.
     INVITATIONS_ALLOWED      = "false"
     ORG_CREATION_USERS       = "none"
@@ -52,10 +60,21 @@ resource "kubernetes_deployment_v1" "vaultwarden" {
         labels = {
           app = "vaultwarden"
         }
+
+        # secret_key_ref is read only at start, so a checksum forces a new Pod.
+        annotations = {
+          "checksum/sso-client-secret" = sha256(kubernetes_secret_v1.vaultwarden_sso.data["SSO_CLIENT_SECRET"])
+        }
       }
 
       spec {
         automount_service_account_token = false
+
+        # In-cluster path to Authelia; the public one would hairpin through the router and need internet egress.
+        host_aliases {
+          ip        = var.ingress_cluster_ip
+          hostnames = ["auth.jkandler.de"]
+        }
 
         security_context {
           # The provider otherwise sends false, which the restricted level rejects.
@@ -81,6 +100,15 @@ resource "kubernetes_deployment_v1" "vaultwarden" {
             content {
               name  = env.key
               value = env.value
+            }
+          }
+          env {
+            name = "SSO_CLIENT_SECRET"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.vaultwarden_sso.metadata[0].name
+                key  = "SSO_CLIENT_SECRET"
+              }
             }
           }
 
@@ -172,7 +200,7 @@ resource "kubernetes_service_v1" "vaultwarden" {
   }
 }
 
-# Only Traefik gets in; out, only cluster DNS (no icons, push, mail or HIBP lookups).
+# Only Traefik gets in; out, only cluster DNS and Traefik for Authelia (no icons, push, mail or HIBP lookups).
 resource "kubernetes_network_policy_v1" "vaultwarden" {
   metadata {
     namespace = "apps"
@@ -221,6 +249,20 @@ resource "kubernetes_network_policy_v1" "vaultwarden" {
       }
       ports {
         port     = "53"
+        protocol = "TCP"
+      }
+    }
+
+    egress {
+      to {
+        pod_selector {
+          match_labels = {
+            app = "ingress"
+          }
+        }
+      }
+      ports {
+        port     = "443"
         protocol = "TCP"
       }
     }

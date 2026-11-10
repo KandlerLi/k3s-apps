@@ -204,6 +204,31 @@ resource "kubernetes_secret_v1" "authelia_config" {
               grant_types:
                 - 'authorization_code'
               token_endpoint_auth_method: 'client_secret_basic'
+            # offline_access: the Bitwarden apps keep their session through refresh tokens.
+            - client_id: 'vaultwarden'
+              client_name: 'Vaultwarden'
+              client_secret: '${var.authelia_oidc_vaultwarden_client_secret_hash}'
+              public: false
+              authorization_policy: 'julian_only'
+              consent_mode: 'pre-configured'
+              pre_configured_consent_duration: '1y'
+              require_pkce: true
+              pkce_challenge_method: 'S256'
+              redirect_uris:
+                - 'https://vault.jkandler.de/identity/connect/oidc-signin'
+              scopes:
+                - 'openid'
+                - 'offline_access'
+                - 'profile'
+                - 'email'
+              response_types:
+                - 'code'
+              grant_types:
+                - 'authorization_code'
+                - 'refresh_token'
+              access_token_signed_response_alg: 'none'
+              userinfo_signed_response_alg: 'none'
+              token_endpoint_auth_method: 'client_secret_basic'
 
       session:
         secret: '${var.authelia_session_secret}'
