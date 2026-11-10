@@ -4,7 +4,7 @@
 # here instead of passed via TF_VAR so `terraform plan`/`apply` pick it
 # up automatically. Each build of home-infra's build-home-agent.yml also
 # pushes the :main tag, and Renovate proposes the new digest here.
-home_agent_image = "ghcr.io/kandlerli/home-agent:main@sha256:ec521fb44db1cae7d503dcff58829cab91b49de5099b12b695e49b18c5d76fbd"
+home_agent_image = "ghcr.io/kandlerli/home-agent:main@sha256:9124434f328f51de4216d8f8aa2b69aa012c2c758678403834afb5fbdf9f9434"
 
 # Same as home_agent_image above, except this image's source and build
 # (build-sankey-export.yml) live in this repo: containers/sankey-export/.
