@@ -39,6 +39,7 @@ resource "kubernetes_secret_v1" "authelia_config" {
               - 'k8s.jkandler.de'
               - 'mail.jkandler.de'
               - 'stalwart.jkandler.de'
+              - 'vault.jkandler.de'
             policy: two_factor
 
       # OIDC provider -- lets Grafana, Open WebUI, Nextcloud, and Bulwark
