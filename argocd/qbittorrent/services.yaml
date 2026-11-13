@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-web-svc
+  namespace: apps
+spec:
+  selector:
+    app: qbittorrent
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+# Peer traffic isn't HTTP, so a LoadBalancer on a fixed port.
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-peer-svc
+  namespace: apps
+spec:
+  type: LoadBalancer
+  selector:
+    app: qbittorrent
+  ports:
+    - name: peer-tcp
+      protocol: TCP
+      port: 6881
+      targetPort: 6881
+    - name: peer-udp
+      protocol: UDP
+      port: 6881
+      targetPort: 6881

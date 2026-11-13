@@ -1,6 +1,6 @@
 # Root module: one module block per service under modules/. See the README.
 
-# Argo CD deploys the landing page from argocd/landing-page now: see README, "Argo CD".
+# Argo CD deploys these from argocd/ now: see README, "Argo CD".
 removed {
   from = module.landing_page
 
@@ -9,35 +9,20 @@ removed {
   }
 }
 
-module "headlamp" {
-  source = "./modules/headlamp"
+removed {
+  from = module.headlamp
+
+  lifecycle {
+    destroy = false
+  }
 }
 
-module "qbittorrent" {
-  source = "./modules/qbittorrent"
-}
+removed {
+  from = module.qbittorrent
 
-# Replaced Deluge in place (tracker #50): same storage, uid/gid, peer port and hostname.
-moved {
-  from = module.deluge.kubernetes_persistent_volume_claim_v1.deluge_downloads
-  to   = module.qbittorrent.kubernetes_persistent_volume_claim_v1.deluge_downloads
-}
-moved {
-  from = module.deluge.kubernetes_persistent_volume_claim_v1.deluge_config
-  to   = module.qbittorrent.kubernetes_persistent_volume_claim_v1.deluge_config
-}
-# Same addresses, so the old object is destroyed before its replacement claims port 6881.
-moved {
-  from = module.deluge.kubernetes_deployment_v1.deluge
-  to   = module.qbittorrent.kubernetes_deployment_v1.qbittorrent
-}
-moved {
-  from = module.deluge.kubernetes_service_v1.deluge_web
-  to   = module.qbittorrent.kubernetes_service_v1.web
-}
-moved {
-  from = module.deluge.kubernetes_service_v1.deluge_peer
-  to   = module.qbittorrent.kubernetes_service_v1.peer
+  lifecycle {
+    destroy = false
+  }
 }
 
 module "home_agent" {
@@ -159,7 +144,6 @@ module "ingress" {
   routes = merge(
     module.home_agent.ingress_routes,
     module.open_webui.ingress_routes,
-    module.qbittorrent.ingress_routes,
     module.grafana.ingress_routes,
     {
       home = {
@@ -168,6 +152,20 @@ module "ingress" {
         forward_auth   = true
         rate_limit     = { average = 10, burst = 5 }
         max_body_bytes = 16384
+      }
+      headlamp = {
+        rule           = "Host(`k8s.jkandler.de`)"
+        url            = "http://headlamp:80"
+        forward_auth   = true
+        rate_limit     = { average = 120, burst = 240 }
+        max_body_bytes = 1048576
+      }
+      qbittorrent = {
+        rule           = "Host(`torrent.jkandler.de`)"
+        url            = "http://qbittorrent-web-svc:80"
+        forward_auth   = true
+        rate_limit     = { average = 120, burst = 240 }
+        max_body_bytes = 1048576
       }
       # Argo CD's UI, deployed by k3s-bootstrap; it also logs in through Authelia's OIDC.
       argo = {
@@ -178,7 +176,6 @@ module "ingress" {
         max_body_bytes = 1048576
       }
     },
-    module.headlamp.ingress_routes,
     module.authelia.ingress_routes,
     module.bulwark.ingress_routes,
     module.stalwart.ingress_routes,
