@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: read
 
-  # Every image ref in the Terraform code; home-agent is private to home-infra and scanned there.
+  # Every image ref in the Terraform code and argocd/; home-agent is private to home-infra and scanned there.
   discover-images:
     runs-on: ubuntu-latest
     permissions:
@@ -32,7 +32,7 @@ jobs:
       - id: find
         run: |
           {
-            grep -rhoE '[a-z0-9.-]+(/[a-z0-9._-]+)*(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}' --include='*.tf' --include='*.tfvars' .
+            grep -rhoE '[a-z0-9.-]+(/[a-z0-9._-]+)*(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}' --include='*.tf' --include='*.tfvars' --include='*.yaml' .
             grep -rhoE '^\s*image\s*=\s*"[^"@$]+:[^"@]+"' --include='*.tf' . | sed -E 's/.*"(.*)"/\1/'
           } | grep -v '^ghcr.io/kandlerli/home-agent[:@]' | sort -u \
             | jq -Rnc '[inputs | {name: (split("@")[0] | split("/")[-1]), ref: .}]' > matrix.json

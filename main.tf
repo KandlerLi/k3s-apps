@@ -1,7 +1,12 @@
 # Root module: one module block per service under modules/. See the README.
 
-module "landing_page" {
-  source = "./modules/landing_page"
+# Argo CD deploys the landing page from argocd/landing-page now: see README, "Argo CD".
+removed {
+  from = module.landing_page
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 module "headlamp" {
@@ -155,7 +160,15 @@ module "ingress" {
     module.open_webui.ingress_routes,
     module.qbittorrent.ingress_routes,
     module.grafana.ingress_routes,
-    module.landing_page.ingress_routes,
+    {
+      home = {
+        rule           = "Host(`home.jkandler.de`)"
+        url            = "http://landing-page-svc:80"
+        forward_auth   = true
+        rate_limit     = { average = 10, burst = 5 }
+        max_body_bytes = 16384
+      }
+    },
     module.headlamp.ingress_routes,
     module.authelia.ingress_routes,
     module.bulwark.ingress_routes,

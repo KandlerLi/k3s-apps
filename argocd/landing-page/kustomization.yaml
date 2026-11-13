@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: apps
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+configMapGenerator:
+  - name: landing-page-html
+    files:
+      - files/index.html
+      - files/style.css
+      - files/favicon-128.png
+    options:
+      # Keeps the name Terraform created, so Argo CD adopts the live ConfigMap.
+      disableNameSuffixHash: true
