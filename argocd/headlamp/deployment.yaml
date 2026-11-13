@@ -1,0 +1,58 @@
+# Read-only cluster UI; its ServiceAccount and RBAC live in k3s-bootstrap.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headlamp
+  namespace: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headlamp
+  template:
+    metadata:
+      labels:
+        app: headlamp
+    spec:
+      serviceAccountName: headlamp
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: headlamp
+          image: ghcr.io/headlamp-k8s/headlamp:v0.46.0@sha256:8a0ef97527544baa2b35825940ddf4db6e2d09c30cd5aa31fd269ff604cc8b75
+          # Authelia gates the route, so every visitor acts as the read-only ServiceAccount, without a token prompt.
+          args:
+            - -in-cluster
+            - -unsafe-use-service-account-token
+          ports:
+            - name: http
+              containerPort: 4466
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          # 100:101, the image's headlamp user.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 101
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 4466
+            periodSeconds: 30
+      volumes:
+        - name: tmp
+          emptyDir: {}

@@ -1,0 +1,30 @@
+# Bound by name to k3s-bootstrap's NFS PVs; Argo CD never prunes or deletes them.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: deluge-downloads
+  namespace: apps
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: ["ReadWriteMany"]
+  storageClassName: local-path
+  volumeName: deluge-downloads-pv
+  resources:
+    requests:
+      storage: 500Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: deluge-config
+  namespace: apps
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: ["ReadWriteMany"]
+  storageClassName: local-path
+  volumeName: deluge-config-pv
+  resources:
+    requests:
+      storage: 1Gi

@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+  namespace: apps
+spec:
+  replicas: 1
+  # One instance per config/state.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: qbittorrent
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+      annotations:
+        # sha256 of qBittorrent.conf, so a config change restarts the Pod; CI checks it matches.
+        checksum/config: 5d46827f83b81273e1c556b1142f18d5327a9a1e42342f647d9ba77cb80f0558
+    spec:
+      # Doesn't talk to the Kubernetes API.
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      # qBittorrent rewrites its config on exit, so it's overwritten on every start to keep Git authoritative.
+      initContainers:
+        - name: write-config
+          image: ghcr.io/home-operations/qbittorrent:5.3.0@sha256:5a858e61f94cf2712391db32ed03556576c700858f3e62c4c6fcde262443ebd8
+          command: ["sh", "-c", "mkdir -p /config/qBittorrent && cp /config-source/qBittorrent.conf /config/qBittorrent/qBittorrent.conf"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 993
+            runAsGroup: 986
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: config-source
+              mountPath: /config-source
+              readOnly: true
+      containers:
+        - name: qbittorrent
+          image: ghcr.io/home-operations/qbittorrent:5.3.0@sha256:5a858e61f94cf2712391db32ed03556576c700858f3e62c4c6fcde262443ebd8
+          env:
+            - name: TZ
+              value: Etc/UTC
+          # Like home-infra's deluge account, which owns the NFS exports.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 993
+            runAsGroup: 986
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: web
+              containerPort: 8080
+            - name: peer-tcp
+              containerPort: 6881
+              protocol: TCP
+            - name: peer-udp
+              containerPort: 6881
+              protocol: UDP
+          # Requests as Kubernetes already defaults them from the limits.
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          # exec, not httpGet: the NetworkPolicy admits only Traefik to the Web UI port.
+          readinessProbe:
+            exec:
+              command: ["curl", "-fsS", "-o", "/dev/null", "-H", "Host: torrent.jkandler.de", "http://127.0.0.1:8080/api/v2/app/version"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # Deluge's config volume: qBittorrent keeps to its own qBittorrent/ and .cache/ there, Deluge's files stay for a rollback.
+        - name: config
+          persistentVolumeClaim:
+            claimName: deluge-config
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: deluge-downloads
+        - name: config-source
+          configMap:
+            name: qbittorrent-config
+        - name: tmp
+          emptyDir: {}

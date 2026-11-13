@@ -25,18 +25,18 @@ code doesn't need touching.
   `files/style.css`, pulled from the live homeserver, not fabricated).
   Serves `home.jkandler.de` in production. Deployed by Argo CD, not
   Terraform: see "Argo CD" below. Its route stays in `main.tf`.
-- `modules/headlamp/` -- Headlamp, the read-only cluster UI serving
-  `k8s.jkandler.de` behind Authelia. Runs with
+- `argocd/headlamp/` -- Headlamp, the read-only cluster UI serving
+  `k8s.jkandler.de` behind Authelia, deployed by Argo CD (see "Argo CD"). Runs with
   `-unsafe-use-service-account-token`, so every visitor past Authelia
   acts as its ServiceAccount without a token prompt; that ServiceAccount
   and its read-only RBAC live in `k3s-bootstrap`, since granting RBAC is
   privilege-defining and this CI-applied root can't do it to itself.
-- `modules/qbittorrent/` -- qBittorrent (replaced Deluge, tracker
+- `argocd/qbittorrent/` -- qBittorrent (replaced Deluge, tracker
   #50) on Deluge's statically-provisioned NFS storage and uid/gid
-  (`storage.tf`). `qBittorrent.conf` is rewritten from a ConfigMap on
-  every start; its Web UI skips the login for the pod CIDR, and a
-  NetworkPolicy admits only Traefik to that port. Serves
-  `torrent.jkandler.de` in production.
+  (`storage.yaml`), deployed by Argo CD (see "Argo CD").
+  `qBittorrent.conf` is rewritten from a ConfigMap on every start; its
+  Web UI skips the login for the pod CIDR, and a NetworkPolicy admits
+  only Traefik to that port. Serves `torrent.jkandler.de` in production.
 - `modules/home_agent/` -- `home_agent` + `nextcloud_tools` as sidecars
   in one Pod, sharing a Unix socket through an `emptyDir` (preserves the
   exact trust shape `home-infra`'s own deployment has today, just
@@ -128,7 +128,7 @@ code doesn't need touching.
   needing a network exception in both directions -- but the direction
   here is reversed from Grafana's own: Prometheus (staying on the
   homeserver) has to reach *this*, not the other way around, over a
-  `type = "LoadBalancer"` Service (`modules/qbittorrent`'s own
+  `type = "LoadBalancer"` Service (qBittorrent's own
   `qbittorrent-peer-svc` precedent -- k3s's bundled ServiceLB binds it
   directly to `192.168.101.10:9093`) rather than a ClusterIP +
   Ingress, since this isn't a browser-facing app and needs a plain
@@ -260,28 +260,33 @@ code doesn't need touching.
 
 ## Argo CD
 
-The landing page is the one workload Argo CD deploys instead of
-Terraform. Argo CD itself, its project, the `landing-page` Application and
-its RBAC live in `k3s-bootstrap` (`argocd.tf`, see its docs' "Argo CD").
-This repo holds its side of the UI on `argo.jkandler.de`: the `argo`
-route in `main.tf` (forward-auth, which `modules/authelia` limits to
-`user:julian`) and the `argocd` OIDC client (`julian_only`, PKCE). Its
-secret pair rotates with `scripts/rotate-oidc-client-secret.sh argocd`,
-which applies `k3s-bootstrap` afterwards.
+Argo CD deploys the landing page, Headlamp and qBittorrent instead of
+Terraform, one Application each. Argo CD itself, its project, the
+Applications and its RBAC live in `k3s-bootstrap` (`argocd.tf`, see its
+docs' "Argo CD"). This repo holds its side of the UI on
+`argo.jkandler.de`: the `argo` route in `main.tf` (forward-auth, which
+`modules/authelia` limits to `user:julian`) and the `argocd` OIDC client
+(`julian_only`, PKCE). Its secret pair rotates with
+`scripts/rotate-oidc-client-secret.sh argocd`, which applies
+`k3s-bootstrap` afterwards.
 
 - `argocd/<app>/` holds plain Kustomize manifests. Argo CD syncs `main`
   automatically, with prune and self-heal, so the merge is still the
-  only gate, as for Terraform.
+  only gate, as for Terraform. The routes stay in `main.tf`.
 - Argo CD may change only the objects `k3s-bootstrap` names in its Role,
-  so a new object here needs a `k3s-bootstrap` change first.
-- `main.tf`'s `removed` block took the module out of Terraform state
+  so a new object here needs a `k3s-bootstrap` change first. ConfigMaps
+  keep static names for that reason.
+- qBittorrent's PVCs carry `Prune=false,Delete=false`, and the Role
+  grants no `create` or `delete` on PVCs at all. Its config change
+  restarts the Pod through the `checksum/config` annotation, which the
+  Validate job checks against `qBittorrent.conf`.
+- `main.tf`'s `removed` blocks took the modules out of Terraform state
   without destroying the live objects, and Argo CD adopted them on its
-  first sync.
-- Undoing the trial: put the module back, `import` the three objects
-  (ConfigMap `landing-page-html`, Service `landing-page-svc`, Deployment
-  `landing-page` in `apps`), then remove Argo CD from `k3s-bootstrap`.
-  The Application has no finalizer, so deleting it leaves the objects
-  running.
+  first sync. Before moving an app, `kubectl diff -k argocd/<app>`
+  against the live objects should show nothing but annotations.
+- Handing an app back: put the module back, `import` its objects, then
+  remove its Application and names from `k3s-bootstrap`. Applications
+  have no finalizer, so deleting one leaves its objects running.
 
 ## CI
 

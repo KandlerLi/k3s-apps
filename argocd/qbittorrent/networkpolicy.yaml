@@ -1,0 +1,24 @@
+# The Web UI trusts the whole pod CIDR without a login, so only Traefik may reach it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: qbittorrent
+  namespace: apps
+spec:
+  podSelector:
+    matchLabels:
+      app: qbittorrent
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: ingress
+      ports:
+        - port: 8080
+          protocol: TCP
+    - ports:
+        - port: 6881
+          protocol: TCP
+        - port: 6881
+          protocol: UDP
