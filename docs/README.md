@@ -19,11 +19,12 @@ root `main.tf`. Adding a third service means a new `modules/<service>/`
 directory plus a `module` block in `main.tf` -- an existing service's
 code doesn't need touching.
 
-- `modules/landing_page/` -- the k3s-native equivalent of `home-infra`'s
+- `argocd/landing-page/` -- the k3s-native equivalent of `home-infra`'s
   now-deleted `ansible/roles/landing_page` role: same pinned image
   digest, same mount point, same real content (`files/index.html`,
   `files/style.css`, pulled from the live homeserver, not fabricated).
-  Serves `home.jkandler.de` in production.
+  Serves `home.jkandler.de` in production. Deployed by Argo CD, not
+  Terraform: see "Argo CD" below. Its route stays in `main.tf`.
 - `modules/headlamp/` -- Headlamp, the read-only cluster UI serving
   `k8s.jkandler.de` behind Authelia. Runs with
   `-unsafe-use-service-account-token`, so every visitor past Authelia
@@ -256,6 +257,26 @@ code doesn't need touching.
 - `terraform.tfvars` -- `home_agent_image`'s pinned digest. Not a
   secret, tracked directly rather than read from Secrets Manager like
   the values above.
+
+## Argo CD
+
+A trial: the landing page is the one workload Argo CD deploys instead of
+Terraform. Argo CD itself, its project, the `landing-page` Application and
+its RBAC live in `k3s-bootstrap` (`argocd.tf`, see its docs' "Argo CD").
+
+- `argocd/<app>/` holds plain Kustomize manifests. Argo CD syncs `main`
+  automatically, with prune and self-heal, so the merge is still the
+  only gate, as for Terraform.
+- Argo CD may change only the objects `k3s-bootstrap` names in its Role,
+  so a new object here needs a `k3s-bootstrap` change first.
+- `main.tf`'s `removed` block took the module out of Terraform state
+  without destroying the live objects, and Argo CD adopted them on its
+  first sync.
+- Undoing the trial: put the module back, `import` the three objects
+  (ConfigMap `landing-page-html`, Service `landing-page-svc`, Deployment
+  `landing-page` in `apps`), then remove Argo CD from `k3s-bootstrap`.
+  The Application has no finalizer, so deleting it leaves the objects
+  running.
 
 ## CI
 

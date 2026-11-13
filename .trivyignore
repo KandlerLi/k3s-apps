@@ -5,3 +5,11 @@
 # support inline ignores for checks triggered by an instruction's
 # absence, only ones tied to an existing line).
 DS-0026
+
+# Kubernetes manifests (argocd/): requests only, no CPU limits, like every workload here.
+KSV-0011
+# landing-page runs as nginx-unprivileged's own uid/gid 101.
+KSV-0020
+KSV-0021
+# Images come from Docker Hub too, pinned by digest and scanned by security-scan.yml.
+KSV-0125
