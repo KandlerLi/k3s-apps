@@ -31,6 +31,10 @@ resource "kubernetes_secret_v1" "authelia_config" {
         rules:
           - domain: 'auth.jkandler.de'
             policy: bypass
+          # Argo CD can deploy: only julian, like its OIDC client.
+          - domain: 'argo.jkandler.de'
+            policy: two_factor
+            subject: 'user:julian'
           - domain:
               - 'ai.jkandler.de'
               - 'torrent.jkandler.de'
@@ -194,6 +198,28 @@ resource "kubernetes_secret_v1" "authelia_config" {
               pkce_challenge_method: 'S256'
               redirect_uris:
                 - 'https://docs.jkandler.de/accounts/oidc/authelia/login/callback/'
+              scopes:
+                - 'openid'
+                - 'profile'
+                - 'groups'
+                - 'email'
+              response_types:
+                - 'code'
+              grant_types:
+                - 'authorization_code'
+              token_endpoint_auth_method: 'client_secret_basic'
+            - client_id: 'argocd'
+              client_name: 'Argo CD'
+              client_secret: '${var.authelia_oidc_argocd_client_secret_hash}'
+              public: false
+              authorization_policy: 'julian_only'
+              consent_mode: 'pre-configured'
+              pre_configured_consent_duration: '1y'
+              claims_policy: 'groups_in_id_token'
+              require_pkce: true
+              pkce_challenge_method: 'S256'
+              redirect_uris:
+                - 'https://argo.jkandler.de/auth/callback'
               scopes:
                 - 'openid'
                 - 'profile'

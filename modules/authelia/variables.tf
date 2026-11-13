@@ -206,3 +206,14 @@ variable "authelia_oidc_vaultwarden_client_secret_hash" {
   type        = string
   sensitive   = true
 }
+
+variable "authelia_oidc_argocd_client_secret_hash" {
+  description = <<-EOT
+    pbkdf2-sha512 hash of Argo CD's own OIDC client secret -- the
+    plaintext goes to k3s-bootstrap's argocd.tf. Sourced from AWS Secrets
+    Manager's home-infra/authelia group (secrets.tf's
+    local.home_infra_authelia["authelia_oidc_argocd_client_secret_hash"]).
+  EOT
+  type        = string
+  sensitive   = true
+}

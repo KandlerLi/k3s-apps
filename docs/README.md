@@ -260,9 +260,14 @@ code doesn't need touching.
 
 ## Argo CD
 
-A trial: the landing page is the one workload Argo CD deploys instead of
+The landing page is the one workload Argo CD deploys instead of
 Terraform. Argo CD itself, its project, the `landing-page` Application and
 its RBAC live in `k3s-bootstrap` (`argocd.tf`, see its docs' "Argo CD").
+This repo holds its side of the UI on `argo.jkandler.de`: the `argo`
+route in `main.tf` (forward-auth, which `modules/authelia` limits to
+`user:julian`) and the `argocd` OIDC client (`julian_only`, PKCE). Its
+secret pair rotates with `scripts/rotate-oidc-client-secret.sh argocd`,
+which applies `k3s-bootstrap` afterwards.
 
 - `argocd/<app>/` holds plain Kustomize manifests. Argo CD syncs `main`
   automatically, with prune and self-heal, so the merge is still the

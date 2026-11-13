@@ -147,6 +147,7 @@ module "authelia" {
   authelia_oidc_bulwark_client_secret_hash     = local.home_infra_authelia["authelia_oidc_bulwark_client_secret_hash"]
   authelia_oidc_paperless_client_secret_hash   = local.home_infra_authelia["authelia_oidc_paperless_client_secret_hash"]
   authelia_oidc_vaultwarden_client_secret_hash = local.home_infra_authelia["authelia_oidc_vaultwarden_client_secret_hash"]
+  authelia_oidc_argocd_client_secret_hash      = local.home_infra_authelia["authelia_oidc_argocd_client_secret_hash"]
 }
 
 module "ingress" {
@@ -167,6 +168,14 @@ module "ingress" {
         forward_auth   = true
         rate_limit     = { average = 10, burst = 5 }
         max_body_bytes = 16384
+      }
+      # Argo CD's UI, deployed by k3s-bootstrap; it also logs in through Authelia's OIDC.
+      argo = {
+        rule           = "Host(`argo.jkandler.de`)"
+        url            = "http://argocd-server.argocd.svc.cluster.local:80"
+        forward_auth   = true
+        rate_limit     = { average = 120, burst = 240 }
+        max_body_bytes = 1048576
       }
     },
     module.headlamp.ingress_routes,

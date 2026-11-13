@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: rotate-oidc-client-secret.sh <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud>
+# Usage: rotate-oidc-client-secret.sh <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud|argocd>
 # Rotates an Authelia OIDC client secret pair; procedure per client in secrets-manager's runbooks.
 
 set -euo pipefail
@@ -13,7 +13,7 @@ fail() {
   exit 1
 }
 
-[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud>"
+[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud|argocd>"
 client="$1"
 case "$client" in
   grafana)
@@ -34,8 +34,11 @@ case "$client" in
   nextcloud)
     client_secret_id="home-infra/nextcloud"
     ;;
+  argocd)
+    client_secret_id="home-infra/argocd"
+    ;;
   *)
-    fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud>"
+    fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud|argocd>"
     ;;
 esac
 hash_key="authelia_oidc_${client}_client_secret_hash"
@@ -121,8 +124,8 @@ aws secretsmanager put-secret-value --secret-id "${client_secret_id}" --region "
   --secret-string "file://${tmp_client}" --query VersionId --output text >/dev/null \
   || fail "put-secret-value for ${client_secret_id} failed"
 
-if [ "${client}" = "nextcloud" ]; then
-  echo "==> terraform apply (rolls Authelia's own side only -- nextcloud has no k3s Deployment)"
+if [ "${client}" = "nextcloud" ] || [ "${client}" = "argocd" ]; then
+  echo "==> terraform apply (rolls Authelia's own side only -- ${client} isn't deployed from this repo)"
   echo "    review the plan -- it should touch only Authelia's own Secret"
 else
   echo "==> terraform apply (rolls Authelia + ${client} together, in sync)"
@@ -130,6 +133,14 @@ else
 fi
 terraform init -input=false >/dev/null
 terraform apply
+
+if [ "${client}" = "argocd" ]; then
+  k3s_bootstrap_dir="${repo_root}/../../bootstrap/k3s-bootstrap"
+  [ -x "${k3s_bootstrap_dir}/scripts/roll-out.sh" ] || fail "expected KandlerLi/k3s-bootstrap at ${k3s_bootstrap_dir}, not found"
+
+  echo "==> applying KandlerLi/k3s-bootstrap so Argo CD's own Secret picks up the new plaintext"
+  ( cd "${k3s_bootstrap_dir}" && scripts/roll-out.sh apply )
+fi
 
 if [ "${client}" = "nextcloud" ]; then
   home_infra_dir="${repo_root}/../home-infra"
