@@ -1,5 +1,5 @@
 locals {
-  stalwart_url = "http://${kubernetes_service_v1.stalwart_internal.metadata[0].name}:${kubernetes_service_v1.stalwart_internal.spec[0].port[0].port}"
+  stalwart_url = "http://stalwart-internal:8080"
 }
 
 output "ingress_routes" {
