@@ -1,0 +1,107 @@
+# Nightly copy of Authelia's SQLite database to the red HDD; its NFS PVC stays in modules/authelia.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: authelia-backup
+  namespace: auth
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 120
+      backoffLimit: 0
+      completions: 1
+      manualSelector: false
+      parallelism: 1
+      template:
+        metadata:
+          labels:
+            app: authelia-backup
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - python3
+            - -c
+            - |
+              import glob
+              import gzip
+              import os
+              import shutil
+              import sqlite3
+              import time
+
+              SRC = "/authelia-data/db.sqlite3"
+              DEST_DIR = "/backup"
+              RETENTION_DAYS = 14
+              TMP_DEST = "/tmp/db.sqlite3"
+
+              date = time.strftime("%Y%m%d-%H%M%S")
+
+              source_conn = sqlite3.connect(f"file:{SRC}?mode=ro", uri=True)
+              dest_conn = sqlite3.connect(TMP_DEST)
+              with dest_conn:
+                  source_conn.backup(dest_conn)
+              source_conn.close()
+              dest_conn.close()
+
+              out_path = os.path.join(DEST_DIR, f"authelia-db-{date}.sqlite3.gz")
+              with open(TMP_DEST, "rb") as f_in, gzip.open(out_path, "wb") as f_out:
+                  shutil.copyfileobj(f_in, f_out)
+              os.remove(TMP_DEST)
+
+              cutoff = time.time() - RETENTION_DAYS * 86400
+              for old in glob.glob(os.path.join(DEST_DIR, "authelia-db-*.sqlite3.gz")):
+                  if os.path.getmtime(old) < cutoff:
+                      os.remove(old)
+
+              print(f"Authelia backup written: {out_path}")
+            image: python:3.15-alpine@sha256:a0f2e268f2ce8f3709611a90054ec6a8ae31f6251f5896b8648b9bb99835e30a
+            name: authelia-backup
+            resources:
+              limits:
+                cpu: 250m
+                memory: 128Mi
+              requests:
+                cpu: 10m
+                memory: 32Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              privileged: false
+              readOnlyRootFilesystem: true
+              runAsGroup: 979
+              runAsNonRoot: true
+              runAsUser: 984
+            volumeMounts:
+            - mountPath: /authelia-data
+              mountPropagation: None
+              name: authelia-data
+              readOnly: true
+            - mountPath: /backup
+              mountPropagation: None
+              name: authelia-backup
+            - mountPath: /tmp
+              mountPropagation: None
+              name: tmp
+          enableServiceLinks: true
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          shareProcessNamespace: false
+          volumes:
+          - name: authelia-data
+            persistentVolumeClaim:
+              claimName: authelia-data
+          - name: authelia-backup
+            persistentVolumeClaim:
+              claimName: authelia-backup
+          - emptyDir: {}
+            name: tmp
+  schedule: 45 3 * * *
+  startingDeadlineSeconds: 300
