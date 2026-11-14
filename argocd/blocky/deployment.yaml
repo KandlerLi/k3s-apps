@@ -1,0 +1,191 @@
+# Blocky, the LAN's DNS with ad blocking, and Postgres in one Pod: the query log connects via 127.0.0.1. Secrets, PVC and checksums: modules/blocky.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blocky
+  namespace: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blocky
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: blocky
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - image: ghcr.io/0xerr0r/blocky:v0.35.0@sha256:4f165b63db0d76c96ecc47c7a8f57caeedc003a912bdce29abb0e283ce02e16b
+        livenessProbe:
+          exec:
+            command:
+            - /app/blocky
+            - healthcheck
+          failureThreshold: 5
+          initialDelaySeconds: 15
+          periodSeconds: 30
+          timeoutSeconds: 5
+        name: blocky
+        ports:
+        - containerPort: 53
+          name: dns-tcp
+        - containerPort: 53
+          name: dns-udp
+          protocol: UDP
+        - containerPort: 4000
+          name: http
+        readinessProbe:
+          exec:
+            command:
+            - /app/blocky
+            - healthcheck
+          failureThreshold: 5
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: '1'
+            memory: 256Mi
+          requests:
+            cpu: 20m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - NET_BIND_SERVICE
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 100
+        volumeMounts:
+        - mountPath: /app/config.yml
+          mountPropagation: None
+          name: config
+          readOnly: true
+          subPath: config.yml
+        - mountPath: /tmp
+          mountPropagation: None
+          name: tmp
+      - envFrom:
+        - secretRef:
+            name: blocky-postgres-exporter-dsn
+            optional: false
+        image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /metrics
+            port: 9187
+          initialDelaySeconds: 20
+          periodSeconds: 30
+          timeoutSeconds: 5
+        name: postgres-exporter
+        ports:
+        - containerPort: 9187
+          name: metrics
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /metrics
+            port: 9187
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+      enableServiceLinks: true
+      initContainers:
+      - args:
+        - -c
+        - listen_addresses=0.0.0.0
+        envFrom:
+        - secretRef:
+            name: blocky-postgres-credentials
+            optional: false
+        image: postgres:17-alpine@sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - blocky
+            - -d
+            - blocky_query_log
+          failureThreshold: 5
+          initialDelaySeconds: 20
+          periodSeconds: 30
+          timeoutSeconds: 5
+        name: postgres
+        ports:
+        - containerPort: 5432
+          name: postgres
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - blocky
+            - -d
+            - blocky_query_log
+          failureThreshold: 5
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 20m
+            memory: 64Mi
+        restartPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsGroup: 70
+          runAsNonRoot: true
+          runAsUser: 70
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          mountPropagation: None
+          name: postgres-data
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      shareProcessNamespace: false
+      volumes:
+      - name: config
+        secret:
+          optional: false
+          secretName: blocky-config
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 16Mi
+        name: tmp
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: blocky-postgres
