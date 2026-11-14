@@ -88,11 +88,13 @@ module "stalwart" {
   stalwart_ses_smtp_password = local.home_infra_monitoring["monitoring_ses_smtp_password"]
 }
 
-# Stalwart's runtime settings, separate from the Kubernetes objects in module "stalwart".
-module "stalwart_config" {
-  source = "./modules/stalwart_config"
+# Stalwart's runtime settings moved to the stalwart-config repo, which imported them.
+removed {
+  from = module.stalwart_config
 
-  ses_smtp_username = local.home_infra_monitoring["monitoring_ses_smtp_username"]
+  lifecycle {
+    destroy = false
+  }
 }
 
 module "bulwark" {
