@@ -1,0 +1,5 @@
+apiVersion: v2
+name: ingress
+description: Traefik for k3s-apps, with every app's route in values.yaml.
+type: application
+version: 1.0.0
