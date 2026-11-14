@@ -1,9 +1,12 @@
-# Vaultwarden (ADR 0028, 0029): login only through Authelia. Secret, PVC and checksum: modules/vaultwarden.
+# Vaultwarden (ADR 0028, 0029): login only through Authelia. Secret: externalsecret.yaml.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vaultwarden
   namespace: apps
+  annotations:
+    # Reloader (k3s-bootstrap) restarts the Pod when the Secret changes.
+    secret.reloader.stakater.com/reload: vaultwarden-sso
 spec:
   replicas: 1
   selector:

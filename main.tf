@@ -104,8 +104,6 @@ module "paperless" {
 
 module "vaultwarden" {
   source = "./modules/vaultwarden"
-
-  authelia_oidc_client_secret = local.k3s_apps_vaultwarden["authelia_oidc_vaultwarden_client_secret"]
 }
 
 module "authelia" {

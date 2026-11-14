@@ -6,6 +6,7 @@ namespace: apps
 resources:
   - backup-cronjob.yaml
   - deployment.yaml
+  - externalsecret.yaml
   - networkpolicy.yaml
   - service.yaml
   - storage.yaml

@@ -39,11 +39,6 @@ data "aws_secretsmanager_secret_version" "k3s_apps_paperless" {
   secret_id = "k3s-apps/paperless"
 }
 
-# Vaultwarden's Authelia OIDC client secret (plaintext half), ADR 0029.
-data "aws_secretsmanager_secret_version" "k3s_apps_vaultwarden" {
-  secret_id = "k3s-apps/vaultwarden"
-}
-
 locals {
   home_infra_authelia      = jsondecode(data.aws_secretsmanager_secret_version.home_infra_authelia.secret_string)
   home_infra_grafana       = jsondecode(data.aws_secretsmanager_secret_version.home_infra_grafana.secret_string)
@@ -54,5 +49,4 @@ locals {
   k3s_apps_ghcr_pull_token = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_ghcr_pull_token.secret_string)
   k3s_apps_stalwart        = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_stalwart.secret_string)
   k3s_apps_paperless       = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_paperless.secret_string)
-  k3s_apps_vaultwarden     = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_vaultwarden.secret_string)
 }
