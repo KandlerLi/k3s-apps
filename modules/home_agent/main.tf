@@ -1,4 +1,4 @@
-# home_agent's Secrets and their checksums; Argo CD runs the workload from argocd/home-agent. See README, "Argo CD".
+# Argo CD runs home_agent from argocd/home-agent, ESO supplies its Secrets; Terraform only forgets. See README, "Argo CD".
 
 removed {
   from = kubernetes_deployment_v1.home_agent
@@ -25,20 +25,43 @@ removed {
 }
 
 # Restarts Argo CD's Pod when a Secret here changes; Argo CD's manifest leaves these annotations out.
-resource "kubernetes_annotations" "home_agent_checksums" {
-  api_version   = "apps/v1"
-  kind          = "Deployment"
-  field_manager = "terraform-secret-checksums"
-  force         = true
+removed {
+  from = kubernetes_annotations.home_agent_checksums
 
-  metadata {
-    namespace = "apps"
-    name      = "home-agent"
+  lifecycle {
+    destroy = false
   }
+}
 
-  template_annotations = {
-    "checksum/openai-api-key"         = sha256(kubernetes_secret_v1.openai_api_key.data["openai_api_key"])
-    "checksum/anthropic-api-key"      = sha256(kubernetes_secret_v1.anthropic_api_key.data["anthropic_api_key"])
-    "checksum/nextcloud-app-password" = sha256(kubernetes_secret_v1.nextcloud_tools_app_password.data["app-password"])
+# The Secrets moved to ESO (argocd/home-agent/externalsecret.yaml, ADR 0032); forgotten here, never deleted.
+removed {
+  from = module.ghcr_pull_secret
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.openai_api_key
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.anthropic_api_key
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.nextcloud_tools_app_password
+
+  lifecycle {
+    destroy = false
   }
 }

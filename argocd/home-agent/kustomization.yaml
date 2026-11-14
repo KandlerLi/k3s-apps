@@ -5,6 +5,7 @@ namespace: apps
 
 resources:
   - deployment.yaml
+  - externalsecret.yaml
   - service.yaml
 
 configMapGenerator:
