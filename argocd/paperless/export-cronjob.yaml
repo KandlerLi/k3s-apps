@@ -1,0 +1,102 @@
+# Nightly document_exporter mirror to the red HDD (ADR 0023), at 04:15 after the other red-HDD jobs.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: paperless-export
+  namespace: apps
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 3600
+      backoffLimit: 0
+      completions: 1
+      manualSelector: false
+      parallelism: 1
+      template:
+        metadata:
+          labels:
+            app: paperless-export
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - python3
+            - manage.py
+            - document_exporter
+            - /usr/src/paperless/export
+            - --delete
+            - --no-progress-bar
+            env:
+            - name: PAPERLESS_DATA_DIR
+              value: /tmp/paperless-data
+            - name: PAPERLESS_DBENGINE
+              value: postgresql
+            - name: PAPERLESS_DBHOST
+              value: paperless-svc
+            - name: PAPERLESS_DBNAME
+              value: paperless
+            - name: PAPERLESS_DBUSER
+              value: paperless
+            - name: PAPERLESS_TIME_ZONE
+              value: Europe/Berlin
+            - name: PAPERLESS_URL
+              value: https://docs.jkandler.de
+            envFrom:
+            - secretRef:
+                name: paperless-env
+                optional: false
+            image: ghcr.io/paperless-ngx/paperless-ngx:3.4.2@sha256:d704e84f88300eb6ab001ab15720a2330ff99169cf9f94d6b8fcc44b63a84c84
+            name: paperless-export
+            resources:
+              limits:
+                cpu: '1'
+                memory: 1Gi
+              requests:
+                cpu: 50m
+                memory: 256Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              privileged: false
+              readOnlyRootFilesystem: false
+              runAsGroup: 978
+              runAsNonRoot: true
+              runAsUser: 983
+            volumeMounts:
+            - mountPath: /usr/src/paperless/media
+              mountPropagation: None
+              name: media
+            - mountPath: /usr/src/paperless/export
+              mountPropagation: None
+              name: export
+            - mountPath: /tmp
+              mountPropagation: None
+              name: tmp
+            - mountPath: /usr/src/paperless/consume
+              mountPropagation: None
+              name: consume
+            workingDir: /usr/src/paperless/src
+          enableServiceLinks: true
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          shareProcessNamespace: false
+          volumes:
+          - name: media
+            persistentVolumeClaim:
+              claimName: paperless-media
+          - name: export
+            persistentVolumeClaim:
+              claimName: paperless-export
+          - emptyDir: {}
+            name: tmp
+          - emptyDir: {}
+            name: consume
+  schedule: 15 4 * * *
+  startingDeadlineSeconds: 300
