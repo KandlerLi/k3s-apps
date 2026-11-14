@@ -1,0 +1,21 @@
+misconfigurations:
+  - id: DS-0026
+    paths:
+      - containers/sankey-export/Dockerfile
+    statement: >-
+      HEALTHCHECK has no meaning for a run-once CronJob image; trivy has no
+      inline ignore for a check triggered by a missing instruction.
+  - id: KSV-0011
+    statement: Requests only, no CPU limits, like every workload here.
+  - id: KSV-0020
+    statement: Workloads run as their images' own users, all below 10000.
+  - id: KSV-0021
+    statement: Workloads run as their images' own groups, all below 10000.
+  - id: KSV-0125
+    statement: Images come from Docker Hub and GHCR too, pinned by digest and scanned by security-scan.yml.
+  - id: KSV-0014
+    paths:
+      - argocd/bulwark/deployment.yaml
+    statement: >-
+      Bulwark (Next.js) ran with a writable root filesystem under Terraform
+      too; read-only needs testing which paths it writes.
