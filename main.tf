@@ -37,8 +37,6 @@ module "home_agent" {
 module "open_webui" {
   source = "./modules/open_webui"
 
-  authelia_oidc_openwebui_client_secret = local.home_infra_open_webui["authelia_oidc_openwebui_client_secret"]
-
   depends_on = [module.home_agent]
 }
 
