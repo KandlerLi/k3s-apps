@@ -1,0 +1,93 @@
+# Renders the budget Sankey diagram every minute and uploads it to Nextcloud (history.md); image built from containers/sankey-export. Secrets and PVC: modules/sankey_export.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sankey-export
+  namespace: apps
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 120
+      backoffLimit: 0
+      completions: 1
+      manualSelector: false
+      parallelism: 1
+      template:
+        metadata:
+          labels:
+            app: sankey-export
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - env:
+            - name: SANKEY_EXPORT_ENDPOINT_HOST
+              value: 192.168.101.1
+            - name: SANKEY_EXPORT_ENDPOINT_PORT
+              value: '11000'
+            - name: SANKEY_EXPORT_HTTP_HOST
+              value: nextcloud.jkandler.de
+            - name: SANKEY_EXPORT_USERNAME
+              value: sankey-export
+            - name: SANKEY_EXPORT_APP_PASSWORD_FILE
+              value: /etc/sankey-export/app-password
+            - name: SANKEY_EXPORT_REMOTE_DIR
+              value: Shared/Finanzen
+            - name: SANKEY_EXPORT_WORKBOOK_NAME
+              value: Finanzfluss_Nextcloud.xlsx
+            - name: SANKEY_EXPORT_OUTPUT_DIR
+              value: /var/lib/sankey-export/out
+            - name: SANKEY_EXPORT_STATE_FILE
+              value: /var/lib/sankey-export/last-etag
+            image: ghcr.io/kandlerli/sankey-export:main@sha256:0bde585edbd35c7313ba85e468e119b684e13a829b44adc9d567834ad6a95622
+            name: sankey-export
+            resources:
+              limits:
+                cpu: '1'
+                memory: 768Mi
+              requests:
+                cpu: 100m
+                memory: 128Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              privileged: false
+              readOnlyRootFilesystem: true
+              runAsGroup: 10010
+              runAsNonRoot: true
+              runAsUser: 10010
+            volumeMounts:
+            - mountPath: /etc/sankey-export
+              mountPropagation: None
+              name: app-password
+              readOnly: true
+            - mountPath: /tmp
+              mountPropagation: None
+              name: tmp
+            - mountPath: /var/lib/sankey-export
+              mountPropagation: None
+              name: state
+          enableServiceLinks: true
+          imagePullSecrets:
+          - name: sankey-export-ghcr-pull-secret
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          shareProcessNamespace: false
+          volumes:
+          - name: app-password
+            secret:
+              optional: false
+              secretName: sankey-export-app-password
+          - emptyDir: {}
+            name: tmp
+          - name: state
+            persistentVolumeClaim:
+              claimName: sankey-export-state
+  schedule: '* * * * *'
+  startingDeadlineSeconds: 60
