@@ -254,10 +254,6 @@ code doesn't need touching.
   (see `modules/home_agent/variables.tf`), just no longer kept in a
   physically separate vault to express that; the AWS-side grouping is
   by owning repo/service now, not by revocability.
-- `terraform.tfvars` -- `sankey_export_image`'s pinned digest. Not a
-  secret, tracked directly rather than read from Secrets Manager like
-  the values above. home_agent's image is pinned in
-  `argocd/home-agent/deployment.yaml` instead.
 
 ## Argo CD
 
@@ -364,9 +360,9 @@ for the S3 state backend below. Your own `aws login` session (the
 `julian` operator identity) already has read access to every secret
 group this repo touches ([`terraform-state`](https://github.com/KandlerLi/terraform-state)'s own
 `operator.tf`). The own images' digests aren't secrets: they're
-pinned directly (`sankey_export_image` in `terraform.tfvars`,
-home_agent's in `argocd/home-agent/deployment.yaml`), as
-`:main@sha256:…`; Renovate proposes each new build's digest.
+pinned directly in their manifests under `argocd/` (home-agent,
+sankey-export), as `:main@sha256:…`; Renovate proposes each new
+build's digest.
 
 No `KUBECONFIG=...` prefix needed for the `terraform` commands above --
 unlike `kubectl`, the `kubernetes` provider does **not** read that
