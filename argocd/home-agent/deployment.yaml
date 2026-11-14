@@ -1,0 +1,147 @@
+# home_agent and nextcloud_tools share a Unix socket in one Pod; nextcloud_tools is never on the network.
+# Its Secrets, the GHCR pull Secret and their checksum annotations stay in modules/home_agent.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-agent
+  namespace: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: home-agent
+  template:
+    metadata:
+      labels:
+        app: home-agent
+      annotations:
+        # sha256 of nextcloud_tools_service.py: a ConfigMap change alone never restarts the sidecar; CI checks it matches.
+        checksum/nextcloud-tools-source: d9c12ba5e9f9a00a0d98bf39d40cd3ab46fde83a4e5120bd0edfccc4671c9dfb
+    spec:
+      # Neither container talks to the Kubernetes API.
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: home-agent
+          # Built by home-infra's build-home-agent.yml; Renovate proposes each new :main digest.
+          image: ghcr.io/kandlerli/home-agent:main@sha256:9124434f328f51de4216d8f8aa2b69aa012c2c758678403834afb5fbdf9f9434
+          env:
+            - name: HOME_AGENT_MODEL
+              value: claude-opus-5
+            - name: HOME_AGENT_STT_MODEL
+              value: whisper-1
+            - name: ANTHROPIC_API_KEY_FILE
+              value: /run/secrets/anthropic/anthropic_api_key
+            - name: OPENAI_API_KEY_FILE
+              value: /run/secrets/openai/openai_api_key
+            - name: NEXTCLOUD_TOOLS_SOCKET
+              value: /run/nextcloud-tools/nextcloud-tools.sock
+            # Switches HomeToolsClient to TCP.
+            - name: HOME_TOOLS_TCP_BASE_URL
+              value: http://192.168.101.1:8095
+          ports:
+            - name: http
+              containerPort: 8000
+          # Requests as Kubernetes already defaults them from the limits.
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: nextcloud-tools-socket
+              mountPath: /run/nextcloud-tools
+              readOnly: true
+            - name: openai-api-key
+              mountPath: /run/secrets/openai
+              readOnly: true
+            - name: anthropic-api-key
+              mountPath: /run/secrets/anthropic
+              readOnly: true
+            - name: home-agent-tmp
+              mountPath: /tmp
+        - name: nextcloud-tools
+          image: python:3.15-slim-trixie@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
+          command: ["python3", "/app/nextcloud_tools_service.py"]
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: NEXTCLOUD_TOOLS_SOCKET
+              value: /run/nextcloud-tools/nextcloud-tools.sock
+            # The homeserver's k3s-network address; must match home-infra's nextcloud_aio_apache_ip_binding.
+            - name: NEXTCLOUD_ENDPOINT_HOST
+              value: 192.168.101.1
+            - name: NEXTCLOUD_ENDPOINT_PORT
+              value: "11000"
+            - name: NEXTCLOUD_HTTP_HOST
+              value: nextcloud.jkandler.de
+            - name: NEXTCLOUD_USERNAME
+              value: home-agent
+            - name: NEXTCLOUD_APP_PASSWORD_FILE
+              value: /etc/nextcloud-tools/app-password
+            # Scope is whatever Julian shares with the home-agent account in Nextcloud.
+            - name: NEXTCLOUD_ALLOWED_ROOT
+              value: Shared
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10002
+            # home-agent's GID, so the 0660 socket is reachable for it.
+            runAsGroup: 10001
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: nextcloud-tools-source
+              mountPath: /app
+              readOnly: true
+            - name: nextcloud-tools-socket
+              mountPath: /run/nextcloud-tools
+            - name: nextcloud-tools-app-password
+              mountPath: /etc/nextcloud-tools
+              readOnly: true
+            - name: nextcloud-tools-tmp
+              mountPath: /tmp
+      volumes:
+        - name: nextcloud-tools-socket
+          emptyDir: {}
+        - name: home-agent-tmp
+          emptyDir: {}
+        - name: nextcloud-tools-tmp
+          emptyDir: {}
+        - name: openai-api-key
+          secret:
+            secretName: home-agent-openai-api-key
+        - name: anthropic-api-key
+          secret:
+            secretName: home-agent-anthropic-api-key
+        - name: nextcloud-tools-app-password
+          secret:
+            secretName: nextcloud-tools-app-password
+        - name: nextcloud-tools-source
+          configMap:
+            name: nextcloud-tools-source

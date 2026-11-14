@@ -36,12 +36,16 @@ jobs:
       - name: Validate Terraform
         run: terraform validate
 
-      # Argo CD restarts qBittorrent on a config change only through this annotation.
-      - name: Check qBittorrent's config checksum
+      # Argo CD restarts these Pods on a file change only through their checksum annotations.
+      - name: Check Argo CD checksum annotations
         run: |
-          want="$(sha256sum argocd/qbittorrent/qBittorrent.conf | cut -d' ' -f1)"
-          grep -q "checksum/config: ${want}$" argocd/qbittorrent/deployment.yaml \
-            || { echo "::error file=argocd/qbittorrent/deployment.yaml::set checksum/config to ${want}"; exit 1; }
+          check() {
+            want="$(sha256sum "$2" | cut -d' ' -f1)"
+            grep -q "checksum/$3: ${want}$" "$1" \
+              || { echo "::error file=$1::set checksum/$3 to ${want}"; exit 1; }
+          }
+          check argocd/qbittorrent/deployment.yaml argocd/qbittorrent/qBittorrent.conf config
+          check argocd/home-agent/deployment.yaml argocd/home-agent/nextcloud_tools_service.py nextcloud-tools-source
 
   plan:
     name: Terraform plan

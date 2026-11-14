@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: apps
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+configMapGenerator:
+  # Stdlib-only, so it runs from a ConfigMap on a stock Python image, no build needed.
+  - name: nextcloud-tools-source
+    files:
+      - nextcloud_tools_service.py
+    options:
+      # Static name: Argo CD may change only named objects, see k3s-bootstrap's argocd.tf.
+      disableNameSuffixHash: true
