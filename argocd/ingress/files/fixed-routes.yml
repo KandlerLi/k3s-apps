@@ -1,0 +1,39 @@
+# Routes not tied to a k3s app: Nextcloud AIO on the homeserver and the apex redirect.
+routers:
+  nextcloud:
+    entryPoints: [websecure]
+    tls: {certResolver: letsencrypt}
+    rule: Host(`nextcloud.jkandler.de`)
+    service: nextcloud
+    middlewares: [nextcloud-chain]
+  apex-redirect:
+    entryPoints: [websecure]
+    tls: {certResolver: letsencrypt}
+    rule: Host(`jkandler.de`)
+    service: noop@internal
+    middlewares: [apex-redirect]
+services:
+  nextcloud:
+    loadBalancer:
+      passHostHeader: true
+      servers:
+        - url: http://nextcloud-aio-backend:11000
+middlewares:
+  nextcloud-secure-headers:
+    headers:
+      hostsProxyHeaders: [X-Forwarded-Host]
+      referrerPolicy: same-origin
+      customRequestHeaders: {X-Forwarded-Proto: https}
+  nextcloud-chain:
+    chain: {middlewares: [nextcloud-secure-headers]}
+  # No Basic Auth fallback; headers as in Authelia's Traefik docs.
+  authelia-forward-auth:
+    forwardAuth:
+      address: http://authelia-svc.auth.svc.cluster.local:9091/api/authz/forward-auth
+      trustForwardHeader: true
+      authResponseHeaders: [Remote-User, Remote-Groups, Remote-Email, Remote-Name]
+  apex-redirect:
+    redirectRegex:
+      regex: ^https://jkandler\.de/(.*)
+      replacement: https://www.jkandler.de/${1}
+      permanent: true

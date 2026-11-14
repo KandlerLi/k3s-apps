@@ -1,0 +1,125 @@
+# One Traefik router per entry (name = router, service and middleware prefix). url is the in-cluster backend;
+# forward_auth puts Authelia in front, and a route with false is a reviewed exception. rate_limit and
+# max_body_bytes add those middlewares; referrer_policy defaults to no-referrer.
+routes:
+  # Argo CD's UI (k3s-bootstrap); it also logs in through Authelia's OIDC.
+  argo:
+    rule: Host(`argo.jkandler.de`)
+    url: http://argocd-server.argocd.svc.cluster.local:80
+    forward_auth: true
+    rate_limit:
+      average: 120
+      burst: 240
+    max_body_bytes: 1048576
+  # No forward-auth: this is the login portal, bypassed in Authelia's access_control.
+  auth:
+    rule: Host(`auth.jkandler.de`)
+    url: http://authelia-svc.auth.svc.cluster.local:9091
+    forward_auth: false
+  # No forward-auth: the mobile app uses API tokens. /admin is left unrouted.
+  docs:
+    rule: Host(`docs.jkandler.de`) && !PathPrefix(`/admin`)
+    url: http://paperless-svc:80
+    forward_auth: false
+    rate_limit:
+      average: 120
+      burst: 240
+    max_body_bytes: 104857600
+    referrer_policy: same-origin
+  grafana:
+    rule: Host(`grafana.jkandler.de`)
+    url: http://grafana-svc.monitoring.svc.cluster.local:80
+    forward_auth: true
+    rate_limit:
+      average: 120
+      burst: 240
+    max_body_bytes: 1048576
+  headlamp:
+    rule: Host(`k8s.jkandler.de`)
+    url: http://headlamp:80
+    forward_auth: true
+    rate_limit:
+      average: 120
+      burst: 240
+    max_body_bytes: 1048576
+  home:
+    rule: Host(`home.jkandler.de`)
+    url: http://landing-page-svc:80
+    forward_auth: true
+    rate_limit:
+      average: 10
+      burst: 5
+    max_body_bytes: 16384
+  # Only the API paths; the rest of the host is Open WebUI, hence the higher priority.
+  home-agent-api:
+    rule: Host(`ai.jkandler.de`) && (Path(`/healthz`) || Path(`/v1/chat`))
+    priority: 100
+    url: http://home-agent-svc:80
+    forward_auth: true
+    rate_limit:
+      average: 10
+      burst: 5
+    max_body_bytes: 16384
+  # No body-size limit (attachments); Bulwark calls Stalwart's JMAP from the browser, so Stalwart needs CORS for this origin.
+  mail:
+    rule: Host(`mail.jkandler.de`)
+    url: http://bulwark-svc:80
+    forward_auth: true
+    rate_limit:
+      average: 120
+      burst: 240
+  # No forward-auth: Open WebUI does its own Authelia OIDC login.
+  open-webui:
+    rule: Host(`ai.jkandler.de`)
+    priority: 10
+    url: http://open-webui-svc:80
+    forward_auth: false
+    rate_limit:
+      average: 120
+      burst: 240
+    max_body_bytes: 1048576
+  qbittorrent:
+    rule: Host(`torrent.jkandler.de`)
+    url: http://qbittorrent-web-svc:80
+    forward_auth: true
+    rate_limit:
+      average: 120
+      burst: 240
+    max_body_bytes: 1048576
+  stalwart:
+    rule: Host(`stalwart.jkandler.de`)
+    priority: 10
+    url: http://stalwart-internal:8080
+    forward_auth: true
+    rate_limit:
+      average: 120
+      burst: 240
+  # Protocol endpoints skip Authelia: clients can't follow a login redirect, and Stalwart authenticates each.
+  stalwart-api:
+    rule: Host(`stalwart.jkandler.de`) && (PathPrefix(`/jmap`) || PathPrefix(`/.well-known`) || PathPrefix(`/dav`) || PathPrefix(`/auth`) || PathPrefix(`/mail/config-v1.1.xml`) || PathPrefix(`/autodiscover`))
+    priority: 100
+    url: http://stalwart-internal:8080
+    forward_auth: false
+    rate_limit:
+      average: 600
+      burst: 1200
+  # Web vault behind Authelia; /admin is left unrouted.
+  vaultwarden:
+    rule: Host(`vault.jkandler.de`) && !PathPrefix(`/admin`)
+    priority: 10
+    url: http://vaultwarden-svc:80
+    forward_auth: true
+    rate_limit:
+      average: 120
+      burst: 240
+    max_body_bytes: 20971520
+  # The apps can't pass forward-auth, so the API is public (ADR 0028); true only while creating an account, with SSO_SIGNUPS_ALLOWED in argocd/vaultwarden.
+  vaultwarden-api:
+    rule: Host(`vault.jkandler.de`) && (PathPrefix(`/api/`) || PathPrefix(`/identity/`) || PathPrefix(`/notifications/hub`))
+    priority: 20
+    url: http://vaultwarden-svc:80
+    forward_auth: false
+    rate_limit:
+      average: 120
+      burst: 240
+    max_body_bytes: 20971520

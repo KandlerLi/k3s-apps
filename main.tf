@@ -105,9 +105,6 @@ module "paperless" {
 module "vaultwarden" {
   source = "./modules/vaultwarden"
 
-  # false: SSO signups closed, client API public (ADR 0028). true only while creating an account, with SSO_SIGNUPS_ALLOWED in argocd/vaultwarden.
-  initial_signup = false
-
   authelia_oidc_client_secret = local.k3s_apps_vaultwarden["authelia_oidc_vaultwarden_client_secret"]
 }
 
@@ -137,46 +134,4 @@ module "ingress" {
 
   k3s_ingress_acme_dns01_access_key_id     = local.home_infra_ingress["k3s_ingress_acme_dns01_access_key_id"]
   k3s_ingress_acme_dns01_secret_access_key = local.home_infra_ingress["k3s_ingress_acme_dns01_secret_access_key"]
-
-  routes = merge(
-    module.home_agent.ingress_routes,
-    module.open_webui.ingress_routes,
-    module.grafana.ingress_routes,
-    {
-      home = {
-        rule           = "Host(`home.jkandler.de`)"
-        url            = "http://landing-page-svc:80"
-        forward_auth   = true
-        rate_limit     = { average = 10, burst = 5 }
-        max_body_bytes = 16384
-      }
-      headlamp = {
-        rule           = "Host(`k8s.jkandler.de`)"
-        url            = "http://headlamp:80"
-        forward_auth   = true
-        rate_limit     = { average = 120, burst = 240 }
-        max_body_bytes = 1048576
-      }
-      qbittorrent = {
-        rule           = "Host(`torrent.jkandler.de`)"
-        url            = "http://qbittorrent-web-svc:80"
-        forward_auth   = true
-        rate_limit     = { average = 120, burst = 240 }
-        max_body_bytes = 1048576
-      }
-      # Argo CD's UI, deployed by k3s-bootstrap; it also logs in through Authelia's OIDC.
-      argo = {
-        rule           = "Host(`argo.jkandler.de`)"
-        url            = "http://argocd-server.argocd.svc.cluster.local:80"
-        forward_auth   = true
-        rate_limit     = { average = 120, burst = 240 }
-        max_body_bytes = 1048576
-      }
-    },
-    module.authelia.ingress_routes,
-    module.bulwark.ingress_routes,
-    module.stalwart.ingress_routes,
-    module.paperless.ingress_routes,
-    module.vaultwarden.ingress_routes,
-  )
 }
