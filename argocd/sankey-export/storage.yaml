@@ -1,0 +1,16 @@
+# Data volumes, bound by name to k3s-bootstrap's PVs (NFS or node-local); Argo CD never prunes or deletes them.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sankey-export-state
+  namespace: apps
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path
+  volumeName: sankey-export-state-pv

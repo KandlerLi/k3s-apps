@@ -277,17 +277,20 @@ docs' "Argo CD"). This repo holds its side of the UI on
 - Argo CD may change only the objects `k3s-bootstrap` names in its Role,
   so a new object here needs a `k3s-bootstrap` change first. ConfigMaps
   keep static names for that reason.
-- **Secrets and data stay in Terraform.** For an app with Secrets, its
-  module keeps the Secrets, `random_*` values and PVCs, and sets the
+- **Secrets stay in Terraform.** For an app with Secrets, its module
+  keeps the Secrets and `random_*` values, and sets the
   `checksum/*` annotations on the Argo CD-managed Deployment's Pod
   template through `kubernetes_annotations` (field manager
   `terraform-secret-checksums`), so a rotation still restarts the Pod.
   Argo CD's manifests leave those annotations out and never touch a
   Secret. On a rebuilt cluster that resource needs the Deployment to
   exist: let Argo CD sync first, then apply again.
-- qBittorrent (moved before that rule) is the exception: its PVCs carry `Prune=false,Delete=false`, and the Role
-  grants no `create` or `delete` on PVCs at all. Its config change
-  restarts the Pod through the `checksum/config` annotation, which the
+- **PVCs** live in each app's `storage.yaml` with `Prune=false,Delete=false`,
+  and Argo CD's Role grants no `delete` on PVCs at all, so no sync can
+  remove a volume; `create` stays, for a rebuilt cluster. Dynamically
+  provisioned ones (Vaultwarden's and Authelia's data) leave `volumeName`
+  out, so a rebuild provisions fresh.
+- qBittorrent's config change restarts the Pod through the `checksum/config` annotation, which the
   Validate job checks against `qBittorrent.conf` (likewise home_agent's
   `checksum/nextcloud-tools-source`; a new one goes into that step).
 - `main.tf`'s `removed` blocks took the modules out of Terraform state

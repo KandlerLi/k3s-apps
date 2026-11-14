@@ -5,3 +5,4 @@ namespace: apps
 
 resources:
   - cronjob.yaml
+  - storage.yaml

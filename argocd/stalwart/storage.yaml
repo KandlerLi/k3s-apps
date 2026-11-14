@@ -1,0 +1,32 @@
+# Data volumes, bound by name to k3s-bootstrap's PVs (NFS or node-local); Argo CD never prunes or deletes them.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stalwart
+  namespace: apps
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path
+  volumeName: stalwart-pv
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stalwart-backup
+  namespace: apps
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: local-path
+  volumeName: stalwart-backup-pv

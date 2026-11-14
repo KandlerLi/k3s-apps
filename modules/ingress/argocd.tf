@@ -64,3 +64,11 @@ resource "kubernetes_annotations" "ingress_checksums" {
     "checksum/acme-dns01-credentials" = sha256(jsonencode(kubernetes_secret_v1.ingress_acme_dns01_credentials.data))
   }
 }
+
+removed {
+  from = module.ingress_acme
+
+  lifecycle {
+    destroy = false
+  }
+}

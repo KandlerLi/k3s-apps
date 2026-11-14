@@ -41,3 +41,35 @@ resource "kubernetes_annotations" "paperless_checksums" {
     "checksum/postgres" = sha256(jsonencode(kubernetes_secret_v1.paperless_postgres.data))
   }
 }
+
+removed {
+  from = kubernetes_persistent_volume_claim_v1.paperless_media
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_persistent_volume_claim_v1.paperless_export
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.paperless_data
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.paperless_postgres
+
+  lifecycle {
+    destroy = false
+  }
+}

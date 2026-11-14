@@ -41,3 +41,27 @@ resource "kubernetes_annotations" "authelia_checksums" {
     "checksum/users"  = sha256(kubernetes_secret_v1.authelia_users.data["users_database.yml"])
   }
 }
+
+removed {
+  from = module.authelia_data
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.authelia_redis
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_persistent_volume_claim_v1.authelia_backup
+
+  lifecycle {
+    destroy = false
+  }
+}

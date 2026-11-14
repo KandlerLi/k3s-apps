@@ -33,3 +33,11 @@ resource "kubernetes_annotations" "blocky_checksums" {
     "checksum/postgres-credentials" = sha256(jsonencode(kubernetes_secret_v1.blocky_postgres_credentials.data))
   }
 }
+
+removed {
+  from = module.blocky_postgres
+
+  lifecycle {
+    destroy = false
+  }
+}

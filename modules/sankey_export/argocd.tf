@@ -7,3 +7,11 @@ removed {
     destroy = false
   }
 }
+
+removed {
+  from = kubernetes_persistent_volume_claim_v1.sankey_export_state
+
+  lifecycle {
+    destroy = false
+  }
+}

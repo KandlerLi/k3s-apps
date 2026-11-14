@@ -48,3 +48,19 @@ resource "kubernetes_annotations" "stalwart_checksums" {
     "checksum/ses-smtp" = sha256(jsonencode(kubernetes_secret_v1.stalwart_ses_smtp.data))
   }
 }
+
+removed {
+  from = kubernetes_persistent_volume_claim_v1.stalwart
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_persistent_volume_claim_v1.stalwart_backup
+
+  lifecycle {
+    destroy = false
+  }
+}

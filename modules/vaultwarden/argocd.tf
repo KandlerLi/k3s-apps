@@ -48,3 +48,19 @@ resource "kubernetes_annotations" "vaultwarden_checksums" {
     "checksum/sso-client-secret" = sha256(kubernetes_secret_v1.vaultwarden_sso.data["SSO_CLIENT_SECRET"])
   }
 }
+
+removed {
+  from = module.vaultwarden_data
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_persistent_volume_claim_v1.vaultwarden_backup
+
+  lifecycle {
+    destroy = false
+  }
+}
