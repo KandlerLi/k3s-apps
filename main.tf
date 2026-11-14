@@ -49,8 +49,13 @@ module "sankey_export" {
   sankey_export_app_password = local.k3s_apps_sankey_export["sankey_export_app_password"]
 }
 
-module "node_exporter" {
-  source = "./modules/node_exporter"
+# kube-state-metrics moved to argocd/kube-state-metrics, the node-exporter DaemonSet to k3s-bootstrap.
+removed {
+  from = module.node_exporter
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 module "grafana" {
