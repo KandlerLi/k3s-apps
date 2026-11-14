@@ -5,7 +5,7 @@ output "ingress_routes" {
     vaultwarden-api = {
       rule           = "Host(`vault.jkandler.de`) && (PathPrefix(`/api/`) || PathPrefix(`/identity/`) || PathPrefix(`/notifications/hub`))"
       priority       = 20
-      url            = local.backend_url
+      url            = "http://vaultwarden-svc:80"
       forward_auth   = var.initial_signup
       rate_limit     = { average = 120, burst = 240 }
       max_body_bytes = 20971520
@@ -14,7 +14,7 @@ output "ingress_routes" {
     vaultwarden = {
       rule           = "Host(`vault.jkandler.de`) && !PathPrefix(`/admin`)"
       priority       = 10
-      url            = local.backend_url
+      url            = "http://vaultwarden-svc:80"
       forward_auth   = true
       rate_limit     = { average = 120, burst = 240 }
       max_body_bytes = 20971520

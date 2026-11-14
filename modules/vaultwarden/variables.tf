@@ -8,11 +8,6 @@ variable "initial_signup" {
   type        = bool
 }
 
-variable "ingress_cluster_ip" {
-  description = "Traefik's ClusterIP (modules/ingress); auth.jkandler.de is pinned to it so SSO needs no internet egress."
-  type        = string
-}
-
 variable "authelia_oidc_client_secret" {
   description = <<-EOT
     Plaintext half of Vaultwarden's Authelia OIDC client secret pair --
