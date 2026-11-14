@@ -276,7 +276,14 @@ docs' "Argo CD"). This repo holds its side of the UI on
 - Argo CD may change only the objects `k3s-bootstrap` names in its Role,
   so a new object here needs a `k3s-bootstrap` change first. ConfigMaps
   keep static names for that reason.
-- **Secrets stay in Terraform.** For an app with Secrets, its module
+- **Secrets move to ESO, one app at a time** (ADR 0032). A moved app has
+  an `externalsecret.yaml` (keys from Secrets Manager through its
+  namespace's SecretStore, refreshed hourly) and the Deployment annotation
+  `secret.reloader.stakater.com/reload: <secrets>`, so Reloader restarts it
+  after a rotation; its module keeps only `removed` blocks. Moved so far:
+  Bulwark. To pick up a rotation at once:
+  `kubectl -n <ns> annotate externalsecret <name> force-sync=$(date +%s) --overwrite`.
+- **Secrets of the other apps stay in Terraform.** For an app with Secrets, its module
   keeps the Secrets and `random_*` values, and sets the
   `checksum/*` annotations on the Argo CD-managed Deployment's Pod
   template through `kubernetes_annotations` (field manager

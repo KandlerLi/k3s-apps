@@ -1,37 +1,37 @@
-# Bulwark's Secrets (its session secret lives in Terraform state) and checksums; Argo CD runs the workload. See history.md ("Mail server").
+# The Secrets moved to ESO (argocd/bulwark/externalsecret.yaml, ADR 0032); forgotten here, never deleted.
 
-resource "random_id" "session" {
-  byte_length = 32
+removed {
+  from = random_id.session
+
+  lifecycle {
+    destroy = false
+  }
 }
 
-resource "kubernetes_secret_v1" "bulwark_session" {
-  metadata {
-    namespace = "apps"
-    name      = "bulwark-session"
-  }
+removed {
+  from = kubernetes_secret_v1.bulwark_session
 
-  data = {
-    SESSION_SECRET = random_id.session.b64_std
+  lifecycle {
+    destroy = false
   }
-
-  type = "Opaque"
 }
 
-# Authelia OIDC for Bulwark's own login screen, separate from the forward-auth gate in front of it.
-resource "kubernetes_secret_v1" "bulwark_oidc" {
-  metadata {
-    namespace = "apps"
-    name      = "bulwark-oidc"
-  }
+removed {
+  from = kubernetes_secret_v1.bulwark_oidc
 
-  data = {
-    OAUTH_CLIENT_SECRET = var.bulwark_oidc_client_secret
+  lifecycle {
+    destroy = false
   }
-
-  type = "Opaque"
 }
 
-# Argo CD deploys the Deployment and Service from argocd/bulwark now: see README, "Argo CD".
+removed {
+  from = kubernetes_annotations.bulwark_checksums
+
+  lifecycle {
+    destroy = false
+  }
+}
+
 removed {
   from = kubernetes_deployment_v1.bulwark
 
@@ -45,23 +45,5 @@ removed {
 
   lifecycle {
     destroy = false
-  }
-}
-
-# Restarts Argo CD's Pod when a Secret here changes; Argo CD's manifest leaves these annotations out.
-resource "kubernetes_annotations" "bulwark_checksums" {
-  api_version   = "apps/v1"
-  kind          = "Deployment"
-  field_manager = "terraform-secret-checksums"
-  force         = true
-
-  metadata {
-    namespace = "apps"
-    name      = "bulwark"
-  }
-
-  template_annotations = {
-    "checksum/session" = sha256(random_id.session.b64_std)
-    "checksum/oidc"    = sha256(jsonencode(kubernetes_secret_v1.bulwark_oidc.data))
   }
 }

@@ -37,11 +37,6 @@ data "aws_secretsmanager_secret_version" "k3s_apps_ghcr_pull_token" {
   secret_id = "k3s-apps/ghcr-pull-token"
 }
 
-# Bulwark's Authelia OIDC client secret (plaintext half).
-data "aws_secretsmanager_secret_version" "k3s_apps_bulwark" {
-  secret_id = "k3s-apps/bulwark"
-}
-
 # The admin API key provider "stalwart" authenticates with.
 data "aws_secretsmanager_secret_version" "k3s_apps_stalwart" {
   secret_id = "k3s-apps/stalwart"
@@ -67,7 +62,6 @@ locals {
   home_infra_blocky        = jsondecode(data.aws_secretsmanager_secret_version.home_infra_blocky.secret_string)
   k3s_apps_sankey_export   = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_sankey_export.secret_string)
   k3s_apps_ghcr_pull_token = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_ghcr_pull_token.secret_string)
-  k3s_apps_bulwark         = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_bulwark.secret_string)
   k3s_apps_stalwart        = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_stalwart.secret_string)
   k3s_apps_paperless       = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_paperless.secret_string)
   k3s_apps_vaultwarden     = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_vaultwarden.secret_string)

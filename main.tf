@@ -99,8 +99,6 @@ removed {
 
 module "bulwark" {
   source = "./modules/bulwark"
-
-  bulwark_oidc_client_secret = local.k3s_apps_bulwark["authelia_oidc_bulwark_client_secret"]
 }
 
 module "paperless" {
