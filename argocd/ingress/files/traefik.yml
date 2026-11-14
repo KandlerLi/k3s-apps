@@ -1,0 +1,57 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: false
+
+ping:
+  entryPoint: health
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    transport:
+      respondingTimeouts:
+        readTimeout: 3610s
+    http:
+      encodedCharacters:
+        allowEncodedSlash: true
+        allowEncodedQuestionMark: true
+        allowEncodedPercent: true
+  health:
+    address: "0.0.0.0:8082"
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# DNS-01, not TLS-ALPN-01 -- see history.md ("k3s learning
+# cluster") for why. Credentials come from dyndns's own
+# traefik-acme-dns01 IAM user (main.tf's container env).
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "julian.kandler@outlook.com"
+      storage: /letsencrypt/acme.json
+      dnsChallenge:
+        provider: route53
+        delayBeforeCheck: 0
+
+log:
+  level: INFO
+
+accessLog:
+  format: json
+  fields:
+    headers:
+      defaultMode: drop
