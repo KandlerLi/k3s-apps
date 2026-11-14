@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+resources:
+  - dashboard-provider.yaml
+  - deployment.yaml
+  - service.yaml
+
+configMapGenerator:
+  # Vendored from home-infra's monitoring/files/dashboards; the originals stay canonical there.
+  - name: grafana-dashboards
+    files:
+      - dashboards/backups.json
+      - dashboards/blocky-postgres.json
+      - dashboards/blocky.json
+      - dashboards/container-health.json
+      - dashboards/github-runners.json
+      - dashboards/host-health.json
+      - dashboards/k3s-node-health.json
+      - dashboards/overview.json
+      - dashboards/service-reachability.json
+      - dashboards/service-status.json
+    options:
+      # Static name: Argo CD may change only named objects, see k3s-bootstrap's argocd.tf.
+      disableNameSuffixHash: true
