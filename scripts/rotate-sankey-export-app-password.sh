@@ -28,7 +28,6 @@ fail() {
 [ $# -le 1 ] || fail "usage: $(basename "$0") [<new-token>|-]"
 command -v jq >/dev/null || fail "jq not found"
 command -v aws >/dev/null || fail "aws not found"
-command -v terraform >/dev/null || fail "terraform not found"
 command -v kubectl >/dev/null || fail "kubectl not found"
 command -v ssh >/dev/null || fail "ssh not found"
 
@@ -57,7 +56,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(dirname "${script_dir}")"
 cd "${repo_root}"
 
-# kubectl needs the same kubeconfig terraform reads via provider.tf.
+# The cluster-admin kubeconfig from k3s-bootstrap's README.
 export KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/k3s-node-1.yaml}"
 [ -f "${KUBECONFIG}" ] || fail "${KUBECONFIG} not found -- see README's 'Running it from your laptop'"
 
@@ -95,10 +94,10 @@ aws secretsmanager put-secret-value \
   --query VersionId --output text >/dev/null \
   || fail "put-secret-value failed"
 
-echo "==> terraform apply (rolls kubernetes_secret_v1.sankey_export_app_password)"
-echo "    review the plan -- it should touch only module.sankey_export's app-password Secret"
-terraform init -input=false >/dev/null
-terraform apply
+# ESO would pick the value up within its hourly refresh; this makes it immediate.
+echo "==> asking ESO to sync sankey-export-app-password now"
+kubectl -n apps annotate externalsecret sankey-export-app-password force-sync="$(date +%s)" --overwrite >/dev/null \
+  || fail "could not annotate the ExternalSecret -- the new value still arrives within an hour"
 
 # Watches the next CronJob run; sorted with sort, since kubectl --sort-by fails on this k3s version.
 node_kubectl='ssh -J julian@192.168.178.100 ansible@192.168.101.10 sudo k3s kubectl -n apps'

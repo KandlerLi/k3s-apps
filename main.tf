@@ -44,9 +44,6 @@ module "open_webui" {
 
 module "sankey_export" {
   source = "./modules/sankey_export"
-
-  sankey_export_ghcr_token   = local.k3s_apps_ghcr_pull_token["token"]
-  sankey_export_app_password = local.k3s_apps_sankey_export["sankey_export_app_password"]
 }
 
 # kube-state-metrics moved to argocd/kube-state-metrics, the node-exporter DaemonSet to k3s-bootstrap.
