@@ -66,7 +66,7 @@ spec:
           value: 'true'
         - name: SSO_SCOPES
           value: email profile offline_access
-        # 'true' only while creating an account (ADR 0028), together with initial_signup in main.tf, which drops the API route's forward-auth.
+        # 'true' only while creating an account (ADR 0028), together with vaultwarden-api's forward_auth in argocd/ingress/values.yaml.
         - name: SSO_SIGNUPS_ALLOWED
           value: 'false'
         - name: USER_ATTACHMENT_LIMIT

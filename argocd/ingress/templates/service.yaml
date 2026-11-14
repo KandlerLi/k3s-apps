@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-svc
+  namespace: apps
+spec:
+  externalTrafficPolicy: Local
+  healthCheckNodePort: 31542
+  ports:
+  - name: web
+    port: 80
+    targetPort: 80
+  - name: websecure
+    port: 443
+    targetPort: 443
+  selector:
+    app: ingress
+  type: LoadBalancer

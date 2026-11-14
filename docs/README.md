@@ -24,7 +24,7 @@ code doesn't need touching.
   digest, same mount point, same real content (`files/index.html`,
   `files/style.css`, pulled from the live homeserver, not fabricated).
   Serves `home.jkandler.de` in production. Deployed by Argo CD, not
-  Terraform: see "Argo CD" below. Its route stays in `main.tf`.
+  Terraform: see "Argo CD" below. Its route is in `argocd/ingress/values.yaml`.
 - `argocd/headlamp/` -- Headlamp, the read-only cluster UI serving
   `k8s.jkandler.de` behind Authelia, deployed by Argo CD (see "Argo CD"). Runs with
   `-unsafe-use-service-account-token`, so every visitor past Authelia
@@ -199,7 +199,9 @@ code doesn't need touching.
   since 2026-11-01 its per-repository Deployments are replaced by ARC
   runner scale sets that create one Pod per job (tracker #39). Current
   design: that repo's README, "Runner design".
-- `modules/ingress/` -- moving `shared_ingress` to k3s, the last and
+- `argocd/ingress/` (Argo CD, a small Helm chart: every route in
+  `values.yaml`, rendered into Traefik routers and middlewares; the ACME
+  Secret and PVC stay in `modules/ingress/`) -- moving `shared_ingress` to k3s, the last and
   highest-stakes piece of this whole project: unlike every service
   before it, there's no safe additive window (only one thing can hold
   the homeserver's own physical ports 80/443), so if this cutover ever
@@ -262,15 +264,16 @@ Application each; Terraform here keeps only Secrets, PVCs and
 `stalwart_config` (node-exporter lives in k3s-bootstrap). Argo CD itself, its project, the
 Applications and its RBAC live in `k3s-bootstrap` (`argocd.tf`, see its
 docs' "Argo CD"). This repo holds its side of the UI on
-`argo.jkandler.de`: the `argo` route in `main.tf` (forward-auth, which
+`argo.jkandler.de`: the `argo` route in `argocd/ingress/values.yaml` (forward-auth, which
 `modules/authelia` limits to `user:julian`) and the `argocd` OIDC client
 (`julian_only`, PKCE). Its secret pair rotates with
 `scripts/rotate-oidc-client-secret.sh argocd`, which applies
 `k3s-bootstrap` afterwards.
 
-- `argocd/<app>/` holds plain Kustomize manifests. Argo CD syncs `main`
-  automatically, with prune and self-heal, so the merge is still the
-  only gate, as for Terraform. The routes stay in `main.tf`.
+- `argocd/<app>/` holds plain Kustomize manifests; `argocd/ingress` is a
+  small Helm chart instead, so a route stays one entry in its
+  `values.yaml`. Argo CD syncs `main` automatically, with prune and
+  self-heal, so the merge is still the only gate, as for Terraform.
 - Argo CD may change only the objects `k3s-bootstrap` names in its Role,
   so a new object here needs a `k3s-bootstrap` change first. ConfigMaps
   keep static names for that reason.
