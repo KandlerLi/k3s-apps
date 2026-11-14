@@ -7,3 +7,4 @@ resources:
   - backup-cronjob.yaml
   - deployment.yaml
   - services.yaml
+  - storage.yaml

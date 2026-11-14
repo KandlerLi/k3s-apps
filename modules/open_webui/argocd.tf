@@ -32,3 +32,11 @@ resource "kubernetes_annotations" "open_webui_checksums" {
     "checksum/oidc-client-secret" = sha256(kubernetes_secret_v1.open_webui_oidc_client_secret.data["OAUTH_CLIENT_SECRET"])
   }
 }
+
+removed {
+  from = kubernetes_persistent_volume_claim_v1.open_webui_data
+
+  lifecycle {
+    destroy = false
+  }
+}

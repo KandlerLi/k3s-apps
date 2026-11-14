@@ -8,3 +8,4 @@ resources:
   - deployment.yaml
   - networkpolicy.yaml
   - service.yaml
+  - storage.yaml

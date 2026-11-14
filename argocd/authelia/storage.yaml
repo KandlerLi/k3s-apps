@@ -1,0 +1,46 @@
+# Data volumes, bound by name to k3s-bootstrap's PVs (NFS or node-local); Argo CD never prunes or deletes them.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: authelia-data
+  namespace: auth
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 128Mi
+  storageClassName: local-path
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: authelia-redis
+  namespace: auth
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 128Mi
+  storageClassName: local-path
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: authelia-backup
+  namespace: auth
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path
+  volumeName: authelia-backup-pv
