@@ -1,0 +1,35 @@
+# stalwart-smtp: 25, 993 and 465, Local keeps the client IP; stalwart-internal: the web admin, cluster-only.
+apiVersion: v1
+kind: Service
+metadata:
+  name: stalwart-smtp
+  namespace: apps
+spec:
+  externalTrafficPolicy: Local
+  healthCheckNodePort: 30559
+  ports:
+  - name: smtp
+    port: 25
+    targetPort: 25
+  - name: imaps
+    port: 993
+    targetPort: 993
+  - name: submissions
+    port: 465
+    targetPort: 465
+  selector:
+    app: stalwart
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stalwart-internal
+  namespace: apps
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: stalwart

@@ -1,11 +1,3 @@
-variable "sankey_export_image" {
-  description = <<-EOT
-    Full ghcr.io/kandlerli/sankey-export reference, pinned by digest.
-    Built by this repo's build-sankey-export.yml workflow.
-  EOT
-  type        = string
-}
-
 variable "sankey_export_ghcr_token" {
   description = <<-EOT
     Same read-scoped GHCR PAT as home_agent's own ghcr_token variable
