@@ -258,8 +258,8 @@ code doesn't need touching.
 ## Argo CD
 
 Argo CD deploys every app under `argocd/` instead of Terraform, one
-Application each. Authelia, the ingress, Blocky, `stalwart_config` and
-node_exporter stay on Terraform entirely. Argo CD itself, its project, the
+Application each; Terraform here keeps only Secrets, PVCs and
+`stalwart_config` (node-exporter lives in k3s-bootstrap). Argo CD itself, its project, the
 Applications and its RBAC live in `k3s-bootstrap` (`argocd.tf`, see its
 docs' "Argo CD"). This repo holds its side of the UI on
 `argo.jkandler.de`: the `argo` route in `main.tf` (forward-auth, which
