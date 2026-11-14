@@ -1,0 +1,87 @@
+# No PVC: silences and the dedup log are fine to lose. Config Secret and checksum: modules/alertmanager.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - args:
+        - --config.file=/etc/alertmanager/alertmanager.yml
+        - --storage.path=/alertmanager
+        image: prom/alertmanager:v0.34.2@sha256:39d8bb3966c694a124428a3a88fbcffd40bd069129ecd47c059f8a3f17c55f3b
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /-/healthy
+            port: 9093
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+        name: alertmanager
+        ports:
+        - containerPort: 9093
+          name: http
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /-/ready
+            port: 9093
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 100m
+            memory: 96Mi
+          requests:
+            cpu: 20m
+            memory: 32Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 0
+          runAsNonRoot: true
+          runAsUser: 65534
+        volumeMounts:
+        - mountPath: /etc/alertmanager
+          mountPropagation: None
+          name: config
+          readOnly: true
+        - mountPath: /alertmanager
+          mountPropagation: None
+          name: data
+        - mountPath: /tmp
+          mountPropagation: None
+          name: tmp
+      enableServiceLinks: true
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      shareProcessNamespace: false
+      volumes:
+      - name: config
+        secret:
+          optional: false
+          secretName: alertmanager-config
+      - emptyDir: {}
+        name: data
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 16Mi
+        name: tmp

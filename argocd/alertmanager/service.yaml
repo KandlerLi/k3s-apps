@@ -1,0 +1,13 @@
+# LoadBalancer: Prometheus needs a plain IP:port (192.168.101.10:9093), not Host routing.
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-svc
+  namespace: monitoring
+spec:
+  ports:
+  - port: 9093
+    targetPort: 9093
+  selector:
+    app: alertmanager
+  type: LoadBalancer

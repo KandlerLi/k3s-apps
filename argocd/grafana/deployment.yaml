@@ -1,0 +1,173 @@
+# Prometheus stays on the homeserver (192.168.101.1); no PVC, everything is provisioned. Secrets and checksums: modules/grafana.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: admin
+        - name: GF_SECURITY_ADMIN_PASSWORD__FILE
+          value: /run/secrets/grafana_admin_password
+        - name: GF_SERVER_ROOT_URL
+          value: https://grafana.jkandler.de/
+        - name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH
+          value: /var/lib/grafana-dashboards/overview.json
+        - name: GF_ANALYTICS_REPORTING_ENABLED
+          value: 'false'
+        - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+          value: 'false'
+        - name: GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES
+          value: 'false'
+        - name: GF_PLUGINS_PREINSTALL_DISABLED
+          value: 'true'
+        - name: GF_USERS_ALLOW_SIGN_UP
+          value: 'false'
+        - name: GF_AUTH_DISABLE_LOGIN_FORM
+          value: 'true'
+        - name: GF_AUTH_BASIC_ENABLED
+          value: 'false'
+        - name: GF_AUTH_GENERIC_OAUTH_ENABLED
+          value: 'true'
+        - name: GF_AUTH_GENERIC_OAUTH_NAME
+          value: Authelia
+        - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+          value: grafana
+        - name: GF_AUTH_GENERIC_OAUTH_SCOPES
+          value: openid profile email groups
+        - name: GF_AUTH_GENERIC_OAUTH_EMPTY_SCOPES
+          value: 'false'
+        - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
+          value: https://auth.jkandler.de/api/oidc/authorization
+        - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
+          value: https://auth.jkandler.de/api/oidc/token
+        - name: GF_AUTH_GENERIC_OAUTH_API_URL
+          value: https://auth.jkandler.de/api/oidc/userinfo
+        - name: GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH
+          value: preferred_username
+        - name: GF_AUTH_GENERIC_OAUTH_GROUPS_ATTRIBUTE_PATH
+          value: groups
+        - name: GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH
+          value: name
+        - name: GF_AUTH_GENERIC_OAUTH_USE_PKCE
+          value: 'true'
+        - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
+          value: contains(groups[*], 'admins') && 'Admin' || 'Viewer'
+        - name: GF_AUTH_GENERIC_OAUTH_AUTH_STYLE
+          value: InHeader
+        image: grafana/grafana:13.1.4@sha256:9be3a3ccdb06bcbb127f888b0c4c1d151837443e478887897a63a27d7b348043
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /api/health
+            port: 3000
+          periodSeconds: 30
+          timeoutSeconds: 5
+        name: grafana
+        ports:
+        - containerPort: 3000
+          name: http
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /api/health
+            port: 3000
+          periodSeconds: 30
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 300m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 384Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsGroup: 0
+          runAsNonRoot: true
+          runAsUser: 472
+        # Up to 15 min to start, so a slow disk doesn't trip liveness.
+        startupProbe:
+          failureThreshold: 90
+          httpGet:
+            path: /api/health
+            port: 3000
+          timeoutSeconds: 5
+        volumeMounts:
+        - mountPath: /etc/grafana/provisioning/datasources
+          mountPropagation: None
+          name: datasources
+          readOnly: true
+        - mountPath: /etc/grafana/provisioning/dashboards
+          mountPropagation: None
+          name: dashboard-provider
+          readOnly: true
+        - mountPath: /var/lib/grafana-dashboards
+          mountPropagation: None
+          name: dashboards
+          readOnly: true
+        - mountPath: /run/secrets
+          mountPropagation: None
+          name: admin-password
+          readOnly: true
+        - mountPath: /etc/grafana/grafana.ini
+          mountPropagation: None
+          name: oidc-client-secret
+          readOnly: true
+          subPath: grafana.ini
+        - mountPath: /var/lib/grafana
+          mountPropagation: None
+          name: data
+        - mountPath: /tmp
+          mountPropagation: None
+          name: tmp
+      enableServiceLinks: true
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      shareProcessNamespace: false
+      volumes:
+      - name: datasources
+        secret:
+          optional: false
+          secretName: grafana-datasources
+      - configMap:
+          name: grafana-dashboard-provider
+          optional: false
+        name: dashboard-provider
+      - configMap:
+          name: grafana-dashboards
+          optional: false
+        name: dashboards
+      - name: admin-password
+        secret:
+          optional: false
+          secretName: grafana-admin-password
+      - name: oidc-client-secret
+        secret:
+          optional: false
+          secretName: grafana-oidc-client-secret
+      - emptyDir: {}
+        name: data
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 32Mi
+        name: tmp
