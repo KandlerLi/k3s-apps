@@ -4,7 +4,7 @@ output "ingress_routes" {
     # No body-size limit (attachments); Bulwark calls Stalwart's JMAP from the browser, so Stalwart needs CORS for this origin.
     mail = {
       rule         = "Host(`mail.jkandler.de`)"
-      url          = "http://${kubernetes_service_v1.bulwark.metadata[0].name}:${kubernetes_service_v1.bulwark.spec[0].port[0].port}"
+      url          = "http://bulwark-svc:80"
       forward_auth = true
       rate_limit   = { average = 120, burst = 240 }
     }

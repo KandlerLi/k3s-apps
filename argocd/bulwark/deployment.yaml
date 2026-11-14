@@ -1,0 +1,99 @@
+# JMAP webmail for Stalwart (AGPL-3.0). Its Secrets, PVC and checksum annotations stay in modules/bulwark.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bulwark
+  namespace: apps
+spec:
+  replicas: 1
+  # One RWO local-path volume: stop the old Pod before starting the new.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: bulwark
+  template:
+    metadata:
+      labels:
+        app: bulwark
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bulwark
+          image: ghcr.io/bulwarkmail/webmail:1.21.0@sha256:420069671e7776f49cf40882f35bc37b57593f224c7dddbeb6f78e52341fa207
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: JMAP_SERVER_URL
+              value: https://stalwart.jkandler.de
+            - name: APP_NAME
+              value: Mail
+            - name: SETTINGS_SYNC_ENABLED
+              value: "true"
+            - name: SETTINGS_DATA_DIR
+              value: /app/data/settings
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bulwark-session
+                  key: SESSION_SECRET
+            - name: OAUTH_ENABLED
+              value: "true"
+            - name: OAUTH_CLIENT_ID
+              value: bulwark
+            - name: OAUTH_ISSUER_URL
+              value: https://auth.jkandler.de
+            # Skips Bulwark's password form, which is dead once Stalwart authenticates via Authelia.
+            - name: AUTO_SSO_ENABLED
+              value: "true"
+            - name: OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bulwark-oidc
+                  key: OAUTH_CLIENT_SECRET
+          resources:
+            requests:
+              cpu: 50m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          # TCP probes: an HTTP probe on unverified app behavior can restart a healthy Pod in a loop.
+          startupProbe:
+            tcpSocket:
+              port: 3000
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 3000
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 3000
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: bulwark

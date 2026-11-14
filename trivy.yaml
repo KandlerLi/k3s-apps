@@ -1,0 +1,2 @@
+# Trivy reads this from the repo root, locally and in CI: path-scoped ignores need the YAML format.
+ignorefile: .trivyignore.yaml

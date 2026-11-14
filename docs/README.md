@@ -260,8 +260,8 @@ code doesn't need touching.
 
 ## Argo CD
 
-Argo CD deploys the landing page, Headlamp and qBittorrent instead of
-Terraform, one Application each. Argo CD itself, its project, the
+Argo CD deploys the landing page, Headlamp, qBittorrent and Bulwark
+instead of Terraform, one Application each. Argo CD itself, its project, the
 Applications and its RBAC live in `k3s-bootstrap` (`argocd.tf`, see its
 docs' "Argo CD"). This repo holds its side of the UI on
 `argo.jkandler.de`: the `argo` route in `main.tf` (forward-auth, which
@@ -276,7 +276,15 @@ docs' "Argo CD"). This repo holds its side of the UI on
 - Argo CD may change only the objects `k3s-bootstrap` names in its Role,
   so a new object here needs a `k3s-bootstrap` change first. ConfigMaps
   keep static names for that reason.
-- qBittorrent's PVCs carry `Prune=false,Delete=false`, and the Role
+- **Secrets and data stay in Terraform.** For an app with Secrets, its
+  module keeps the Secrets, `random_*` values and PVCs, and sets the
+  `checksum/*` annotations on the Argo CD-managed Deployment's Pod
+  template through `kubernetes_annotations` (field manager
+  `terraform-secret-checksums`), so a rotation still restarts the Pod.
+  Argo CD's manifests leave those annotations out and never touch a
+  Secret. On a rebuilt cluster that resource needs the Deployment to
+  exist: let Argo CD sync first, then apply again.
+- qBittorrent (moved before that rule) is the exception: its PVCs carry `Prune=false,Delete=false`, and the Role
   grants no `create` or `delete` on PVCs at all. Its config change
   restarts the Pod through the `checksum/config` annotation, which the
   Validate job checks against `qBittorrent.conf`.
