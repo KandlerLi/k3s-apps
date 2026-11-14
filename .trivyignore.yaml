@@ -16,6 +16,24 @@ misconfigurations:
   - id: KSV-0014
     paths:
       - argocd/bulwark/deployment.yaml
+      - argocd/grafana/deployment.yaml
+      - argocd/open-webui/deployment.yaml
+      - argocd/paperless/deployment.yaml
+      - argocd/paperless/export-cronjob.yaml
+      - argocd/stalwart/deployment.yaml
     statement: >-
-      Bulwark (Next.js) ran with a writable root filesystem under Terraform
-      too; read-only needs testing which paths it writes.
+      These ran with a writable root filesystem under Terraform too (Open
+      WebUI and Paperless write outside their data dirs); read-only needs
+      testing which paths each writes.
+  - id: KSV-0022
+    paths:
+      - argocd/stalwart/deployment.yaml
+    statement: Stalwart's binary needs NET_BIND_SERVICE in the bounding set for the mail ports.
+  - id: KSV-0117
+    paths:
+      - argocd/stalwart/deployment.yaml
+    statement: Stalwart listens on the mail ports 25, 465 and 993 directly.
+  - id: KSV-0007
+    paths:
+      - argocd/vaultwarden/deployment.yaml
+    statement: hostAliases pins auth.jkandler.de to Traefik in-cluster, so SSO needs no internet egress.

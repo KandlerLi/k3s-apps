@@ -1,0 +1,224 @@
+# Open WebUI on its real data (NFS), talking to home_agent's in-cluster Service; CPU is Burstable on purpose. Secret, PVC and checksum: modules/open_webui.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-webui
+  namespace: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: open-webui
+  template:
+    metadata:
+      labels:
+        app: open-webui
+    spec:
+      automountServiceAccountToken: true
+      containers:
+      - env:
+        - name: HOME
+          value: /app/backend/data/home
+        - name: WEBUI_SECRET_KEY_FILE
+          value: /app/backend/data/.webui_secret_key
+        - name: WEBUI_NAME
+          value: Home Agent
+        - name: WEBUI_URL
+          value: https://ai.jkandler.de
+        - name: CORS_ALLOW_ORIGIN
+          value: https://ai.jkandler.de
+        - name: WEBUI_AUTH
+          value: 'True'
+        - name: ENABLE_LOGIN_FORM
+          value: 'False'
+        - name: ENABLE_PASSWORD_AUTH
+          value: 'False'
+        - name: ENABLE_SIGNUP
+          value: 'False'
+        - name: DEFAULT_USER_ROLE
+          value: pending
+        - name: ENABLE_PASSWORD_VALIDATION
+          value: 'True'
+        - name: PASSWORD_VALIDATION_REGEX_PATTERN
+          value: ^(?=.{12,72}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).*$
+        - name: PASSWORD_VALIDATION_HINT
+          value: Use 12-72 characters with upper and lower case, a number, and a symbol.
+        - name: WEBUI_SESSION_COOKIE_SECURE
+          value: 'True'
+        - name: WEBUI_AUTH_COOKIE_SECURE
+          value: 'True'
+        - name: WEBUI_SESSION_COOKIE_SAME_SITE
+          value: strict
+        - name: WEBUI_AUTH_COOKIE_SAME_SITE
+          value: strict
+        - name: ENABLE_OAUTH_SIGNUP
+          value: 'True'
+        - name: OAUTH_MERGE_ACCOUNTS_BY_EMAIL
+          value: 'True'
+        - name: OAUTH_PROVIDER_NAME
+          value: Authelia
+        - name: OAUTH_CLIENT_ID
+          value: open-webui
+        - name: OAUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: OAUTH_CLIENT_SECRET
+              name: open-webui-oidc-client-secret
+              optional: false
+        - name: OPENID_PROVIDER_URL
+          value: https://auth.jkandler.de/.well-known/openid-configuration
+        - name: OAUTH_SCOPES
+          value: openid email profile groups
+        - name: OAUTH_CODE_CHALLENGE_METHOD
+          value: S256
+        - name: ENABLE_OLLAMA_API
+          value: 'False'
+        - name: ENABLE_OPENAI_API
+          value: 'True'
+        - name: OPENAI_API_BASE_URL
+          value: http://home-agent-svc/v1
+        - name: OPENAI_API_KEY
+          value: home-agent-internal
+        - name: AUDIO_STT_ENGINE
+          value: openai
+        - name: AUDIO_STT_OPENAI_API_BASE_URL
+          value: http://home-agent-svc/v1
+        - name: AUDIO_STT_OPENAI_API_KEY
+          value: home-agent-internal
+        - name: AUDIO_STT_MODEL
+          value: whisper-1
+        - name: OFFLINE_MODE
+          value: 'True'
+        - name: ENABLE_VERSION_UPDATE_CHECK
+          value: 'False'
+        - name: RAG_EMBEDDING_ENGINE
+          value: openai
+        - name: RAG_OPENAI_API_BASE_URL
+          value: http://home-agent-svc/v1
+        - name: RAG_OPENAI_API_KEY
+          value: home-agent-internal
+        - name: BYPASS_EMBEDDING_AND_RETRIEVAL
+          value: 'True'
+        - name: RAG_EMBEDDING_MODEL_AUTO_UPDATE
+          value: 'False'
+        - name: RAG_RERANKING_MODEL_AUTO_UPDATE
+          value: 'False'
+        - name: DEFAULT_MODELS
+          value: home-agent
+        - name: DEFAULT_PINNED_MODELS
+          value: home-agent
+        - name: ENABLE_TITLE_GENERATION
+          value: 'False'
+        - name: ENABLE_TAGS_GENERATION
+          value: 'False'
+        - name: ENABLE_FOLLOW_UP_GENERATION
+          value: 'False'
+        - name: ENABLE_AUTOCOMPLETE_GENERATION
+          value: 'False'
+        - name: ENABLE_EVALUATION_ARENA_MODELS
+          value: 'False'
+        - name: ENABLE_MESSAGE_RATING
+          value: 'False'
+        - name: ENABLE_COMMUNITY_SHARING
+          value: 'False'
+        - name: ENABLE_API_KEYS
+          value: 'False'
+        - name: ENABLE_PLUGINS
+          value: 'False'
+        - name: ENABLE_PIP_INSTALL_FRONTMATTER_REQUIREMENTS
+          value: 'False'
+        - name: SAFE_MODE
+          value: 'True'
+        - name: ENABLE_CODE_EXECUTION
+          value: 'False'
+        - name: ENABLE_CODE_INTERPRETER
+          value: 'False'
+        - name: ENABLE_WEB_SEARCH
+          value: 'False'
+        - name: ENABLE_IMAGE_GENERATION
+          value: 'False'
+        - name: ENABLE_SUBAGENTS
+          value: 'False'
+        - name: USER_PERMISSIONS_CHAT_FILE_UPLOAD
+          value: 'False'
+        - name: USER_PERMISSIONS_CHAT_WEB_UPLOAD
+          value: 'False'
+        - name: USER_PERMISSIONS_CHAT_SYSTEM_PROMPT
+          value: 'False'
+        - name: USER_PERMISSIONS_WORKSPACE_MODELS_ACCESS
+          value: 'False'
+        - name: USER_PERMISSIONS_WORKSPACE_KNOWLEDGE_ACCESS
+          value: 'False'
+        - name: USER_PERMISSIONS_WORKSPACE_PROMPTS_ACCESS
+          value: 'False'
+        - name: USER_PERMISSIONS_WORKSPACE_TOOLS_ACCESS
+          value: 'False'
+        - name: USER_PERMISSIONS_WORKSPACE_SKILLS_ACCESS
+          value: 'False'
+        - name: AIOHTTP_CLIENT_ALLOW_REDIRECTS
+          value: 'False'
+        - name: SCARF_NO_ANALYTICS
+          value: 'True'
+        - name: DO_NOT_TRACK
+          value: 'True'
+        - name: ANONYMIZED_TELEMETRY
+          value: 'False'
+        - name: LOGURU_DIAGNOSE
+          value: 'False'
+        image: ghcr.io/open-webui/open-webui:v0.13.3-slim@sha256:8faf917243afee55e042b10ddc08ed6ae6fa9c62522c7e14d81e7cf2922325ae
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /health
+            port: 8080
+          periodSeconds: 30
+          timeoutSeconds: 5
+        name: open-webui
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /health
+            port: 8080
+          periodSeconds: 30
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsGroup: 0
+          runAsNonRoot: true
+          runAsUser: 995
+        # Up to 15 min to start, so a cold start from the HDD doesn't trip liveness.
+        startupProbe:
+          failureThreshold: 90
+          httpGet:
+            path: /health
+            port: 8080
+          timeoutSeconds: 5
+        volumeMounts:
+        - mountPath: /app/backend/data
+          mountPropagation: None
+          name: data
+      enableServiceLinks: true
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      shareProcessNamespace: false
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: open-webui-data
