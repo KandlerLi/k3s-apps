@@ -1,0 +1,140 @@
+# Vaultwarden (ADR 0028, 0029): login only through Authelia. Secret, PVC and checksum: modules/vaultwarden.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vaultwarden
+  namespace: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vaultwarden
+  # Two Pods on one SQLite file corrupt it.
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: vaultwarden
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - env:
+        - name: DATA_FOLDER
+          value: /data
+        - name: DISABLE_ICON_DOWNLOAD
+          value: 'true'
+        - name: DOMAIN
+          value: https://vault.jkandler.de
+        - name: EMERGENCY_ACCESS_ALLOWED
+          value: 'false'
+        - name: INVITATIONS_ALLOWED
+          value: 'false'
+        - name: IP_HEADER
+          value: X-Real-IP
+        - name: LOGIN_RATELIMIT_MAX_BURST
+          value: '10'
+        - name: LOGIN_RATELIMIT_SECONDS
+          value: '60'
+        - name: LOG_LEVEL
+          value: warn
+        - name: ORG_ATTACHMENT_LIMIT
+          value: '0'
+        - name: ORG_CREATION_USERS
+          value: none
+        - name: PASSWORD_HINTS_ALLOWED
+          value: 'false'
+        - name: PUSH_ENABLED
+          value: 'false'
+        - name: ROCKET_PORT
+          value: '8080'
+        - name: SENDS_ALLOWED
+          value: 'false'
+        - name: SHOW_PASSWORD_HINT
+          value: 'false'
+        - name: SIGNUPS_ALLOWED
+          value: 'false'
+        - name: SSO_AUTHORITY
+          value: https://auth.jkandler.de
+        - name: SSO_CLIENT_ID
+          value: vaultwarden
+        - name: SSO_ENABLED
+          value: 'true'
+        - name: SSO_ONLY
+          value: 'true'
+        - name: SSO_PKCE
+          value: 'true'
+        - name: SSO_SCOPES
+          value: email profile offline_access
+        # 'true' only while creating an account (ADR 0028), together with initial_signup in main.tf, which drops the API route's forward-auth.
+        - name: SSO_SIGNUPS_ALLOWED
+          value: 'false'
+        - name: USER_ATTACHMENT_LIMIT
+          value: '0'
+        - name: SSO_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: SSO_CLIENT_SECRET
+              name: vaultwarden-sso
+              optional: false
+        image: ghcr.io/dani-garcia/vaultwarden:1.37.5-alpine@sha256:bbe684a02d6b0db54256ff88eac9754f4519284a7b26314afc241fd7d0918191
+        livenessProbe:
+          httpGet:
+            path: /alive
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+        name: vaultwarden
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /alive
+            port: 8080
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 20m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 1000
+          runAsNonRoot: true
+          runAsUser: 1000
+        volumeMounts:
+        - mountPath: /data
+          mountPropagation: None
+          name: data
+        - mountPath: /tmp
+          mountPropagation: None
+          name: tmp
+      enableServiceLinks: true
+      # In-cluster path to Authelia via ingress-svc's ClusterIP; update it if that Service is ever recreated.
+      hostAliases:
+      - hostnames:
+        - auth.jkandler.de
+        ip: 10.43.153.200
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      shareProcessNamespace: false
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: vaultwarden-data
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 16Mi
+        name: tmp

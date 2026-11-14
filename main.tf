@@ -106,10 +106,9 @@ module "paperless" {
 module "vaultwarden" {
   source = "./modules/vaultwarden"
 
-  # false: SSO signups closed, client API public (ADR 0028). true only while creating an account.
+  # false: SSO signups closed, client API public (ADR 0028). true only while creating an account, with SSO_SIGNUPS_ALLOWED in argocd/vaultwarden.
   initial_signup = false
 
-  ingress_cluster_ip          = module.ingress.cluster_ip
   authelia_oidc_client_secret = local.k3s_apps_vaultwarden["authelia_oidc_vaultwarden_client_secret"]
 }
 

@@ -1,0 +1,110 @@
+# Online SQLite snapshot to the red HDD; only db.sqlite3 matters. Its NFS PVC stays in modules/vaultwarden.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vaultwarden-backup
+  namespace: apps
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 120
+      backoffLimit: 0
+      completions: 1
+      manualSelector: false
+      parallelism: 1
+      template:
+        metadata:
+          labels:
+            app: vaultwarden-backup
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - python3
+            - -c
+            - |
+              import glob
+              import gzip
+              import os
+              import shutil
+              import sqlite3
+              import time
+
+              SRC = "/vaultwarden-data/db.sqlite3"
+              DEST_DIR = "/backup"
+              RETENTION_DAYS = 14
+              TMP_DEST = "/tmp/db.sqlite3"
+
+              date = time.strftime("%Y%m%d-%H%M%S")
+
+              source_conn = sqlite3.connect(f"file:{SRC}?mode=ro", uri=True)
+              dest_conn = sqlite3.connect(TMP_DEST)
+              with dest_conn:
+                  source_conn.backup(dest_conn)
+              source_conn.close()
+              result = dest_conn.execute("PRAGMA integrity_check").fetchone()[0]
+              dest_conn.close()
+              if result != "ok":
+                  raise SystemExit(f"snapshot failed integrity_check: {result}")
+
+              out_path = os.path.join(DEST_DIR, f"vaultwarden-db-{date}.sqlite3.gz")
+              with open(TMP_DEST, "rb") as f_in, gzip.open(out_path, "wb") as f_out:
+                  shutil.copyfileobj(f_in, f_out)
+              os.remove(TMP_DEST)
+
+              cutoff = time.time() - RETENTION_DAYS * 86400
+              for old in glob.glob(os.path.join(DEST_DIR, "vaultwarden-db-*.sqlite3.gz")):
+                  if os.path.getmtime(old) < cutoff:
+                      os.remove(old)
+
+              print(f"Vaultwarden backup written: {out_path}")
+            image: python:3.15-alpine@sha256:a0f2e268f2ce8f3709611a90054ec6a8ae31f6251f5896b8648b9bb99835e30a
+            name: vaultwarden-backup
+            resources:
+              limits:
+                cpu: 250m
+                memory: 128Mi
+              requests:
+                cpu: 10m
+                memory: 32Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              privileged: false
+              readOnlyRootFilesystem: true
+              runAsGroup: 976
+              runAsNonRoot: true
+              runAsUser: 981
+            volumeMounts:
+            - mountPath: /vaultwarden-data
+              mountPropagation: None
+              name: vaultwarden-data
+              readOnly: true
+            - mountPath: /backup
+              mountPropagation: None
+              name: vaultwarden-backup
+            - mountPath: /tmp
+              mountPropagation: None
+              name: tmp
+          enableServiceLinks: true
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          shareProcessNamespace: false
+          volumes:
+          - name: vaultwarden-data
+            persistentVolumeClaim:
+              claimName: vaultwarden-data
+          - name: vaultwarden-backup
+            persistentVolumeClaim:
+              claimName: vaultwarden-backup
+          - emptyDir: {}
+            name: tmp
+  schedule: 15 4 * * *
+  startingDeadlineSeconds: 300
