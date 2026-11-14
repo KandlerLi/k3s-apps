@@ -40,7 +40,7 @@ spec:
               value: /var/lib/sankey-export/out
             - name: SANKEY_EXPORT_STATE_FILE
               value: /var/lib/sankey-export/last-etag
-            image: ghcr.io/kandlerli/sankey-export:main@sha256:0bde585edbd35c7313ba85e468e119b684e13a829b44adc9d567834ad6a95622
+            image: ghcr.io/kandlerli/sankey-export:main@sha256:e52a2b9fe41f5589e4e223442a239aae92b07c42f6e20cd700744878a70b4383
             name: sankey-export
             resources:
               limits:
