@@ -12,8 +12,9 @@ spec:
   template:
     metadata:
       annotations:
-        # Traefik reads its static config only at start; the dynamic one it watches. The ACME Secret's checksum: modules/ingress.
+        # Both configs are subPath mounts, which never update in a running Pod, so a change must restart it. ACME Secret's checksum: modules/ingress.
         checksum/static-config: {{ .Files.Get "files/traefik.yml" | sha256sum }}
+        checksum/dynamic-config: {{ include "ingress.routes" . | sha256sum }}
       labels:
         app: ingress
     spec:
