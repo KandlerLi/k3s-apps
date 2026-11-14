@@ -5,7 +5,7 @@ output "ingress_routes" {
     home-agent-api = {
       rule           = "Host(`ai.jkandler.de`) && (Path(`/healthz`) || Path(`/v1/chat`))"
       priority       = 100
-      url            = "http://${kubernetes_service_v1.home_agent.metadata[0].name}:${kubernetes_service_v1.home_agent.spec[0].port[0].port}"
+      url            = "http://home-agent-svc:80"
       forward_auth   = true
       rate_limit     = { average = 10, burst = 5 }
       max_body_bytes = 16384

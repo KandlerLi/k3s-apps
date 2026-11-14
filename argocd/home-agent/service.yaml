@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: home-agent-svc
+  namespace: apps
+spec:
+  selector:
+    app: home-agent
+  ports:
+    - port: 80
+      targetPort: 8000
