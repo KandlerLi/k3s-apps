@@ -13,11 +13,12 @@ routers:
     service: noop@internal
     middlewares: [apex-redirect]
 services:
+  # Nextcloud AIO's Apache on the homeserver, over the k3s VM network; Traefik needs no Service for a plain URL.
   nextcloud:
     loadBalancer:
       passHostHeader: true
       servers:
-        - url: http://nextcloud-aio-backend:11000
+        - url: http://192.168.101.1:11000
 middlewares:
   nextcloud-secure-headers:
     headers:
