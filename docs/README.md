@@ -220,11 +220,10 @@ code doesn't need touching.
   through the node's own external address -- this Traefik lives
   inside the cluster now, so it doesn't need to. Nextcloud AIO's own
   Apache is the one backend that isn't a k3s Service at all (stays on
-  the homeserver permanently); reached through a Service-without-
-  selector-plus-Endpoints pair pointing at `192.168.101.1:11000`,
-  not an `ExternalName` Service -- that type's own `external_name`
-  field wants a real DNS hostname, not a portable, reliable target
-  for a bare IP. A small PVC persists `/letsencrypt/acme.json` across
+  the homeserver permanently); Traefik's route targets
+  `http://192.168.101.1:11000` directly (the file provider takes any
+  URL). It used to go through a selector-less Service plus Endpoints,
+  but Argo CD excludes Endpoints by default, so it couldn't manage that. A small PVC persists `/letsencrypt/acme.json` across
   Pod restarts (unlike Alertmanager's/Grafana's own "start fresh, no
   PVC" choice) -- losing it would mean re-issuing every certificate
   every time, a real, avoidable rate-limit risk. ACME uses DNS-01, not
