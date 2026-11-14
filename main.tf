@@ -45,7 +45,6 @@ module "open_webui" {
 module "sankey_export" {
   source = "./modules/sankey_export"
 
-  sankey_export_image        = var.sankey_export_image
   sankey_export_ghcr_token   = local.k3s_apps_ghcr_pull_token["token"]
   sankey_export_app_password = local.k3s_apps_sankey_export["sankey_export_app_password"]
 }

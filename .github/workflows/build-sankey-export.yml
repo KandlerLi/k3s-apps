@@ -39,13 +39,13 @@ jobs:
           -t ghcr.io/kandlerli/sankey-export:main
           containers/sankey-export
 
-      # :main is what Renovate follows to propose the new digest in terraform.tfvars.
+      # :main is what Renovate follows to propose the new digest in argocd/sankey-export/cronjob.yaml.
       - name: Push sankey-export image
         run: |
           docker push ghcr.io/kandlerli/sankey-export:${{ github.sha }}
           docker push ghcr.io/kandlerli/sankey-export:main
 
-      # The immutable digest is what terraform.tfvars pins.
+      # The immutable digest is what argocd/sankey-export/cronjob.yaml pins.
       - name: Print pushed image digest
         run: >-
           docker inspect
