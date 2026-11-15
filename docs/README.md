@@ -281,7 +281,7 @@ docs' "Argo CD"). This repo holds its side of the UI on
   namespace's SecretStore, refreshed hourly) and the Deployment annotation
   `secret.reloader.stakater.com/reload: <secrets>`, so Reloader restarts it
   after a rotation; its module keeps only `removed` blocks. Moved so far:
-  Bulwark, home-agent, Open WebUI, Paperless, Vaultwarden, sankey-export (a CronJob, so no Reloader: each run reads the
+  Bulwark, Grafana, home-agent, Open WebUI, Paperless, Vaultwarden, sankey-export (a CronJob, so no Reloader: each run reads the
   Secret afresh). To pick up a rotation at once:
   `kubectl -n <ns> annotate externalsecret <name> force-sync=$(date +%s) --overwrite`.
 - **Secrets of the other apps stay in Terraform.** For an app with Secrets, its module
@@ -328,7 +328,11 @@ since this repo doesn't call that reusable workflow.
 the only secret in the workspace rotated unattended: mechanically simple,
 small blast radius, and no external UI to reconfigure. It ALTERs the role
 over `blocky-svc:5432`, writes the new value to Secrets Manager and
-applies, and the checksum annotations roll Blocky and Grafana. It has to
+applies, and Blocky's checksum annotation rolls it. Grafana's datasource
+Secret comes from ESO since 2026-11-15, so Grafana follows within ESO's
+hourly refresh (Reloader restarts it); until then its Blocky query-log
+dashboard can't connect. Once Blocky moves to ESO too, this rotation
+needs a new home: it has to leave `k3s-apps`' CI anyway. It has to
 run on the in-cluster runner, the only place `blocky-svc` is reachable.
 The runner sits in the `ci` namespace, so the script names Services by
 their full `<svc>.<namespace>.svc.cluster.local` name, and `k3s-bootstrap`'s

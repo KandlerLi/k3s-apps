@@ -50,12 +50,6 @@ removed {
 
 module "grafana" {
   source = "./modules/grafana"
-
-  blocky_postgres_password            = local.home_infra_blocky["blocky_postgres_password"]
-  authelia_oidc_grafana_client_secret = local.home_infra_grafana["authelia_oidc_grafana_client_secret"]
-
-  # Grafana's datasource names blocky-svc by string, so the ordering is explicit.
-  depends_on = [module.blocky]
 }
 
 module "alertmanager" {

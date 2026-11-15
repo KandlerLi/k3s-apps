@@ -49,7 +49,8 @@ aws secretsmanager put-secret-value --secret-id "${secret_id}" --region "${regio
   --secret-string "file://${tmp_secret}" --query VersionId --output text >/dev/null \
   || fail "put-secret-value for ${secret_id} failed"
 
-echo "==> terraform apply (rolls both Blocky and Grafana, via their own checksum annotations)"
+# Grafana's datasource follows through ESO within its hourly refresh (ADR 0032); this CI identity may not force it.
+echo "==> terraform apply (rolls Blocky via its checksum annotation)"
 terraform init -input=false
 terraform fmt -check -recursive
 terraform validate

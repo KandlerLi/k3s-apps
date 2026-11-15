@@ -1,4 +1,4 @@
-# Argo CD runs this app's workload from k3s-apps' argocd/; Secrets and PVCs stay here. See README, "Argo CD".
+# Argo CD runs this app from k3s-apps' argocd/, ESO supplies its Secrets; Terraform only forgets. See README, "Argo CD".
 
 removed {
   from = kubernetes_deployment_v1.grafana
@@ -33,20 +33,43 @@ removed {
 }
 
 # Restarts Argo CD's Pod when a Secret here changes; Argo CD's manifest leaves these annotations out.
-resource "kubernetes_annotations" "grafana_checksums" {
-  api_version   = "apps/v1"
-  kind          = "Deployment"
-  field_manager = "terraform-secret-checksums"
-  force         = true
+removed {
+  from = kubernetes_annotations.grafana_checksums
 
-  metadata {
-    namespace = "monitoring"
-    name      = "grafana"
+  lifecycle {
+    destroy = false
   }
+}
 
-  template_annotations = {
-    "checksum/oidc-client-secret" = sha256(kubernetes_secret_v1.grafana_oidc_client_secret.data["grafana.ini"])
-    "checksum/datasources"        = sha256(kubernetes_secret_v1.grafana_datasources.data["datasources.yaml"])
-    "checksum/admin-password"     = sha256(kubernetes_secret_v1.grafana_admin_password.data["grafana_admin_password"])
+# The Secrets moved to ESO (argocd/grafana/externalsecret.yaml, ADR 0032); forgotten here, never deleted.
+removed {
+  from = random_password.grafana_admin
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.grafana_admin_password
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.grafana_oidc_client_secret
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.grafana_datasources
+
+  lifecycle {
+    destroy = false
   }
 }
