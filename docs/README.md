@@ -1,30 +1,25 @@
 # k3s-apps
 
-Terraform-managed workloads for the personal k3s learning cluster
-(`k3s-node-1`, see the `k3s_node` role in `home-infra`). This is a
-**learning project**, kept deliberately separate from `home-infra`'s
-production Ansible-managed services -- services are cut over to it one
-at a time, each proven live first.
-
-Uses Terraform's `kubernetes` provider directly against the cluster,
-instead of plain `kubectl apply -f` -- a deliberate choice to keep one
-IaC tool (Terraform) consistent across the whole homelab, at the known
-cost of a second reconciler alongside Kubernetes' own control loop (see
-this repo's commit history / conversation history for the trade-off).
+The workloads of the personal k3s cluster (`k3s-node-1`, see the
+`k3s_node` role in `home-infra`), as manifests under `argocd/` that Argo
+CD syncs from `main` (ADR 0031). Their Secrets come from AWS Secrets
+Manager through the External Secrets Operator (ADR 0032): each app's
+`externalsecret.yaml` names the keys, never the values. Argo CD itself,
+ESO, Reloader, the SecretStores and all RBAC live in `k3s-bootstrap`.
+This repo has had no Terraform since 2026-11-15.
 
 ## What's here
 
-One module per service (`modules/<service>/`), wired together by the
-root `main.tf`. Adding a third service means a new `modules/<service>/`
-directory plus a `module` block in `main.tf` -- an existing service's
-code doesn't need touching.
+One directory per app under `argocd/`, one Argo CD Application each. A
+new app needs its directory here plus its Application and object names
+in `k3s-bootstrap`'s `argocd.tf`.
 
 - `argocd/landing-page/` -- the k3s-native equivalent of `home-infra`'s
   now-deleted `ansible/roles/landing_page` role: same pinned image
   digest, same mount point, same real content (`files/index.html`,
   `files/style.css`, pulled from the live homeserver, not fabricated).
-  Serves `home.jkandler.de` in production. Deployed by Argo CD, not
-  Terraform: see "Argo CD" below. Its route is in `argocd/ingress/values.yaml`.
+  Serves `home.jkandler.de` in production. Deployed by Argo CD: see
+  "Argo CD" below. Its route is in `argocd/ingress/values.yaml`.
 - `argocd/headlamp/` -- Headlamp, the read-only cluster UI serving
   `k8s.jkandler.de` behind Authelia, deployed by Argo CD (see "Argo CD"). Runs with
   `-unsafe-use-service-account-token`, so every visitor past Authelia
@@ -37,7 +32,7 @@ code doesn't need touching.
   `qBittorrent.conf` is rewritten from a ConfigMap on every start; its
   Web UI skips the login for the pod CIDR, and a NetworkPolicy admits
   only Traefik to that port. Serves `torrent.jkandler.de` in production.
-- `modules/home_agent/` -- `home_agent` + `nextcloud_tools` as sidecars
+- `argocd/home-agent/` -- `home_agent` + `nextcloud_tools` as sidecars
   in one Pod, sharing a Unix socket through an `emptyDir` (preserves the
   exact trust shape `home-infra`'s own deployment has today, just
   relocated from "two processes on one host" to "two containers in one
@@ -65,7 +60,7 @@ code doesn't need touching.
   from the CI image build, and the two containers' sidecar UIDs not
   sharing a GID despite the Unix socket depending on one. No Ingress
   yet -- not cut over to `ai.jkandler.de`.
-- `modules/open_webui/` -- the k3s-native copy of `home-infra`'s own
+- `argocd/open-webui/` -- the k3s-native copy of `home-infra`'s own
   `open_webui` role: same pinned image, same real data (mounted from
   an NFS export of `/var/lib/open-webui`, not started fresh -- same
   "share the real state" choice already made for Deluge's config,
@@ -92,12 +87,12 @@ code doesn't need touching.
   for `ai.jkandler.de` (`/healthz` and `/v1/chat` to `home_agent`,
   everything else to `open_webui`) using standard Kubernetes Ingress
   path matching instead of Traefik's own priority annotation.
-- `modules/grafana/` -- Phase 1 of moving `home-infra`'s `monitoring`
+- `argocd/grafana/` -- Phase 1 of moving `home-infra`'s `monitoring`
   role into k3s: Grafana only. Prometheus, the exporters, and Blocky
   all stay on the homeserver permanently (they report *this physical
   host's* own hardware/Docker daemon, or are LAN-facing -- see the
   module's own comment; Alertmanager has since moved too, see
-  `modules/alertmanager/` below), reached here over the additive
+  `argocd/alertmanager/` below), reached here over the additive
   `192.168.101.1` listeners `home-infra`'s `blocky` and `monitoring`
   roles now expose (`blocky_postgres_k3s_bind_address`,
   `monitoring_prometheus_k3s_bind_address`), confirmed reachable from
@@ -111,8 +106,8 @@ code doesn't need touching.
   the first-cut manifest, both the kind that don't crash-loop loudly:
   the admin-password Secret mounted at `/run/secrets` collided with
   kubelet's own serviceaccount-token auto-mount there (same
-  `automount_service_account_token = false` fix as `modules/
-  home_agent`'s own case), and that Secret's data key didn't match its
+  `automount_service_account_token = false` fix as home_agent's own
+  case), and that Secret's data key didn't match its
   own `GF_SECURITY_ADMIN_PASSWORD__FILE` path -- the Pod started fine
   but silently kept the default `admin/admin` login instead of the
   real sops password, caught only by actually logging in and checking.
@@ -123,7 +118,7 @@ code doesn't need touching.
   reshaped down to nothing at all -- unlike `deluge`/`open_webui`,
   Grafana left no host prerequisites behind, since its directories
   were always ephemeral rather than real shared state.
-- `modules/alertmanager/` -- Phase 2: Alertmanager. Unlike Grafana, it
+- `argocd/alertmanager/` -- Phase 2: Alertmanager. Unlike Grafana, it
   has no host dependency at all, so it moves outright rather than
   needing a network exception in both directions -- but the direction
   here is reversed from Grafana's own: Prometheus (staying on the
@@ -151,7 +146,7 @@ code doesn't need touching.
   healthy, once switched. `home-infra`'s `monitoring` role is
   reshaped down to just the ntfy relay it still runs -- unlike
   Grafana, Alertmanager left no host prerequisites behind either.
-- `modules/github_runner/` -- Phase B of moving `github_runner` to k3s
+- `github_runner` (now `k3s-bootstrap`'s `modules/github_runner/`) -- Phase B of moving `github_runner` to k3s
   (a much bigger arc than the other migrations here: real production
   CI for 6 repositories, `home-infra` itself included, so the old
   VM-based role keeps serving throughout rather than a cutover window
@@ -201,7 +196,7 @@ code doesn't need touching.
   design: that repo's README, "Runner design".
 - `argocd/ingress/` (Argo CD, a small Helm chart: every route in
   `values.yaml`, rendered into Traefik routers and middlewares; the ACME
-  Secret and PVC stay in `modules/ingress/`) -- moving `shared_ingress` to k3s, the last and
+  credentials come from `templates/externalsecret.yaml`) -- moving `shared_ingress` to k3s, the last and
   highest-stakes piece of this whole project: unlike every service
   before it, there's no safe additive window (only one thing can hold
   the homeserver's own physical ports 80/443), so if this cutover ever
@@ -252,19 +247,19 @@ code doesn't need touching.
   `home-infra/home-agent` Secrets Manager group alongside
   `home_agent_ghcr_token`/`home_agent_openai_api_key` -- it's still a
   separate, independently-revocable app password for this k3s copy
-  (see `modules/home_agent/variables.tf`), just no longer kept in a
+  (see `secrets-manager`'s `home-infra/home-agent` runbook), just no longer kept in a
   physically separate vault to express that; the AWS-side grouping is
   by owning repo/service now, not by revocability.
 
 ## Argo CD
 
-Argo CD deploys every app under `argocd/` instead of Terraform, one
-Application each; Terraform here keeps only Secrets (node-exporter lives
-in k3s-bootstrap, Stalwart's API settings in the stalwart-config repo). Argo CD itself, its project, the
+Argo CD deploys every app under `argocd/`, one Application each
+(node-exporter lives in k3s-bootstrap, Stalwart's API settings in the
+stalwart-config repo). Argo CD itself, its project, the
 Applications and its RBAC live in `k3s-bootstrap` (`argocd.tf`, see its
 docs' "Argo CD"). This repo holds its side of the UI on
 `argo.jkandler.de`: the `argo` route in `argocd/ingress/values.yaml` (forward-auth, which
-`modules/authelia` limits to `user:julian`) and the `argocd` OIDC client
+`argocd/authelia`'s config limits to `user:julian`) and the `argocd` OIDC client
 (`julian_only`, PKCE). Its secret pair rotates with
 `scripts/rotate-oidc-client-secret.sh argocd`, which applies
 `k3s-bootstrap` afterwards.
@@ -272,7 +267,7 @@ docs' "Argo CD"). This repo holds its side of the UI on
 - `argocd/<app>/` holds plain Kustomize manifests; `argocd/ingress` is a
   small Helm chart instead, so a route stays one entry in its
   `values.yaml`. Argo CD syncs `main` automatically, with prune and
-  self-heal, so the merge is still the only gate, as for Terraform.
+  self-heal, so the merge is the only gate.
 - Argo CD may change only the objects `k3s-bootstrap` names in its Role,
   so a new object here needs a `k3s-bootstrap` change first. ConfigMaps
   keep static names for that reason.
@@ -294,29 +289,22 @@ docs' "Argo CD"). This repo holds its side of the UI on
 - qBittorrent's config change restarts the Pod through the `checksum/config` annotation, which the
   Validate job checks against `qBittorrent.conf` (likewise home_agent's
   `checksum/nextcloud-tools-source`; a new one goes into that step).
-- `main.tf`'s `removed` blocks took the modules out of Terraform state
-  without destroying the live objects, and Argo CD adopted them on its
-  first sync. Before moving an app, `kubectl diff -k argocd/<app>`
-  against the live objects should show nothing but annotations.
+- The apps came from this repo's former Terraform modules: `removed`
+  blocks forgot the live objects without destroying them, and Argo CD
+  and ESO adopted them. Before changing a manifest, `kubectl diff -k
+  argocd/<app>` against the live objects shows what a sync will do.
 - Handing an app back: put the module back, `import` its objects, then
   remove its Application and names from `k3s-bootstrap`. Applications
   have no finalizer, so deleting one leaves its objects running.
 
 ## CI
 
-`checks.yml` (plan on every PR) and `apply.yml` (apply on merge to `main`)
-run directly on the runner, with no `container:` key, unlike the AWS
-repos' gha-common workflows. That way their steps share the runner Pod's
-filesystem and use the runner image's own `node` (for `setup-terraform`'s
-wrapper) and AWS CLI. They also see the `k3s-apps-ci` ServiceAccount token Kubernetes
-mounts there (created by
-[`k3s-bootstrap`](https://github.com/KandlerLi/k3s-bootstrap)), which
-`provider.tf` uses when `TF_VAR_in_cluster` is `true`. They still assume
-an AWS role through OIDC, for the S3 state and the Secrets Manager reads
-in `secrets.tf`; this repo manages no AWS resources. The credentials step
-sets `action-timeout-s: "90"` as a cheap escape hatch for OIDC hangs on
-self-hosted runners, and the plan comment step is a copy of gha-common's,
-since this repo doesn't call that reusable workflow.
+`checks.yml` runs on GitHub-hosted runners: the checksum annotations
+Argo CD needs to restart a Pod on a file change (see above). Trivy scans
+the manifests and images (`security-scan.yml`). `build-sankey-export.yml`
+builds and pushes sankey-export's image on the in-cluster runner, the
+only job that needs it; that runner has no cluster or AWS access any
+more. Nothing applies anything: Argo CD syncs `main`.
 
 `blocky_postgres_password` is rotated by hand, yearly or on suspicion
 (`scripts/rotate-blocky-postgres-password.sh`, from the laptop with
@@ -329,59 +317,26 @@ whose runner image has no AWS CLI).
 
 ## Running it from your laptop
 
-The k3s VM's network (`192.168.101.0/24`) only exists as a
-directly-connected route on the homeserver itself -- confirmed live,
-nothing beyond the homeserver (not your router, not your laptop) knows
-how to reach it. So running Terraform from your laptop needs an SSH
-tunnel to the apiserver, opened first and kept running:
+Only the rotation scripts under `scripts/` run from the laptop. They need
+`aws login` (to write Secrets Manager) and `kubectl` against the cluster,
+whose network (`192.168.101.0/24`) exists only on the homeserver, so
+through an SSH tunnel to the apiserver (the scripts open it themselves):
 
 ```
 ssh -L 6443:192.168.101.10:6443 julian@192.168.178.100
 ```
 
-Then, **one-time**, pull the kubeconfig k3s already generates onto your
-laptop (its `server:` field is already `https://127.0.0.1:6443` by
-default -- k3s assumes it'll be used locally on the node itself, which
-is exactly what the tunnel above fakes -- so it works unmodified):
+and, once, the kubeconfig k3s generates (its `server:` is already
+`https://127.0.0.1:6443`, which the tunnel serves):
 
 ```
 scp -o ProxyJump=julian@192.168.178.100 ansible@192.168.101.10:/etc/rancher/k3s/k3s.yaml ~/.kube/k3s-node-1.yaml
 ```
 
-Then, with the tunnel still open in its own terminal:
-
-```
-git clone https://github.com/KandlerLi/k3s-apps.git
-cd k3s-apps
-terraform init
-terraform plan
-terraform apply
-```
-
-No secrets export step needed any more -- `secrets.tf` reads every
-secret this repo's modules need straight from AWS Secrets Manager, the
-same way `terraform init`/`plan`/`apply` already need AWS credentials
-for the S3 state backend below. Your own `aws login` session (the
-`julian` operator identity) already has read access to every secret
-group this repo touches ([`terraform-state`](https://github.com/KandlerLi/terraform-state)'s own
-`operator.tf`). The own images' digests aren't secrets: they're
-pinned directly in their manifests under `argocd/` (home-agent,
-sankey-export), as `:main@sha256:…`; Renovate proposes each new
-build's digest.
-
-No `KUBECONFIG=...` prefix needed for the `terraform` commands above --
-unlike `kubectl`, the `kubernetes` provider does **not** read that
-environment variable (confirmed against its own docs; an earlier version
-of this file assumed it did, which silently fell back to querying
-`http://localhost` instead of erroring clearly). `provider.tf` points
-`config_path` straight at `~/.kube/k3s-node-1.yaml` instead, so it isn't
-dependent on how you invoke the shell.
-
-State is remote (`versions.tf`'s own `backend "s3"` block, same
-`jkandler-terraform-state` bucket every other Terraform repo in this
-homelab uses) -- moved off local state 2026-09-03, once this repo
-started being applied by CI as well as locally; CI is ephemeral and
-can't rely on a local state file the way a laptop-only setup could.
+The own images' digests are pinned in their manifests (home-agent,
+sankey-export, `:main@sha256:…`); Renovate proposes each new build's.
+The former Terraform state stays in the `jkandler-terraform-state`
+bucket under `k3s-apps/` as an archive.
 
 ## Relationship to the Ansible-managed originals
 
