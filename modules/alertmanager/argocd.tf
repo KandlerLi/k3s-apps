@@ -1,4 +1,4 @@
-# Argo CD runs this app's workload from k3s-apps' argocd/; Secrets and PVCs stay here. See README, "Argo CD".
+# Argo CD runs this app from k3s-apps' argocd/, ESO supplies its config Secret; Terraform only forgets. See README, "Argo CD".
 
 removed {
   from = kubernetes_deployment_v1.alertmanager
@@ -17,18 +17,19 @@ removed {
 }
 
 # Restarts Argo CD's Pod when a Secret here changes; Argo CD's manifest leaves these annotations out.
-resource "kubernetes_annotations" "alertmanager_checksums" {
-  api_version   = "apps/v1"
-  kind          = "Deployment"
-  field_manager = "terraform-secret-checksums"
-  force         = true
+removed {
+  from = kubernetes_annotations.alertmanager_checksums
 
-  metadata {
-    namespace = "monitoring"
-    name      = "alertmanager"
+  lifecycle {
+    destroy = false
   }
+}
 
-  template_annotations = {
-    "checksum/config" = sha256(kubernetes_secret_v1.alertmanager_config.data["alertmanager.yml"])
+# The Secret moved to ESO (argocd/alertmanager/externalsecret.yaml, ADR 0032); forgotten here, never deleted.
+removed {
+  from = kubernetes_secret_v1.alertmanager_config
+
+  lifecycle {
+    destroy = false
   }
 }
