@@ -30,6 +30,9 @@ spec:
           value: https://ai.jkandler.de
         - name: CORS_ALLOW_ORIGIN
           value: https://ai.jkandler.de
+        # Env is the only source of truth: otherwise values stored in webui.db silently override every setting here.
+        - name: ENABLE_PERSISTENT_CONFIG
+          value: 'False'
         - name: WEBUI_AUTH
           value: 'True'
         - name: ENABLE_LOGIN_FORM
