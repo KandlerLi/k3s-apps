@@ -1,10 +1,13 @@
 # home_agent and nextcloud_tools share a Unix socket in one Pod; nextcloud_tools is never on the network.
-# Its Secrets, the GHCR pull Secret and their checksum annotations stay in modules/home_agent.
+# Its Secrets and the GHCR pull Secret: externalsecret.yaml.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: home-agent
   namespace: apps
+  annotations:
+    # Reloader (k3s-bootstrap) restarts the Pod when one of these changes; the pull Secret matters only at the next pull.
+    secret.reloader.stakater.com/reload: home-agent-openai-api-key,home-agent-anthropic-api-key,nextcloud-tools-app-password
 spec:
   replicas: 1
   selector:
