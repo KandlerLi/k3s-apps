@@ -58,8 +58,6 @@ module "alertmanager" {
 
 module "blocky" {
   source = "./modules/blocky"
-
-  blocky_postgres_password = local.home_infra_blocky["blocky_postgres_password"]
 }
 
 module "stalwart" {

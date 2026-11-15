@@ -1,4 +1,4 @@
-# Argo CD runs this app's workload from k3s-apps' argocd/; Secrets and PVCs stay here. See README, "Argo CD".
+# Argo CD runs this app from k3s-apps' argocd/, ESO supplies its Secrets; Terraform only forgets. See README, "Argo CD".
 
 removed {
   from = kubernetes_deployment_v1.blocky
@@ -17,25 +17,41 @@ removed {
 }
 
 # Restarts Argo CD's Pod when a Secret here changes; Argo CD's manifest leaves these annotations out.
-resource "kubernetes_annotations" "blocky_checksums" {
-  api_version   = "apps/v1"
-  kind          = "Deployment"
-  field_manager = "terraform-secret-checksums"
-  force         = true
+removed {
+  from = kubernetes_annotations.blocky_checksums
 
-  metadata {
-    namespace = "apps"
-    name      = "blocky"
-  }
-
-  template_annotations = {
-    "checksum/config"               = sha256(kubernetes_secret_v1.blocky_config.data["config.yml"])
-    "checksum/postgres-credentials" = sha256(jsonencode(kubernetes_secret_v1.blocky_postgres_credentials.data))
+  lifecycle {
+    destroy = false
   }
 }
 
 removed {
   from = module.blocky_postgres
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+# The Secrets moved to ESO (argocd/blocky/externalsecret.yaml, ADR 0032); forgotten here, never deleted.
+removed {
+  from = kubernetes_secret_v1.blocky_config
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.blocky_postgres_credentials
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.blocky_postgres_exporter_dsn
 
   lifecycle {
     destroy = false
