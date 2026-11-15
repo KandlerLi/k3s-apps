@@ -14,7 +14,7 @@ fail() {
   exit 1
 }
 
-for tool in jq aws terraform ssh kubectl openssl; do
+for tool in jq aws ssh kubectl openssl; do
   command -v "$tool" >/dev/null || fail "$tool not found"
 done
 
@@ -32,7 +32,7 @@ cleanup() {
 !! The SQLite database is already re-encrypted with the NEW storage key,
 !! and ${secret_id} in Secrets Manager already holds it (written before
 !! change-key). Do NOT put the old version back. Finish with:
-!!   terraform apply   (in this repo)
+!!   kubectl -n auth annotate externalsecret authelia-config force-sync=\$(date +%s) --overwrite
 EOF
   fi
   unset old_json new_json new_storage_key
@@ -123,10 +123,9 @@ printf '%s\n' "${new_storage_key}" | kubectl -n auth exec -i deploy/authelia -c 
   | grep SUCCESS >/dev/null || fail "the database doesn't validate against the new key"
 echo "==> database validates against the new key"
 
-echo "==> terraform apply (rolls the Authelia Pod onto the new values)"
-echo "    review the plan -- it should touch only Authelia's own Secret and Deployment"
-terraform init -input=false >/dev/null
-terraform apply
+# The database now matches the new key; force ESO instead of waiting up to an hour for its refresh.
+echo "==> forcing ESO to sync Authelia's config (Reloader restarts Authelia onto the new values)"
+kubectl -n auth annotate externalsecret authelia-config force-sync="$(date +%s)" --overwrite >/dev/null
 
 cat <<EOF
 

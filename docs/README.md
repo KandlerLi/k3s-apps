@@ -276,22 +276,16 @@ docs' "Argo CD"). This repo holds its side of the UI on
 - Argo CD may change only the objects `k3s-bootstrap` names in its Role,
   so a new object here needs a `k3s-bootstrap` change first. ConfigMaps
   keep static names for that reason.
-- **Secrets move to ESO, one app at a time** (ADR 0032). A moved app has
-  an `externalsecret.yaml` (keys from Secrets Manager through its
-  namespace's SecretStore, refreshed hourly) and the Deployment annotation
-  `secret.reloader.stakater.com/reload: <secrets>`, so Reloader restarts it
-  after a rotation; its module keeps only `removed` blocks. Moved so far:
-  Alertmanager, Blocky, Bulwark, Grafana, home-agent, ingress, Open WebUI, Paperless, Stalwart, Vaultwarden, sankey-export (a CronJob, so no Reloader: each run reads the
-  Secret afresh). To pick up a rotation at once:
+- **Secrets come from ESO** (ADR 0032, every app since 2026-11-15). An
+  app with Secrets has an `externalsecret.yaml` (keys from Secrets
+  Manager through its namespace's SecretStore, refreshed hourly; composite
+  files such as Authelia's `configuration.yml` are ESO templates) and the
+  Deployment annotation `secret.reloader.stakater.com/reload: <secrets>`,
+  so Reloader restarts it after a rotation (sankey-export is a CronJob and
+  reads its Secrets at each run). Argo CD manages only the
+  ExternalSecrets, never a Secret. Each module keeps only `removed`
+  blocks. To pick up a rotation at once:
   `kubectl -n <ns> annotate externalsecret <name> force-sync=$(date +%s) --overwrite`.
-- **Secrets of the other apps stay in Terraform.** For an app with Secrets, its module
-  keeps the Secrets and `random_*` values, and sets the
-  `checksum/*` annotations on the Argo CD-managed Deployment's Pod
-  template through `kubernetes_annotations` (field manager
-  `terraform-secret-checksums`), so a rotation still restarts the Pod.
-  Argo CD's manifests leave those annotations out and never touch a
-  Secret. On a rebuilt cluster that resource needs the Deployment to
-  exist: let Argo CD sync first, then apply again.
 - **PVCs** live in each app's `storage.yaml` with `Prune=false,Delete=false`,
   and Argo CD's Role grants no `delete` on PVCs at all, so no sync can
   remove a volume; `create` stays, for a rebuilt cluster. Dynamically

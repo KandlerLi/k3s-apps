@@ -1,9 +1,12 @@
-# Authelia, the login portal and forward-auth for every route. Its config and users Secrets, PVCs and checksums: modules/authelia.
+# Authelia, the login portal and forward-auth for every route. Config and users Secrets: externalsecret.yaml.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: authelia
   namespace: auth
+  annotations:
+    # Reloader (k3s-bootstrap) restarts the Pod when either Secret changes.
+    secret.reloader.stakater.com/reload: authelia-config,authelia-users
 spec:
   replicas: 1
   selector:

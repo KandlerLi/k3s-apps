@@ -46,7 +46,7 @@ plaintext_key="authelia_oidc_${client}_client_secret"
 
 command -v jq >/dev/null || fail "jq not found"
 command -v aws >/dev/null || fail "aws not found"
-command -v terraform >/dev/null || fail "terraform not found"
+command -v kubectl >/dev/null || fail "kubectl not found"
 command -v ssh >/dev/null || fail "ssh not found"
 
 tmp_authelia=""
@@ -124,15 +124,22 @@ aws secretsmanager put-secret-value --secret-id "${client_secret_id}" --region "
   --secret-string "file://${tmp_client}" --query VersionId --output text >/dev/null \
   || fail "put-secret-value for ${client_secret_id} failed"
 
-if [ "${client}" = "nextcloud" ] || [ "${client}" = "argocd" ]; then
-  echo "==> terraform apply (rolls Authelia's own side only -- ${client} isn't deployed from this repo)"
-  echo "    review the plan -- it should touch only Authelia's own Secret"
-else
-  echo "==> terraform apply (rolls Authelia + ${client} together, in sync)"
-  echo "    review the plan -- it should touch only Authelia's own Secret and ${client}'s own Secret"
+# ESO picks both values up within its hourly refresh; forcing it switches Authelia and the client together.
+now="$(date +%s)"
+echo "==> forcing ESO to sync Authelia's config (Reloader restarts Authelia)"
+kubectl -n auth annotate externalsecret authelia-config force-sync="${now}" --overwrite >/dev/null
+case "${client}" in
+  grafana) client_es=(monitoring grafana-oidc-client-secret) ;;
+  openwebui) client_es=(apps open-webui-oidc-client-secret) ;;
+  bulwark) client_es=(apps bulwark-oidc) ;;
+  paperless) client_es=(apps paperless-env) ;;
+  vaultwarden) client_es=(apps vaultwarden-sso) ;;
+  *) client_es=() ;;
+esac
+if [ ${#client_es[@]} -eq 2 ]; then
+  echo "==> forcing ESO to sync ${client}'s Secret (Reloader restarts ${client})"
+  kubectl -n "${client_es[0]}" annotate externalsecret "${client_es[1]}" force-sync="${now}" --overwrite >/dev/null
 fi
-terraform init -input=false >/dev/null
-terraform apply
 
 if [ "${client}" = "argocd" ]; then
   k3s_bootstrap_dir="${repo_root}/../../bootstrap/k3s-bootstrap"
