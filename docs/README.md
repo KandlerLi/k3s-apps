@@ -26,12 +26,6 @@ in `k3s-bootstrap`'s `argocd.tf`.
   acts as its ServiceAccount without a token prompt; that ServiceAccount
   and its read-only RBAC live in `k3s-bootstrap`, since granting RBAC is
   privilege-defining and this CI-applied root can't do it to itself.
-- `argocd/qbittorrent/` -- qBittorrent (replaced Deluge, tracker
-  #50) on Deluge's statically-provisioned NFS storage and uid/gid
-  (`storage.yaml`), deployed by Argo CD (see "Argo CD").
-  `qBittorrent.conf` is rewritten from a ConfigMap on every start; its
-  Web UI skips the login for the pod CIDR, and a NetworkPolicy admits
-  only Traefik to that port. Serves `torrent.jkandler.de` in production.
 - `argocd/home-agent/` -- `home_agent` + `nextcloud_tools` as sidecars
   in one Pod, sharing a Unix socket through an `emptyDir` (preserves the
   exact trust shape `home-infra`'s own deployment has today, just
@@ -123,8 +117,7 @@ in `k3s-bootstrap`'s `argocd.tf`.
   needing a network exception in both directions -- but the direction
   here is reversed from Grafana's own: Prometheus (staying on the
   homeserver) has to reach *this*, not the other way around, over a
-  `type = "LoadBalancer"` Service (qBittorrent's own
-  `qbittorrent-peer-svc` precedent -- k3s's bundled ServiceLB binds it
+  `type = "LoadBalancer"` Service (k3s's bundled ServiceLB binds it
   directly to `192.168.101.10:9093`) rather than a ClusterIP +
   Ingress, since this isn't a browser-facing app and needs a plain
   `IP:port` target. Alertmanager itself keeps reaching the ntfy relay,
@@ -210,8 +203,8 @@ in `k3s-bootstrap`'s `argocd.tf`.
   possible translation, not a rewrite into Kubernetes'
   `IngressRoute`/`Middleware` CRDs), but every backend now routes to
   this cluster's own in-cluster Service DNS names directly
-  (`home-agent-svc`, `open-webui-svc`, `qbittorrent-web-svc`,
-  `grafana-svc`, `landing-page-svc`) instead of bouncing back out
+  (`home-agent-svc`, `open-webui-svc`, `grafana-svc`,
+  `landing-page-svc`) instead of bouncing back out
   through the node's own external address -- this Traefik lives
   inside the cluster now, so it doesn't need to. Nextcloud AIO's own
   Apache is the one backend that isn't a k3s Service at all (stays on
@@ -286,9 +279,9 @@ docs' "Argo CD"). This repo holds its side of the UI on
   remove a volume; `create` stays, for a rebuilt cluster. Dynamically
   provisioned ones (Vaultwarden's and Authelia's data) leave `volumeName`
   out, so a rebuild provisions fresh.
-- qBittorrent's config change restarts the Pod through the `checksum/config` annotation, which the
-  Validate job checks against `qBittorrent.conf` (likewise home_agent's
-  `checksum/nextcloud-tools-source`; a new one goes into that step).
+- home_agent's source change restarts the Pod through the
+  `checksum/nextcloud-tools-source` annotation, which the Validate job
+  checks against the file; a new one goes into that step.
 - The apps came from this repo's former Terraform modules: `removed`
   blocks forgot the live objects without destroying them, and Argo CD
   and ESO adopted them. Before changing a manifest, `kubectl diff -k
@@ -340,16 +333,12 @@ bucket under `k3s-apps/` as an archive.
 
 ## Relationship to the Ansible-managed originals
 
-Both services here now serve their real production domains --
-`home.jkandler.de` (cut over 2026-08-29, the old `landing_page` role
-then deleted outright) and `torrent.jkandler.de` (cut over 2026-08-30,
-the old `deluge` role reshaped down to just the host prerequisites --
-service account, NFS-exported directories -- this cluster still depends
-on, since unlike `landing_page` it owns real state a homeserver rebuild
-still needs). `home-infra`'s `shared_ingress` role points at this
-cluster's Traefik Ingress (`http://192.168.101.10:80`) for both routes;
-see `home-infra-docs/docs/history.md`'s "k3s learning
-cluster" section for the full cutover history.
+`home.jkandler.de` was cut over 2026-08-29 and the old `landing_page`
+role deleted outright. `torrent.jkandler.de` (cut over 2026-08-30,
+Deluge then qBittorrent) was retired outright on 2026-11-15, along with
+the `deluge` role's host prerequisites and its data. See
+`home-infra-docs/docs/history.md`'s "k3s learning cluster" section for
+the full cutover history.
 
 ## Cutting over `ai.jkandler.de`
 
