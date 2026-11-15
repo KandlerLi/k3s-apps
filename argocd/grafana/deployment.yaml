@@ -1,9 +1,12 @@
-# Prometheus stays on the homeserver (192.168.101.1); no PVC, everything is provisioned. Secrets and checksums: modules/grafana.
+# Prometheus stays on the homeserver (192.168.101.1); no PVC, everything is provisioned. Secrets: externalsecret.yaml.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana
   namespace: monitoring
+  annotations:
+    # Reloader (k3s-bootstrap) restarts the Pod when one of these changes.
+    secret.reloader.stakater.com/reload: grafana-admin-password,grafana-oidc-client-secret,grafana-datasources
 spec:
   replicas: 1
   selector:

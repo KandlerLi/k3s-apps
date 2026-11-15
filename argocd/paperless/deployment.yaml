@@ -1,9 +1,12 @@
-# Paperless-ngx (ADR 0023) with PostgreSQL and Redis as native sidecars, rootless as 983:978. Secrets, PVCs, checksums: modules/paperless.
+# Paperless-ngx (ADR 0023) with PostgreSQL and Redis as native sidecars, rootless as 983:978. Secrets: externalsecret.yaml.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: paperless
   namespace: apps
+  annotations:
+    # Reloader (k3s-bootstrap) restarts the Pod when either Secret changes.
+    secret.reloader.stakater.com/reload: paperless-env,paperless-postgres
 spec:
   replicas: 1
   selector:

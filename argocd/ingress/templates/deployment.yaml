@@ -1,9 +1,12 @@
-# Traefik, the only HTTP(S) entry into k3s; file provider only, ACME via DNS-01 (Secret: modules/ingress).
+# Traefik, the only HTTP(S) entry into k3s; file provider only, ACME via DNS-01 (Secret: externalsecret.yaml).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ingress
   namespace: apps
+  annotations:
+    # Reloader (k3s-bootstrap) restarts the Pod when the Secret changes.
+    secret.reloader.stakater.com/reload: ingress-acme-dns01-credentials
 spec:
   replicas: 1
   selector:

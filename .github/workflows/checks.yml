@@ -1,6 +1,6 @@
 name: Checks
 
-# Runs on the runner itself, no container: key, so it sees the k3s-apps-ci token; AWS OIDC is for state access. See the README, "CI".
+# Static checks only: this repo has no Terraform; Argo CD deploys argocd/ (README, "CI").
 
 on:
   pull_request:
@@ -12,29 +12,12 @@ permissions:
 jobs:
   validate:
     name: Validate
-    runs-on: [self-hosted, home, debian]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      # Exists in every ARC runner Pod (k3s-bootstrap's github_runner); empty per job, see tracker #52.
-      TF_PLUGIN_CACHE_DIR: /terraform-plugin-cache
 
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
-        with:
-          terraform_version: "v1.17.1"
-
-      - name: Check formatting
-        run: terraform fmt -check -recursive
-
-      - name: Initialize without the remote backend
-        run: terraform init -backend=false -input=false
-
-      - name: Validate Terraform
-        run: terraform validate
 
       # Argo CD restarts these Pods on a file change only through their checksum annotations.
       - name: Check Argo CD checksum annotations
@@ -46,106 +29,3 @@ jobs:
           }
           check argocd/qbittorrent/deployment.yaml argocd/qbittorrent/qBittorrent.conf config
           check argocd/home-agent/deployment.yaml argocd/home-agent/nextcloud_tools_service.py nextcloud-tools-source
-
-  plan:
-    name: Terraform plan
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    needs: validate
-    runs-on: [self-hosted, home, debian]
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write
-      # For the "Post plan to pull request" step.
-      pull-requests: write
-    env:
-      AWS_REGION: eu-central-1
-      TF_IN_AUTOMATION: "true"
-      TF_INPUT: "false"
-      # Selects provider.tf's in-cluster auth.
-      TF_VAR_in_cluster: "true"
-      # Exists in every ARC runner Pod (k3s-bootstrap's github_runner); empty per job, see tracker #52.
-      TF_PLUGIN_CACHE_DIR: /terraform-plugin-cache
-      # Secrets come from Secrets Manager via secrets.tf; the plan role needs GetSecretValue too.
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
-        with:
-          terraform_version: "v1.17.1"
-
-      - name: Verify plan configuration
-        env:
-          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-          AWS_PLAN_ROLE_ARN: ${{ vars.AWS_PLAN_ROLE_ARN }}
-        run: |
-          if [ -z "$AWS_ACCOUNT_ID" ]; then
-            echo "::error::Missing repository variable AWS_ACCOUNT_ID"
-            exit 1
-          fi
-          if [ -z "$AWS_PLAN_ROLE_ARN" ]; then
-            echo "::error::Missing repository variable AWS_PLAN_ROLE_ARN"
-            exit 1
-          fi
-
-      - name: Configure read-only AWS credentials
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
-        with:
-          aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
-          role-session-name: GitHubPlan-${{ github.run_id }}
-          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
-          # A cheap escape hatch for OIDC hangs on self-hosted runners: see the README, "CI".
-          action-timeout-s: "90"
-
-      - name: Initialize Terraform
-        run: terraform init -input=false
-
-      - name: Create speculative plan
-        run: |
-          set -o pipefail
-          terraform plan -input=false -lock=false -no-color | tee plan_output.txt
-
-      # Duplicated from gha-common's terraform-checks.yml, which this repo doesn't call.
-      - name: Post plan to pull request
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const fs = require('fs');
-            const marker = '<!-- gha-common-terraform-plan -->';
-            const maxBodyLen = 60000;
-
-            let plan = fs.readFileSync('plan_output.txt', 'utf8');
-            if (plan.length > maxBodyLen) {
-              plan = plan.slice(0, maxBodyLen) + '\n... (truncated)';
-            }
-            const body = `${marker}\n### Terraform plan\n\`\`\`diff\n${plan}\n\`\`\``;
-
-            const pull_number = context.payload.pull_request.number;
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pull_number,
-            });
-            const existing = comments.find((c) => c.body.includes(marker));
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pull_number,
-                body,
-              });
-            }

@@ -1,9 +1,12 @@
-# Stalwart mail server; the web admin stays cluster-internal. Secret, PVCs and checksum: modules/stalwart.
+# Stalwart mail server; the web admin stays cluster-internal. Secret: externalsecret.yaml.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: stalwart
   namespace: apps
+  annotations:
+    # Reloader (k3s-bootstrap) restarts the Pod when the Secret changes.
+    secret.reloader.stakater.com/reload: stalwart-ses-smtp
 spec:
   selector:
     matchLabels:
