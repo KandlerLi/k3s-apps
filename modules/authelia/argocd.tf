@@ -1,4 +1,4 @@
-# Argo CD runs this app's workload from k3s-apps' argocd/; Secrets and PVCs stay here. See README, "Argo CD".
+# Argo CD runs Authelia from k3s-apps' argocd/, ESO supplies its Secrets; Terraform only forgets. See README, "Argo CD".
 
 removed {
   from = kubernetes_deployment_v1.authelia
@@ -25,20 +25,11 @@ removed {
 }
 
 # Restarts Argo CD's Pod when a Secret here changes; Argo CD's manifest leaves these annotations out.
-resource "kubernetes_annotations" "authelia_checksums" {
-  api_version   = "apps/v1"
-  kind          = "Deployment"
-  field_manager = "terraform-secret-checksums"
-  force         = true
+removed {
+  from = kubernetes_annotations.authelia_checksums
 
-  metadata {
-    namespace = "auth"
-    name      = "authelia"
-  }
-
-  template_annotations = {
-    "checksum/config" = sha256(kubernetes_secret_v1.authelia_config.data["configuration.yml"])
-    "checksum/users"  = sha256(kubernetes_secret_v1.authelia_users.data["users_database.yml"])
+  lifecycle {
+    destroy = false
   }
 }
 
@@ -60,6 +51,23 @@ removed {
 
 removed {
   from = kubernetes_persistent_volume_claim_v1.authelia_backup
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+# The Secrets moved to ESO (argocd/authelia/externalsecret.yaml, ADR 0032); forgotten here, never deleted.
+removed {
+  from = kubernetes_secret_v1.authelia_config
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.authelia_users
 
   lifecycle {
     destroy = false
