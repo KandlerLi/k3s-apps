@@ -42,6 +42,7 @@ misconfigurations:
   - id: KSV-0007
     paths:
       - argocd/vaultwarden/deployment.yaml
+      - argocd/open-webui/deployment.yaml
     statement: hostAliases pins auth.jkandler.de to Traefik in-cluster, so SSO needs no internet egress.
   - id: KSV-01010
     paths:

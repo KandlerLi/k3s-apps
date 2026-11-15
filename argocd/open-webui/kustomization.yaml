@@ -6,5 +6,6 @@ namespace: apps
 resources:
   - deployment.yaml
   - externalsecret.yaml
+  - networkpolicy.yaml
   - service.yaml
   - storage.yaml
