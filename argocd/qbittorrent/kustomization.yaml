@@ -3,16 +3,6 @@ kind: Kustomization
 
 namespace: apps
 
+# Only the PVCs stay until k3s-bootstrap drops this Application: Argo CD never deletes them, and won't auto-sync an empty app.
 resources:
-  - deployment.yaml
-  - services.yaml
-  - networkpolicy.yaml
   - storage.yaml
-
-configMapGenerator:
-  - name: qbittorrent-config
-    files:
-      - qBittorrent.conf
-    options:
-      # Static name: Argo CD may change only named objects, see k3s-bootstrap's argocd.tf.
-      disableNameSuffixHash: true

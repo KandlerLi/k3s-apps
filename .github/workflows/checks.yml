@@ -27,5 +27,4 @@ jobs:
             grep -q "checksum/$3: ${want}$" "$1" \
               || { echo "::error file=$1::set checksum/$3 to ${want}"; exit 1; }
           }
-          check argocd/qbittorrent/deployment.yaml argocd/qbittorrent/qBittorrent.conf config
           check argocd/home-agent/deployment.yaml argocd/home-agent/nextcloud_tools_service.py nextcloud-tools-source
