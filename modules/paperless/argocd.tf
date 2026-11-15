@@ -1,4 +1,4 @@
-# Argo CD runs this app's workload from k3s-apps' argocd/; Secrets and PVCs stay here. See README, "Argo CD".
+# Argo CD runs this app from k3s-apps' argocd/, ESO supplies its Secrets; Terraform only forgets. See README, "Argo CD".
 
 removed {
   from = kubernetes_deployment_v1.paperless
@@ -25,20 +25,11 @@ removed {
 }
 
 # Restarts Argo CD's Pod when a Secret here changes; Argo CD's manifest leaves these annotations out.
-resource "kubernetes_annotations" "paperless_checksums" {
-  api_version   = "apps/v1"
-  kind          = "Deployment"
-  field_manager = "terraform-secret-checksums"
-  force         = true
+removed {
+  from = kubernetes_annotations.paperless_checksums
 
-  metadata {
-    namespace = "apps"
-    name      = "paperless"
-  }
-
-  template_annotations = {
-    "checksum/env"      = sha256(jsonencode(kubernetes_secret_v1.paperless_env.data))
-    "checksum/postgres" = sha256(jsonencode(kubernetes_secret_v1.paperless_postgres.data))
+  lifecycle {
+    destroy = false
   }
 }
 
@@ -68,6 +59,39 @@ removed {
 
 removed {
   from = module.paperless_postgres
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+# The Secrets moved to ESO (argocd/paperless/externalsecret.yaml, ADR 0032); forgotten here, never deleted.
+removed {
+  from = random_password.secret_key
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = random_password.postgres
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.paperless_postgres
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.paperless_env
 
   lifecycle {
     destroy = false

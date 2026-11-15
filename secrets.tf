@@ -25,11 +25,6 @@ data "aws_secretsmanager_secret_version" "k3s_apps_stalwart" {
   secret_id = "k3s-apps/stalwart"
 }
 
-# Paperless-ngx's Authelia OIDC client secret (plaintext half), ADR 0023.
-data "aws_secretsmanager_secret_version" "k3s_apps_paperless" {
-  secret_id = "k3s-apps/paperless"
-}
-
 locals {
   home_infra_authelia   = jsondecode(data.aws_secretsmanager_secret_version.home_infra_authelia.secret_string)
   home_infra_grafana    = jsondecode(data.aws_secretsmanager_secret_version.home_infra_grafana.secret_string)
@@ -37,5 +32,4 @@ locals {
   home_infra_monitoring = jsondecode(data.aws_secretsmanager_secret_version.home_infra_monitoring.secret_string)
   home_infra_blocky     = jsondecode(data.aws_secretsmanager_secret_version.home_infra_blocky.secret_string)
   k3s_apps_stalwart     = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_stalwart.secret_string)
-  k3s_apps_paperless    = jsondecode(data.aws_secretsmanager_secret_version.k3s_apps_paperless.secret_string)
 }
