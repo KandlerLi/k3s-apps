@@ -93,8 +93,6 @@ module "bulwark" {
 
 module "paperless" {
   source = "./modules/paperless"
-
-  paperless_oidc_client_secret = local.k3s_apps_paperless["authelia_oidc_paperless_client_secret"]
 }
 
 module "vaultwarden" {
