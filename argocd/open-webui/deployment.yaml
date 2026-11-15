@@ -128,6 +128,13 @@ spec:
           value: 'False'
         - name: ENABLE_PLUGINS
           value: 'False'
+        # Already off through ENABLE_PLUGINS in v0.13; explicit in case upstream decouples them.
+        - name: ENABLE_TOOLS
+          value: 'False'
+        - name: ENABLE_FUNCTIONS
+          value: 'False'
+        - name: ENABLE_TOOL_SERVERS
+          value: 'False'
         - name: ENABLE_PIP_INSTALL_FRONTMATTER_REQUIREMENTS
           value: 'False'
         - name: SAFE_MODE
@@ -141,6 +148,11 @@ spec:
         - name: ENABLE_IMAGE_GENERATION
           value: 'False'
         - name: ENABLE_SUBAGENTS
+          value: 'False'
+        # Unattended scheduled chats (with home_agent's write tools) and calendar webhooks: not threat-reviewed.
+        - name: ENABLE_AUTOMATIONS
+          value: 'False'
+        - name: ENABLE_CALENDAR
           value: 'False'
         - name: USER_PERMISSIONS_CHAT_FILE_UPLOAD
           value: 'False'
@@ -216,6 +228,11 @@ spec:
           mountPropagation: None
           name: data
       enableServiceLinks: true
+      # In-cluster path to Authelia via ingress-svc's ClusterIP; update it if that Service is ever recreated.
+      hostAliases:
+      - hostnames:
+        - auth.jkandler.de
+        ip: 10.43.153.200
       securityContext:
         runAsNonRoot: true
         seccompProfile:
