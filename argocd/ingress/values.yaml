@@ -78,14 +78,6 @@ routes:
       average: 120
       burst: 240
     max_body_bytes: 1048576
-  qbittorrent:
-    rule: Host(`torrent.jkandler.de`)
-    url: http://qbittorrent-web-svc:80
-    forward_auth: true
-    rate_limit:
-      average: 120
-      burst: 240
-    max_body_bytes: 1048576
   stalwart:
     rule: Host(`stalwart.jkandler.de`)
     priority: 10
