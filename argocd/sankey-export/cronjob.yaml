@@ -1,4 +1,4 @@
-# Renders the budget Sankey diagram every minute and uploads it to Nextcloud (history.md); image built from images/sankey-export. Secrets: externalsecret.yaml.
+# Renders the budget Sankey diagram every minute and uploads it to Nextcloud (history.md); image built from this directory's Dockerfile (not deployed: kustomization.yaml lists only manifests). Secrets: externalsecret.yaml.
 apiVersion: batch/v1
 kind: CronJob
 metadata:

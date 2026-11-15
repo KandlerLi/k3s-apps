@@ -6,8 +6,11 @@ on:
   push:
     branches:
       - main
+    # Source files only: argocd/sankey-export/** would rebuild on Renovate's digest bump in cronjob.yaml, in a loop.
     paths:
-      - images/sankey-export/**
+      - argocd/sankey-export/Dockerfile
+      - argocd/sankey-export/*.py
+      - argocd/sankey-export/requirements.txt
       - .github/workflows/build-sankey-export.yml
   workflow_dispatch:
 
@@ -37,7 +40,7 @@ jobs:
           docker build
           -t ghcr.io/kandlerli/sankey-export:${{ github.sha }}
           -t ghcr.io/kandlerli/sankey-export:main
-          images/sankey-export
+          argocd/sankey-export
 
       # :main is what Renovate follows to propose the new digest in argocd/sankey-export/cronjob.yaml.
       - name: Push sankey-export image
