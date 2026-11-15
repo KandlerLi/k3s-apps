@@ -54,9 +54,6 @@ module "grafana" {
 
 module "alertmanager" {
   source = "./modules/alertmanager"
-
-  alertmanager_ses_smtp_username = local.home_infra_monitoring["monitoring_ses_smtp_username"]
-  alertmanager_ses_smtp_password = local.home_infra_monitoring["monitoring_ses_smtp_password"]
 }
 
 module "blocky" {

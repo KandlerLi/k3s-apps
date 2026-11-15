@@ -281,7 +281,7 @@ docs' "Argo CD"). This repo holds its side of the UI on
   namespace's SecretStore, refreshed hourly) and the Deployment annotation
   `secret.reloader.stakater.com/reload: <secrets>`, so Reloader restarts it
   after a rotation; its module keeps only `removed` blocks. Moved so far:
-  Bulwark, Grafana, home-agent, Open WebUI, Paperless, Vaultwarden, sankey-export (a CronJob, so no Reloader: each run reads the
+  Alertmanager, Bulwark, Grafana, home-agent, Open WebUI, Paperless, Vaultwarden, sankey-export (a CronJob, so no Reloader: each run reads the
   Secret afresh). To pick up a rotation at once:
   `kubectl -n <ns> annotate externalsecret <name> force-sync=$(date +%s) --overwrite`.
 - **Secrets of the other apps stay in Terraform.** For an app with Secrets, its module

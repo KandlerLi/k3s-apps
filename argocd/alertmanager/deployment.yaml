@@ -1,9 +1,12 @@
-# No PVC: silences and the dedup log are fine to lose. Config Secret and checksum: modules/alertmanager.
+# No PVC: silences and the dedup log are fine to lose. Config Secret: externalsecret.yaml.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: alertmanager
   namespace: monitoring
+  annotations:
+    # Reloader (k3s-bootstrap) restarts the Pod when the config Secret changes.
+    secret.reloader.stakater.com/reload: alertmanager-config
 spec:
   replicas: 1
   selector:
