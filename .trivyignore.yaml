@@ -1,7 +1,7 @@
 misconfigurations:
   - id: DS-0026
     paths:
-      - containers/sankey-export/Dockerfile
+      - images/sankey-export/Dockerfile
     statement: >-
       HEALTHCHECK has no meaning for a run-once CronJob image; trivy has no
       inline ignore for a check triggered by a missing instruction.
