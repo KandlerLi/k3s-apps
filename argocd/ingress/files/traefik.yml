@@ -1,6 +1,8 @@
 global:
   checkNewVersion: false
   sendAnonymousUsage: false
+  # Drops Remote_User-style aliases that could spoof ForwardAuth's Remote-* headers in normalizing backends.
+  aliasHeadersStrategy: delete
 
 api:
   dashboard: false
