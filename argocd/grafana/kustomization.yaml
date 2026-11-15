@@ -6,6 +6,7 @@ namespace: monitoring
 resources:
   - dashboard-provider.yaml
   - deployment.yaml
+  - externalsecret.yaml
   - service.yaml
 
 configMapGenerator:
