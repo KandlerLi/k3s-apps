@@ -64,9 +64,6 @@ module "blocky" {
 
 module "stalwart" {
   source = "./modules/stalwart"
-
-  stalwart_ses_smtp_username = local.home_infra_monitoring["monitoring_ses_smtp_username"]
-  stalwart_ses_smtp_password = local.home_infra_monitoring["monitoring_ses_smtp_password"]
 }
 
 # Stalwart's runtime settings moved to the stalwart-config repo, which imported them.
@@ -113,7 +110,4 @@ module "authelia" {
 
 module "ingress" {
   source = "./modules/ingress"
-
-  k3s_ingress_acme_dns01_access_key_id     = local.home_infra_ingress["k3s_ingress_acme_dns01_access_key_id"]
-  k3s_ingress_acme_dns01_secret_access_key = local.home_infra_ingress["k3s_ingress_acme_dns01_secret_access_key"]
 }
