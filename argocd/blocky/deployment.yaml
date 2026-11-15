@@ -1,9 +1,12 @@
-# Blocky, the LAN's DNS with ad blocking, and Postgres in one Pod: the query log connects via 127.0.0.1. Secrets, PVC and checksums: modules/blocky.
+# Blocky, the LAN's DNS with ad blocking, and Postgres in one Pod: the query log connects via 127.0.0.1. Secrets: externalsecret.yaml.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: blocky
   namespace: apps
+  annotations:
+    # Reloader (k3s-bootstrap) restarts the Pod when one of these changes.
+    secret.reloader.stakater.com/reload: blocky-config,blocky-postgres-credentials,blocky-postgres-exporter-dsn
 spec:
   replicas: 1
   selector:
