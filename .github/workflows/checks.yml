@@ -19,3 +19,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
+      # Renders every app the way Argo CD does, so a broken manifest fails here instead of in a sync.
+      - name: Render every Argo CD app
+        run: |
+          status=0
+          for dir in argocd/*/; do
+            app="$(basename "$dir")"
+            if [ -f "$dir/Chart.yaml" ]; then
+              helm template "$app" "$dir" --namespace apps > /dev/null || { echo "::error file=${dir}Chart.yaml::helm template failed"; status=1; }
+            elif [ -f "$dir/kustomization.yaml" ]; then
+              kubectl kustomize "$dir" > /dev/null || { echo "::error file=${dir}kustomization.yaml::kustomize build failed"; status=1; }
+            else
+              echo "::error::$dir has neither Chart.yaml nor kustomization.yaml"; status=1
+            fi
+          done
+          exit "$status"
+
