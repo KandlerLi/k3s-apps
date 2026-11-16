@@ -50,3 +50,29 @@ misconfigurations:
     statement: >-
       False positive: Traefik's config holds no secret, only the header name
       permissionsPolicy and the public ACME contact email.
+
+# Fixed upstream, not yet in an image we can pin, checked unreachable (tracker #62). IDs match every image, hence the expiry.
+vulnerabilities:
+  - id: CVE-2026-96760
+    expired_at: 2026-12-31
+    statement: >-
+      Authlib 1.7.2 in open-webui: the bug is only in
+      JsonWebSignature.deserialize_json(), which neither Open WebUI nor
+      Authlib's JsonWebToken.decode (compact only) calls.
+  - id: CVE-2026-102268
+    expired_at: 2026-12-31
+    statement: >-
+      PyJWT 2.13.0 in open-webui: needs an algorithms list that mixes HMAC
+      and asymmetric algorithms; Open WebUI's lists are HS256-only,
+      RS/ES-only or EdDSA-only.
+  - id: CVE-2026-111497
+    expired_at: 2026-12-31
+    statement: >-
+      Brotli decoder in nginx-unprivileged and stalwart: no nginx process
+      maps libbrotli, and the stalwart binary doesn't link it (only libcurl
+      depends on it).
+  - id: CVE-2025-68121
+    expired_at: 2026-12-31
+    statement: >-
+      Go crypto/tls in postgres:17-alpine's gosu, which only drops
+      privileges at container start and does no TLS.
