@@ -1,5 +1,5 @@
 {
-  "title": "Host Health",
+  "title": "Host Health (homeserver)",
   "uid": "monitoring-host-health",
   "schemaVersion": 39,
   "version": 1,
@@ -17,7 +17,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{job=\"node_exporter\", mode=\"idle\"}[5m])) * 100)",
           "legendFormat": "CPU busy",
           "refId": "A"
         }
@@ -32,7 +32,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))",
+          "expr": "100 * (1 - (node_memory_MemAvailable_bytes{job=\"node_exporter\"} / node_memory_MemTotal_bytes{job=\"node_exporter\"}))",
           "legendFormat": "Memory used",
           "refId": "A"
         }
@@ -47,7 +47,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 * (1 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"}))",
+          "expr": "100 * (1 - (node_filesystem_avail_bytes{job=\"node_exporter\", mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"node_exporter\", mountpoint=\"/\"}))",
           "legendFormat": "Root disk used",
           "refId": "A"
         }
@@ -60,9 +60,9 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "node_load1", "legendFormat": "1m", "refId": "A" },
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "node_load5", "legendFormat": "5m", "refId": "B" },
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "node_load15", "legendFormat": "15m", "refId": "C" }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "node_load1{job=\"node_exporter\"}", "legendFormat": "1m", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "node_load5{job=\"node_exporter\"}", "legendFormat": "5m", "refId": "B" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "node_load15{job=\"node_exporter\"}", "legendFormat": "15m", "refId": "C" }
       ]
     },
     {
@@ -74,7 +74,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "time() - node_boot_time_seconds",
+          "expr": "time() - node_boot_time_seconds{job=\"node_exporter\"}",
           "legendFormat": "Uptime",
           "refId": "A"
         }
