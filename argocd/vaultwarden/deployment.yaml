@@ -122,7 +122,7 @@ spec:
           mountPropagation: None
           name: tmp
       enableServiceLinks: true
-      # In-cluster path to Authelia via ingress-svc's ClusterIP; update it if that Service is ever recreated.
+      # In-cluster path to Authelia via ingress-svc's ClusterIP, pinned in argocd/ingress/templates/service.yaml.
       hostAliases:
       - hostnames:
         - auth.jkandler.de
