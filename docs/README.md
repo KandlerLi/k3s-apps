@@ -224,8 +224,9 @@ docs' "Argo CD"). This repo holds its side of the UI on
 
 ## CI
 
-`checks.yml` holds the required `Validate` check; its only step, the
-`home_agent` checksum annotation, went with that app. Trivy scans
+`checks.yml`'s required `Validate` check renders every app under
+`argocd/` the way Argo CD does (`kubectl kustomize`, `helm template` for
+the ingress chart). Trivy scans
 the manifests and images (`security-scan.yml`). `build-sankey-export.yml`
 builds and pushes sankey-export's image on the in-cluster runner, the
 only job that needs it; that runner has no cluster or AWS access any
