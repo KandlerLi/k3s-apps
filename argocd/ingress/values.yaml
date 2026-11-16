@@ -50,16 +50,6 @@ routes:
       average: 10
       burst: 5
     max_body_bytes: 16384
-  # Only the API paths; the rest of the host is Open WebUI, hence the higher priority.
-  home-agent-api:
-    rule: Host(`ai.jkandler.de`) && (Path(`/healthz`) || Path(`/v1/chat`))
-    priority: 100
-    url: http://home-agent-svc:80
-    forward_auth: true
-    rate_limit:
-      average: 10
-      burst: 5
-    max_body_bytes: 16384
   # No body-size limit (attachments); Bulwark calls Stalwart's JMAP from the browser, so Stalwart needs CORS for this origin.
   mail:
     rule: Host(`mail.jkandler.de`)
@@ -68,16 +58,6 @@ routes:
     rate_limit:
       average: 120
       burst: 240
-  # No forward-auth: Open WebUI does its own Authelia OIDC login.
-  open-webui:
-    rule: Host(`ai.jkandler.de`)
-    priority: 10
-    url: http://open-webui-svc:80
-    forward_auth: false
-    rate_limit:
-      average: 120
-      burst: 240
-    max_body_bytes: 1048576
   stalwart:
     rule: Host(`stalwart.jkandler.de`)
     priority: 10

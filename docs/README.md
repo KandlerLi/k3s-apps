@@ -26,61 +26,6 @@ in `k3s-bootstrap`'s `argocd.tf`.
   acts as its ServiceAccount without a token prompt; that ServiceAccount
   and its read-only RBAC live in `k3s-bootstrap`, since granting RBAC is
   privilege-defining and this CI-applied root can't do it to itself.
-- `argocd/home-agent/` -- `home_agent` + `nextcloud_tools` as sidecars
-  in one Pod, sharing a Unix socket through an `emptyDir` (preserves the
-  exact trust shape `home-infra`'s own deployment has today, just
-  relocated from "two processes on one host" to "two containers in one
-  Pod"). `nextcloud_tools` reaches Nextcloud AIO's Apache at
-  `192.168.101.1:11000` (see `nextcloud_aio_apache_ip_binding` in
-  `home-infra`). `home_agent`'s own image is a private GHCR package,
-  built and pushed by `home-infra`'s `build-home-agent.yml` on its
-  self-hosted CI runner -- never on the homeserver. The one dependency
-  that couldn't move as a sidecar is `home_tools_service` (it reports
-  the *homeserver's own* hardware, so it has to keep running there);
-  reached instead over its own optional TCP listener at
-  `192.168.101.1:8095`. Confirmed live 2026-08-30: both containers
-  Running, and all four paths this Pod depends on actually exercised
-  from inside it (not just "the process didn't crash") --
-  `home-agent`'s own `/healthz`, the Unix socket to `nextcloud-tools`,
-  `nextcloud-tools` reaching Nextcloud AIO's `/status.php`, and
-  `home-agent` reaching `home_tools_service` over the TCP listener and
-  getting real homeserver hardware data back. Getting there needed
-  several real fixes past the first-cut manifest: CPU requests/limits
-  sized without measuring what these processes actually do (starved the
-  Pod off the VM's 2 vCPU budget), a serviceaccount token neither
-  container needs colliding with `read_only_root_filesystem`,
-  `nextcloud_tools_service.py`'s own loopback-only guard not knowing
-  about this Pod's real address, non-deterministic file permissions
-  from the CI image build, and the two containers' sidecar UIDs not
-  sharing a GID despite the Unix socket depending on one. No Ingress
-  yet -- not cut over to `ai.jkandler.de`.
-- `argocd/open-webui/` -- the k3s-native copy of `home-infra`'s own
-  `open_webui` role: same pinned image, same real data (mounted from
-  an NFS export of `/var/lib/open-webui`, not started fresh -- same
-  "share the real state" choice already made for Deluge's config,
-  see `nfs_server_exports` in `home-infra`), and the same UID:GID
-  (`995:0`, not the account's own default group -- see the module's
-  own comment) the Docker deployment already runs as, so the shared
-  NFS export's permissions just work. Points at `home_agent`'s own
-  in-cluster Service instead of the Docker `home-agent` network alias
-  for its OpenAI-compatible API. Resourced deliberately differently
-  from every other module here (Burstable, not this repo's usual
-  limits-only-implies-Guaranteed) -- see the module's own comment for
-  why. Migrated against the real, already-live data: home-infra's own
-  container was stopped first (SQLite tolerates concurrent NFS writers
-  far worse than Deluge's own session state did), the k3s copy then
-  confirmed to have read the real accounts/chat history (persisted
-  database settings came back, not fresh env-var defaults), not
-  restarted afterward -- the outage carried straight through into the
-  routing cutover below instead of a throwaway validate-then-revert
-  cycle.
-- `ai_ingress.tf` -- the one resource that genuinely depends on both
-  `home_agent`'s and `open_webui`'s own Services (via each module's
-  `outputs.tf`), so it lives at the root instead of inside either
-  module. Replicates `home-infra`'s own `shared_ingress` path split
-  for `ai.jkandler.de` (`/healthz` and `/v1/chat` to `home_agent`,
-  everything else to `open_webui`) using standard Kubernetes Ingress
-  path matching instead of Traefik's own priority annotation.
 - `argocd/grafana/` -- Phase 1 of moving `home-infra`'s `monitoring`
   role into k3s: Grafana only. Prometheus, the exporters, and Blocky
   all stay on the homeserver permanently (they report *this physical
@@ -99,9 +44,8 @@ in `k3s-bootstrap`'s `argocd.tf`.
   (matching the role's own README). Two real bugs found and fixed past
   the first-cut manifest, both the kind that don't crash-loop loudly:
   the admin-password Secret mounted at `/run/secrets` collided with
-  kubelet's own serviceaccount-token auto-mount there (same
-  `automount_service_account_token = false` fix as home_agent's own
-  case), and that Secret's data key didn't match its
+  kubelet's own serviceaccount-token auto-mount there (fixed with
+  `automount_service_account_token = false`), and that Secret's data key didn't match its
   own `GF_SECURITY_ADMIN_PASSWORD__FILE` path -- the Pod started fine
   but silently kept the default `admin/admin` login instead of the
   real sops password, caught only by actually logging in and checking.
@@ -203,8 +147,7 @@ in `k3s-bootstrap`'s `argocd.tf`.
   possible translation, not a rewrite into Kubernetes'
   `IngressRoute`/`Middleware` CRDs), but every backend now routes to
   this cluster's own in-cluster Service DNS names directly
-  (`home-agent-svc`, `open-webui-svc`, `grafana-svc`,
-  `landing-page-svc`) instead of bouncing back out
+  (`grafana-svc`, `landing-page-svc`) instead of bouncing back out
   through the node's own external address -- this Traefik lives
   inside the cluster now, so it doesn't need to. Nextcloud AIO's own
   Apache is the one backend that isn't a k3s Service at all (stays on
@@ -236,14 +179,6 @@ in `k3s-bootstrap`'s `argocd.tf`.
   `secrets.sops.yml` / `scripts/export-tf-vars.sh` flow entirely
   2026-09-09 (the SOPS-to-Secrets-Manager cutover) -- both
   are gone, including this repo's own separate SOPS vault.
-  `nextcloud_tools_app_password` moved into the shared
-  `home-infra/home-agent` Secrets Manager group alongside
-  `home_agent_ghcr_token`/`home_agent_openai_api_key` -- it's still a
-  separate, independently-revocable app password for this k3s copy
-  (see `secrets-manager`'s `home-infra/home-agent` runbook), just no longer kept in a
-  physically separate vault to express that; the AWS-side grouping is
-  by owning repo/service now, not by revocability.
-
 ## Argo CD
 
 Argo CD deploys every app under `argocd/`, one Application each
@@ -279,9 +214,6 @@ docs' "Argo CD"). This repo holds its side of the UI on
   remove a volume; `create` stays, for a rebuilt cluster. Dynamically
   provisioned ones (Vaultwarden's and Authelia's data) leave `volumeName`
   out, so a rebuild provisions fresh.
-- home_agent's source change restarts the Pod through the
-  `checksum/nextcloud-tools-source` annotation, which the Validate job
-  checks against the file; a new one goes into that step.
 - The apps came from this repo's former Terraform modules: `removed`
   blocks forgot the live objects without destroying them, and Argo CD
   and ESO adopted them. Before changing a manifest, `kubectl diff -k
@@ -292,8 +224,8 @@ docs' "Argo CD"). This repo holds its side of the UI on
 
 ## CI
 
-`checks.yml` runs on GitHub-hosted runners: the checksum annotations
-Argo CD needs to restart a Pod on a file change (see above). Trivy scans
+`checks.yml` holds the required `Validate` check; its only step, the
+`home_agent` checksum annotation, went with that app. Trivy scans
 the manifests and images (`security-scan.yml`). `build-sankey-export.yml`
 builds and pushes sankey-export's image on the in-cluster runner, the
 only job that needs it; that runner has no cluster or AWS access any
@@ -326,8 +258,8 @@ and, once, the kubeconfig k3s generates (its `server:` is already
 scp -o ProxyJump=julian@192.168.178.100 ansible@192.168.101.10:/etc/rancher/k3s/k3s.yaml ~/.kube/k3s-node-1.yaml
 ```
 
-The own images' digests are pinned in their manifests (home-agent,
-sankey-export, `:main@sha256:…`); Renovate proposes each new build's.
+The own image's digest is pinned in its manifest (sankey-export,
+`:main@sha256:…`); Renovate proposes each new build's.
 The former Terraform state stays in the `jkandler-terraform-state`
 bucket under `k3s-apps/` as an archive.
 
@@ -336,41 +268,8 @@ bucket under `k3s-apps/` as an archive.
 `home.jkandler.de` was cut over 2026-08-29 and the old `landing_page`
 role deleted outright. `torrent.jkandler.de` (cut over 2026-08-30,
 Deluge then qBittorrent) was retired outright on 2026-11-15, along with
-the `deluge` role's host prerequisites and its data. See
+the `deluge` role's host prerequisites and its data. `ai.jkandler.de`
+(Open WebUI and `home_agent`, cut over 2026-08-30) was retired outright
+on 2026-11-16, data included. See
 `home-infra-docs/docs/history.md`'s "k3s learning cluster" section for
 the full cutover history.
-
-## Cutting over `ai.jkandler.de`
-
-Unlike Deluge's or `home.jkandler.de`'s single-service swap,
-`ai.jkandler.de` is one hostname split by *path* between two services
-(`home_agent` answers `/healthz` and `/v1/chat` directly, `open_webui`
-gets everything else). `ai_ingress.tf` at the root replicates that
-split; `home-infra`'s own `shared_ingress` role points both
-`shared_ingress_agent_upstream` and `shared_ingress_open_webui_upstream`
-at this cluster (`http://192.168.101.10:80`) once ready -- both have to
-move together, since this file's own path split forwards each branch
-to the same k3s Traefik entrypoint, which then re-splits internally.
-Cut over 2026-08-30, done in one pass rather than the usual
-validate-then-revert cycle: `open_webui`'s own migration already
-required stopping the live Docker container before the k3s copy could
-even be started (SQLite's own concurrent-NFS-writer risk), so once
-that data was confirmed to have migrated correctly, the outage carried
-straight through into this routing cutover instead of restoring the
-old container first.
-
-The old `home_agent`/`open_webui`/`nextcloud_tools` Docker containers
-and the roles that ran them are gone now too (also 2026-08-30, a
-distinct follow-up step, not bundled into this cutover): `home_agent`
-and `open_webui` reshaped down to just the host prerequisites their
-k3s copies still depend on (mirroring `deluge`'s own precedent),
-`nextcloud_tools` retired outright since its only consumer was
-`home_agent`'s own now-gone container. See `home-infra-docs/
-docs/history.md` for that reshape's own real near-miss: an
-intervening `site.yml` run for an unrelated fix silently restarted the
-already-stopped `open-webui` container (its role was still
-Docker-based at that point), leaving it running against the same
-NFS-shared WAL-mode SQLite database as this Pod for about two hours
-before being caught -- `PRAGMA integrity_check` came back clean and no
-corruption resulted, but it's a real sequencing lesson for any future
-reshape-after-cutover step here.

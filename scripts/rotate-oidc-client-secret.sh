@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: rotate-oidc-client-secret.sh <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud|argocd>
+# Usage: rotate-oidc-client-secret.sh <grafana|bulwark|paperless|vaultwarden|nextcloud|argocd>
 # Rotates an Authelia OIDC client secret pair; procedure per client in secrets-manager's runbooks.
 
 set -euo pipefail
@@ -13,14 +13,11 @@ fail() {
   exit 1
 }
 
-[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud|argocd>"
+[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|bulwark|paperless|vaultwarden|nextcloud|argocd>"
 client="$1"
 case "$client" in
   grafana)
     client_secret_id="home-infra/grafana"
-    ;;
-  openwebui)
-    client_secret_id="home-infra/open-webui"
     ;;
   bulwark)
     client_secret_id="k3s-apps/bulwark"
@@ -38,7 +35,7 @@ case "$client" in
     client_secret_id="home-infra/argocd"
     ;;
   *)
-    fail "usage: $(basename "$0") <grafana|openwebui|bulwark|paperless|vaultwarden|nextcloud|argocd>"
+    fail "usage: $(basename "$0") <grafana|bulwark|paperless|vaultwarden|nextcloud|argocd>"
     ;;
 esac
 hash_key="authelia_oidc_${client}_client_secret_hash"
@@ -130,7 +127,6 @@ echo "==> forcing ESO to sync Authelia's config (Reloader restarts Authelia)"
 kubectl -n auth annotate externalsecret authelia-config force-sync="${now}" --overwrite >/dev/null
 case "${client}" in
   grafana) client_es=(monitoring grafana-oidc-client-secret) ;;
-  openwebui) client_es=(apps open-webui-oidc-client-secret) ;;
   bulwark) client_es=(apps bulwark-oidc) ;;
   paperless) client_es=(apps paperless-env) ;;
   vaultwarden) client_es=(apps vaultwarden-sso) ;;

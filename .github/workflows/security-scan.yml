@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: read
 
-  # Every digest-pinned image ref in argocd/; home-agent is private to home-infra and scanned there.
+  # Every digest-pinned image ref in argocd/.
   discover-images:
     runs-on: ubuntu-latest
     permissions:
@@ -32,7 +32,7 @@ jobs:
       - id: find
         run: |
           grep -rhoE '[a-z0-9.-]+(/[a-z0-9._-]+)*(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}' --include='*.yaml' argocd \
-            | grep -v '^ghcr.io/kandlerli/home-agent[:@]' | sort -u \
+            | sort -u \
             | jq -Rnc '[inputs | {name: (split("@")[0] | split("/")[-1]), ref: .}]' > matrix.json
           echo "matrix=$(cat matrix.json)" >> "$GITHUB_OUTPUT"
 

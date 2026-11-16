@@ -3,9 +3,6 @@ kind: Kustomization
 
 namespace: apps
 
+# Being retired: only the PVC is left, so Argo CD can prune the rest (runbook retire-k3s-app).
 resources:
-  - deployment.yaml
-  - externalsecret.yaml
-  - networkpolicy.yaml
-  - service.yaml
   - storage.yaml
