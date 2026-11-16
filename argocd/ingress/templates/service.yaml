@@ -4,6 +4,8 @@ metadata:
   name: ingress-svc
   namespace: apps
 spec:
+  # Pinned: Vaultwarden's hostAliases point auth.jkandler.de at this IP.
+  clusterIP: 10.43.153.200
   externalTrafficPolicy: Local
   healthCheckNodePort: 31542
   ports:
