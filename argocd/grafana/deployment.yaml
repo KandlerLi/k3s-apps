@@ -70,7 +70,7 @@ spec:
           value: contains(groups[*], 'admins') && 'Admin' || 'Viewer'
         - name: GF_AUTH_GENERIC_OAUTH_AUTH_STYLE
           value: InHeader
-        image: grafana/grafana:13.1.4@sha256:9be3a3ccdb06bcbb127f888b0c4c1d151837443e478887897a63a27d7b348043
+        image: grafana/grafana:13.3.1@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
         livenessProbe:
           failureThreshold: 5
           httpGet:
