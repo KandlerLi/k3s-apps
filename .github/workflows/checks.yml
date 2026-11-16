@@ -19,12 +19,3 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
-      # Argo CD restarts these Pods on a file change only through their checksum annotations.
-      - name: Check Argo CD checksum annotations
-        run: |
-          check() {
-            want="$(sha256sum "$2" | cut -d' ' -f1)"
-            grep -q "checksum/$3: ${want}$" "$1" \
-              || { echo "::error file=$1::set checksum/$3 to ${want}"; exit 1; }
-          }
-          check argocd/home-agent/deployment.yaml argocd/home-agent/nextcloud_tools_service.py nextcloud-tools-source

@@ -132,7 +132,7 @@ cat <<EOF
 Done. Verify by hand:
   1. Log in at https://auth.jkandler.de -- password and TOTP must still work
      (TOTP working proves the storage re-encryption).
-  2. Sign in to Grafana, Open WebUI, Nextcloud, Paperless and Bulwark via
+  2. Sign in to Grafana, Nextcloud, Paperless and Bulwark via
      Authelia once each (they fetch the new signing key from the JWKS).
   3. Record the rotation: secrets-manager's scripts/manage-rotation-schedule.sh.
 Backup taken before the change: job ${backup_job}.

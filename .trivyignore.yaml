@@ -19,13 +19,12 @@ misconfigurations:
       - argocd/blocky/deployment.yaml
       - argocd/bulwark/deployment.yaml
       - argocd/grafana/deployment.yaml
-      - argocd/open-webui/deployment.yaml
       - argocd/paperless/deployment.yaml
       - argocd/paperless/export-cronjob.yaml
       - argocd/stalwart/deployment.yaml
     statement: >-
-      These ran with a writable root filesystem under Terraform too (Open
-      WebUI and Paperless write outside their data dirs); read-only needs
+      These ran with a writable root filesystem under Terraform too
+      (Paperless writes outside its data dirs); read-only needs
       testing which paths each writes.
   - id: KSV-0022
     paths:
@@ -42,7 +41,6 @@ misconfigurations:
   - id: KSV-0007
     paths:
       - argocd/vaultwarden/deployment.yaml
-      - argocd/open-webui/deployment.yaml
     statement: hostAliases pins auth.jkandler.de to Traefik in-cluster, so SSO needs no internet egress.
   - id: KSV-01010
     paths:
@@ -53,18 +51,6 @@ misconfigurations:
 
 # Fixed upstream, not yet in an image we can pin, checked unreachable (tracker #62). IDs match every image, hence the expiry.
 vulnerabilities:
-  - id: CVE-2026-96760
-    expired_at: 2026-12-31
-    statement: >-
-      Authlib 1.7.2 in open-webui: the bug is only in
-      JsonWebSignature.deserialize_json(), which neither Open WebUI nor
-      Authlib's JsonWebToken.decode (compact only) calls.
-  - id: CVE-2026-102268
-    expired_at: 2026-12-31
-    statement: >-
-      PyJWT 2.13.0 in open-webui: needs an algorithms list that mixes HMAC
-      and asymmetric algorithms; Open WebUI's lists are HS256-only,
-      RS/ES-only or EdDSA-only.
   - id: CVE-2026-111497
     expired_at: 2026-12-31
     statement: >-

@@ -3,13 +3,8 @@ kind: Kustomization
 
 namespace: apps
 
-resources:
-  - deployment.yaml
-  - externalsecret.yaml
-  - service.yaml
-
+# Being retired: only this ConfigMap is left, so Argo CD can prune the rest (runbook retire-k3s-app).
 configMapGenerator:
-  # Stdlib-only, so it runs from a ConfigMap on a stock Python image, no build needed.
   - name: nextcloud-tools-source
     files:
       - nextcloud_tools_service.py
