@@ -131,6 +131,15 @@ in `k3s-bootstrap`'s `argocd.tf`.
   since 2026-11-01 its per-repository Deployments are replaced by ARC
   runner scale sets that create one Pod per job (tracker #39). Current
   design: that repo's README, "Runner design".
+- `argocd/alloy/` -- Grafana Alloy tailing every Pod's logs through the
+  Kubernetes API (`loki.source.kubernetes`, no hostPath) and pushing them
+  to Loki on the homeserver (`192.168.101.1:3100`, `home-infra`'s
+  `monitoring` role, which also ships the host journal there). Labels
+  `job="k3s-pods"`, `namespace`, `pod`, `container`, `node`, `app`. Its
+  ServiceAccount and read-only RBAC (Pods, `pods/log`) live in
+  `k3s-bootstrap`. Reloader ignores ConfigMaps, so a `config.alloy`
+  change needs `kubectl -n monitoring rollout restart deployment alloy`.
+  Grafana has Loki as a datasource (`argocd/grafana/externalsecret.yaml`).
 - `argocd/ingress/` (Argo CD, a small Helm chart: every route in
   `values.yaml`, rendered into Traefik routers and middlewares; the ACME
   credentials come from `templates/externalsecret.yaml`) -- moving `shared_ingress` to k3s, the last and
