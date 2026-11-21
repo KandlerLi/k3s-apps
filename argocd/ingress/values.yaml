@@ -1,6 +1,6 @@
 # One Traefik router per entry (name = router, service and middleware prefix). url is the in-cluster backend;
 # forward_auth puts Authelia in front, and a route with false is a reviewed exception. rate_limit and
-# max_body_bytes add those middlewares; referrer_policy defaults to no-referrer.
+# max_body_bytes add those middlewares; referrer_policy defaults to no-referrer, frame_deny to true.
 routes:
   # Argo CD's UI (k3s-bootstrap); it also logs in through Authelia's OIDC.
   argo:
@@ -58,6 +58,18 @@ routes:
     rate_limit:
       average: 120
       burst: 240
+  # Nextcloud on k3s, test instance until the ADR 0033 cutover; Authelia lets only julian in. Nextcloud
+  # frames its own pages (PDF viewer), so no frameDeny; it sends X-Frame-Options SAMEORIGIN itself.
+  nextcloud-test:
+    rule: Host(`nextcloud-test.jkandler.de`)
+    url: http://nextcloud-svc:80
+    forward_auth: true
+    rate_limit:
+      average: 600
+      burst: 1200
+    max_body_bytes: 536870912
+    referrer_policy: no-referrer
+    frame_deny: false
   stalwart:
     rule: Host(`stalwart.jkandler.de`)
     priority: 10

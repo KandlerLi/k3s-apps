@@ -1,0 +1,36 @@
+# The image runs these as www-data before every Apache start, after install or upgrade: settings that live in Git, not only in config.php.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nextcloud-hooks
+  namespace: apps
+data:
+  10-settings.sh: |
+    #!/bin/sh
+    set -eu
+    occ() { php /var/www/html/occ "$@"; }
+
+    # Redis through occ, not REDIS_HOST: the image writes that into the root-owned PHP conf.d, which fails as uid 33.
+    occ config:system:set redis host --value=127.0.0.1
+    occ config:system:set redis port --value=6379 --type=integer
+    occ config:system:set memcache.local --value='\OC\Memcache\APCu'
+    occ config:system:set memcache.distributed --value='\OC\Memcache\Redis'
+    occ config:system:set memcache.locking --value='\OC\Memcache\Redis'
+    occ config:system:set default_phone_region --value=DE
+    occ config:system:set maintenance_window_start --value=1 --type=integer
+    occ background:cron
+
+    # Same provider and force-SSO as AIO's (home-infra's nextcloud_aio role, oidc.yml).
+    occ app:install user_oidc >/dev/null 2>&1 || occ app:enable user_oidc
+    occ user_oidc:provider Authelia --clientid=nextcloud --clientsecret="$OIDC_CLIENT_SECRET" \
+      --discoveryuri=https://auth.jkandler.de/.well-known/openid-configuration
+    occ config:app:set --value=0 user_oidc allow_multiple_user_backends
+
+  # Not fatal: an unreachable app store must not keep Nextcloud from starting.
+  20-apps.sh: |
+    #!/bin/sh
+    occ() { php /var/www/html/occ "$@"; }
+    for app in $NEXTCLOUD_APPS; do
+      occ app:install "$app" >/dev/null 2>&1 || occ app:enable "$app" || echo "app $app: not installed"
+    done
+    occ app:update --all || echo "app:update failed"
