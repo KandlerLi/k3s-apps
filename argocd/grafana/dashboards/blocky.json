@@ -15,22 +15,22 @@
       }
     ]
   },
-  "description": "Operational dashboard for the blocky DNS proxy and ad blocker: traffic, latency, blocking effectiveness, caching, DNSSEC, rate limiting and Go runtime health.",
+  "description": "LAN DNS with ad blocking: queries, blocking, latency, cache.",
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "links": [
     {
-      "title": "blocky docs",
-      "type": "link",
-      "icon": "doc",
-      "url": "https://0xerr0r.github.io/blocky/",
-      "targetBlank": true,
-      "tooltip": "",
+      "title": "Dashboards",
+      "type": "dashboards",
+      "tags": [
+        "homeserver"
+      ],
       "asDropdown": false,
       "includeVars": false,
-      "keepTime": false,
-      "tags": []
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link"
     }
   ],
   "panels": [
@@ -1556,7 +1556,7 @@
           "legendFormat": "{{type}}"
         }
       ],
-      "description": "DNS record types requested (A, AAAA, PTR, \u2026)."
+      "description": "DNS record types requested (A, AAAA, PTR, …)."
     },
     {
       "id": 20,
@@ -1629,7 +1629,7 @@
           "legendFormat": "{{response_code}}"
         }
       ],
-      "description": "DNS response codes returned to clients (NOERROR, NXDOMAIN, SERVFAIL, \u2026)."
+      "description": "DNS response codes returned to clients (NOERROR, NXDOMAIN, SERVFAIL, …)."
     },
     {
       "id": 21,
@@ -2186,7 +2186,7 @@
           "legendFormat": "{{response_type}}"
         }
       ],
-      "description": "p95 duration per response type \u2014 cached answers should be microseconds, RESOLVED reflects upstream latency."
+      "description": "p95 duration per response type — cached answers should be microseconds, RESOLVED reflects upstream latency."
     },
     {
       "id": 26,
@@ -2293,7 +2293,7 @@
           "legendFormat": "blocking"
         }
       ],
-      "description": "History of the blocking switch \u2014 shows when blocking was temporarily disabled."
+      "description": "History of the blocking switch — shows when blocking was temporarily disabled."
     },
     {
       "id": 28,
@@ -2781,473 +2781,474 @@
           "legendFormat": "failures"
         }
       ],
-      "description": "List download failures over time \u2014 investigate sustained failures (lists go stale)."
+      "description": "List download failures over time — investigate sustained failures (lists go stale)."
     },
     {
       "id": 33,
       "type": "row",
       "title": "Cache & prefetching",
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 73
       },
-      "panels": []
-    },
-    {
-      "id": 34,
-      "type": "timeseries",
-      "title": "Cache hit ratio",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 74
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "unit": "percentunit",
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 20,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "pointSize": 5,
-            "spanNulls": false,
-            "insertNulls": false,
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "axisColorMode": "text",
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisSoftMin": 0,
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "max": 1,
-          "min": 0
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "hit ratio"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "green"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "max",
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
+      "panels": [
         {
+          "id": 34,
+          "type": "timeseries",
+          "title": "Cache hit ratio",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "editorMode": "code",
-          "expr": "sum(rate(blocky_cache_hits_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) / (sum(rate(blocky_cache_hits_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) + sum(rate(blocky_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "hit ratio"
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 74
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "unit": "percentunit",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "fillOpacity": 20,
+                "gradientMode": "opacity",
+                "showPoints": "never",
+                "pointSize": 5,
+                "spanNulls": false,
+                "insertNulls": false,
+                "axisPlacement": "auto",
+                "axisLabel": "",
+                "axisColorMode": "text",
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "max": 1,
+              "min": 0
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "hit ratio"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "green"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(blocky_cache_hits_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) / (sum(rate(blocky_cache_hits_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) + sum(rate(blocky_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])))",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "hit ratio"
+            }
+          ]
+        },
+        {
+          "id": 35,
+          "type": "timeseries",
+          "title": "Cache size",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 74
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "fillOpacity": 20,
+                "gradientMode": "opacity",
+                "showPoints": "never",
+                "pointSize": 5,
+                "spanNulls": false,
+                "insertNulls": false,
+                "axisPlacement": "auto",
+                "axisLabel": "",
+                "axisColorMode": "text",
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(blocky_cache_entries{job=~\"$job\", instance=~\"$instance\"})",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "result cache entries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(blocky_prefetch_domain_name_cache_entries{job=~\"$job\", instance=~\"$instance\"})",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "prefetch candidates"
+            }
+          ],
+          "description": "Entries in the result cache and number of domains tracked as prefetch candidates."
+        },
+        {
+          "id": 36,
+          "type": "timeseries",
+          "title": "Prefetch activity",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 82
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "unit": "reqps",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "fillOpacity": 20,
+                "gradientMode": "opacity",
+                "showPoints": "never",
+                "pointSize": 5,
+                "spanNulls": false,
+                "insertNulls": false,
+                "axisPlacement": "auto",
+                "axisLabel": "",
+                "axisColorMode": "text",
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(blocky_prefetches_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "prefetches/s"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(blocky_prefetch_hits_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "refId": "B",
+              "range": true,
+              "instant": false,
+              "legendFormat": "prefetch hits/s"
+            }
+          ],
+          "description": "Domains refreshed ahead of expiry and answers served from prefetched entries."
+        },
+        {
+          "id": 37,
+          "type": "timeseries",
+          "title": "Redis buffer drops",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 82
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "unit": "short",
+              "custom": {
+                "drawStyle": "bars",
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "fillOpacity": 80,
+                "gradientMode": "opacity",
+                "showPoints": "never",
+                "pointSize": 5,
+                "spanNulls": false,
+                "insertNulls": false,
+                "axisPlacement": "auto",
+                "axisLabel": "",
+                "axisColorMode": "text",
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "drops/s"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "red"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(blocky_redis_cache_buffer_drops_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "refId": "A",
+              "range": true,
+              "instant": false,
+              "legendFormat": "drops/s"
+            }
+          ],
+          "description": "Cache writes dropped because the Redis write-through buffer was full. Only relevant with Redis enabled; non-zero values mean Redis cannot keep up."
         }
       ]
-    },
-    {
-      "id": 35,
-      "type": "timeseries",
-      "title": "Cache size",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 74
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 20,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "pointSize": 5,
-            "spanNulls": false,
-            "insertNulls": false,
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "axisColorMode": "text",
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisSoftMin": 0,
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "max",
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(blocky_cache_entries{job=~\"$job\", instance=~\"$instance\"})",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "result cache entries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(blocky_prefetch_domain_name_cache_entries{job=~\"$job\", instance=~\"$instance\"})",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "prefetch candidates"
-        }
-      ],
-      "description": "Entries in the result cache and number of domains tracked as prefetch candidates."
-    },
-    {
-      "id": 36,
-      "type": "timeseries",
-      "title": "Prefetch activity",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 82
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "unit": "reqps",
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 20,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "pointSize": 5,
-            "spanNulls": false,
-            "insertNulls": false,
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "axisColorMode": "text",
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisSoftMin": 0,
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "max",
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(blocky_prefetches_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "prefetches/s"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(blocky_prefetch_hits_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "prefetch hits/s"
-        }
-      ],
-      "description": "Domains refreshed ahead of expiry and answers served from prefetched entries."
-    },
-    {
-      "id": 37,
-      "type": "timeseries",
-      "title": "Redis buffer drops",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 82
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "unit": "short",
-          "custom": {
-            "drawStyle": "bars",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 80,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "pointSize": 5,
-            "spanNulls": false,
-            "insertNulls": false,
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "axisColorMode": "text",
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisSoftMin": 0,
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "drops/s"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "red"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "max",
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(blocky_redis_cache_buffer_drops_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "drops/s"
-        }
-      ],
-      "description": "Cache writes dropped because the Redis write-through buffer was full. Only relevant with Redis enabled; non-zero values mean Redis cannot keep up."
     },
     {
       "id": 41,
@@ -3827,7 +3828,7 @@
               "legendFormat": "buckets"
             }
           ],
-          "description": "Token buckets (\u2248 distinct clients) currently tracked in memory."
+          "description": "Token buckets (≈ distinct clients) currently tracked in memory."
         },
         {
           "id": 44,
@@ -3942,7 +3943,7 @@
               "legendFormat": "drops/s"
             }
           ],
-          "description": "Queries dropped because the bucket store hit its size cap \u2014 consider raising the cap if this fires under normal load."
+          "description": "Queries dropped because the bucket store hit its size cap — consider raising the cap if this fires under normal load."
         }
       ]
     },
@@ -4280,12 +4281,10 @@
     }
   ],
   "preload": false,
-  "refresh": "30s",
+  "refresh": "1m",
   "schemaVersion": 40,
   "tags": [
-    "dns",
-    "adblock",
-    "blocky"
+    "homeserver"
   ],
   "templating": {
     "list": [
@@ -4341,7 +4340,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Blocky",
+  "title": "DNS – Blocky",
   "uid": "monitoring-blocky",
   "version": 1,
   "weekStart": ""

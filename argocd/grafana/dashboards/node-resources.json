@@ -1,8 +1,23 @@
 {
   "uid": "monitoring-node-resources",
-  "title": "Host & k3s Node Resources",
+  "title": "Resources",
+  "description": "CPU, memory, disks and load of the homeserver and each k3s node; usage by app with drill-down to Pods.",
   "tags": [
-    "monitoring"
+    "homeserver"
+  ],
+  "links": [
+    {
+      "title": "Dashboards",
+      "type": "dashboards",
+      "tags": [
+        "homeserver"
+      ],
+      "asDropdown": false,
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link"
+    }
   ],
   "schemaVersion": 39,
   "version": 1,
@@ -14,7 +29,6 @@
     "to": "now"
   },
   "timezone": "browser",
-  "description": "CPU und RAM des Homeservers und je k3s-Node, Verbrauch nach Namespace/App mit Drill-down auf die Pods.",
   "templating": {
     "list": [
       {
@@ -107,15 +121,14 @@
       }
     ]
   },
+  "annotations": {
+    "list": []
+  },
   "panels": [
     {
       "id": 1,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
       "type": "row",
-      "title": "Homeserver (Host)",
+      "title": "Homeserver (host)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -126,20 +139,9 @@
       "panels": []
     },
     {
-      "id": 2,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
       "type": "stat",
-      "title": "CPU (Kerne)",
-      "description": "Genutzte und freie CPU-Kerne des Homeservers, inklusive allem, was auf ihm läuft (k3s-VMs, Docker, Dienste).",
-      "gridPos": {
-        "x": 0,
-        "y": 1,
-        "w": 7,
-        "h": 4
-      },
+      "title": "CPU (cores)",
+      "description": "CPU cores of the homeserver, including everything on it (k3s VMs, Docker, services).",
       "targets": [
         {
           "datasource": {
@@ -148,7 +150,7 @@
           },
           "expr": "sum(1 - rate(node_cpu_seconds_total{job=\"node_exporter\", mode=\"idle\"}[$__rate_interval]))",
           "refId": "A",
-          "legendFormat": "genutzt"
+          "legendFormat": "used"
         },
         {
           "datasource": {
@@ -157,7 +159,7 @@
           },
           "expr": "sum(rate(node_cpu_seconds_total{job=\"node_exporter\", mode=\"idle\"}[$__rate_interval]))",
           "refId": "B",
-          "legendFormat": "verfügbar"
+          "legendFormat": "free"
         },
         {
           "datasource": {
@@ -166,17 +168,28 @@
           },
           "expr": "count(node_cpu_seconds_total{job=\"node_exporter\", mode=\"idle\"})",
           "refId": "C",
-          "legendFormat": "gesamt"
+          "legendFormat": "total"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 1,
+          "noValue": "0",
           "color": {
             "mode": "fixed",
             "fixedColor": "text"
-          }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 1
         },
         "overrides": []
       },
@@ -191,25 +204,27 @@
         "textMode": "value_and_name",
         "colorMode": "none",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "vertical"
-      }
-    },
-    {
-      "id": 3,
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 2,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "gauge",
-      "title": "CPU genutzt",
-      "description": "Anteil der genutzten CPU-Zeit des Homeservers über alle Kerne.",
       "gridPos": {
-        "x": 7,
+        "x": 0,
         "y": 1,
-        "w": 5,
+        "w": 7,
         "h": 4
-      },
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "CPU used",
+      "description": "Share of CPU time used across all cores.",
       "targets": [
         {
           "datasource": {
@@ -259,23 +274,23 @@
           "values": false
         },
         "showThresholdMarkers": true
-      }
-    },
-    {
-      "id": 4,
+      },
+      "id": 3,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "stat",
-      "title": "RAM",
-      "description": "Arbeitsspeicher des Homeservers: genutzt = gesamt - MemAvailable.",
       "gridPos": {
-        "x": 12,
+        "x": 7,
         "y": 1,
-        "w": 7,
+        "w": 5,
         "h": 4
-      },
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Memory",
+      "description": "Used = total - MemAvailable; available includes reclaimable cache.",
       "targets": [
         {
           "datasource": {
@@ -284,7 +299,7 @@
           },
           "expr": "sum(node_memory_MemTotal_bytes{job=\"node_exporter\"}) - sum(node_memory_MemAvailable_bytes{job=\"node_exporter\"})",
           "refId": "A",
-          "legendFormat": "genutzt"
+          "legendFormat": "used"
         },
         {
           "datasource": {
@@ -293,7 +308,7 @@
           },
           "expr": "sum(node_memory_MemAvailable_bytes{job=\"node_exporter\"})",
           "refId": "B",
-          "legendFormat": "verfügbar"
+          "legendFormat": "available"
         },
         {
           "datasource": {
@@ -302,17 +317,28 @@
           },
           "expr": "sum(node_memory_MemTotal_bytes{job=\"node_exporter\"})",
           "refId": "C",
-          "legendFormat": "gesamt"
+          "legendFormat": "total"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "decimals": 1,
+          "noValue": "0",
           "color": {
             "mode": "fixed",
             "fixedColor": "text"
-          }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 1
         },
         "overrides": []
       },
@@ -327,25 +353,27 @@
         "textMode": "value_and_name",
         "colorMode": "none",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "vertical"
-      }
-    },
-    {
-      "id": 5,
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 4,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "gauge",
-      "title": "RAM genutzt",
-      "description": "Anteil des genutzten Arbeitsspeichers des Homeservers.",
       "gridPos": {
-        "x": 19,
+        "x": 12,
         "y": 1,
-        "w": 5,
+        "w": 7,
         "h": 4
-      },
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "Memory used",
+      "description": "1 - MemAvailable / MemTotal.",
       "targets": [
         {
           "datasource": {
@@ -395,23 +423,23 @@
           "values": false
         },
         "showThresholdMarkers": true
-      }
-    },
-    {
-      "id": 6,
+      },
+      "id": 5,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "timeseries",
-      "title": "Host CPU über Zeit (Kerne)",
-      "description": "Genutzte Kerne des Homeservers, gestrichelt die Gesamtzahl.",
       "gridPos": {
-        "x": 0,
-        "y": 5,
-        "w": 12,
-        "h": 7
-      },
+        "x": 19,
+        "y": 1,
+        "w": 5,
+        "h": 4
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU over time (cores)",
+      "description": "Cores in use; dashed: all cores.",
       "targets": [
         {
           "datasource": {
@@ -420,7 +448,7 @@
           },
           "expr": "sum(1 - rate(node_cpu_seconds_total{job=\"node_exporter\", mode=\"idle\"}[$__rate_interval]))",
           "refId": "A",
-          "legendFormat": "genutzt"
+          "legendFormat": "used"
         },
         {
           "datasource": {
@@ -429,24 +457,25 @@
           },
           "expr": "count(node_cpu_seconds_total{job=\"node_exporter\", mode=\"idle\"})",
           "refId": "B",
-          "legendFormat": "gesamt"
+          "legendFormat": "total"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "min": 0,
           "custom": {
             "lineWidth": 2,
             "fillOpacity": 10,
             "showPoints": "never",
+            "spanNulls": false,
             "stacking": {
               "mode": "none"
             }
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "min": 0
         },
         "overrides": [
           {
@@ -499,23 +528,23 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
-    },
-    {
-      "id": 7,
+      },
+      "id": 6,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "timeseries",
-      "title": "Host RAM über Zeit",
-      "description": "Genutzter Arbeitsspeicher des Homeservers, gestrichelt der gesamte.",
       "gridPos": {
-        "x": 12,
+        "x": 0,
         "y": 5,
         "w": 12,
         "h": 7
-      },
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory over time",
+      "description": "Memory in use; dashed: all memory.",
       "targets": [
         {
           "datasource": {
@@ -524,7 +553,7 @@
           },
           "expr": "sum(node_memory_MemTotal_bytes{job=\"node_exporter\"}) - sum(node_memory_MemAvailable_bytes{job=\"node_exporter\"})",
           "refId": "A",
-          "legendFormat": "genutzt"
+          "legendFormat": "used"
         },
         {
           "datasource": {
@@ -533,24 +562,25 @@
           },
           "expr": "sum(node_memory_MemTotal_bytes{job=\"node_exporter\"})",
           "refId": "B",
-          "legendFormat": "gesamt"
+          "legendFormat": "total"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "min": 0,
           "custom": {
             "lineWidth": 2,
             "fillOpacity": 10,
             "showPoints": "never",
+            "spanNulls": false,
             "stacking": {
               "mode": "none"
             }
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "min": 0
         },
         "overrides": [
           {
@@ -603,78 +633,324 @@
           "mode": "multi",
           "sort": "desc"
         }
+      },
+      "id": 7,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 7
       }
     },
     {
-      "id": 8,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "type": "row",
-      "title": "Node: $node",
-      "repeat": "node",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 12,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "id": 9,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "type": "stat",
-      "title": "CPU (Kerne)",
-      "description": "Genutzte und freie CPU-Kerne des Nodes (node-exporter, Mittel über das Abfrageintervall).",
-      "gridPos": {
-        "x": 0,
-        "y": 13,
-        "w": 7,
-        "h": 4
-      },
+      "type": "bargauge",
+      "title": "Disk used",
+      "description": "System SSD (/), live data (black HDD) and backups (red HDD).",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (node) (1 - rate(node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"}[$__rate_interval]))",
+          "expr": "100 * (1 - node_filesystem_avail_bytes{job=\"node_exporter\", mountpoint=~\"/|/mnt/black-hdd|/mnt/red-hdd\"} / node_filesystem_size_bytes{job=\"node_exporter\", mountpoint=~\"/|/mnt/black-hdd|/mnt/red-hdd\"})",
           "refId": "A",
-          "legendFormat": "genutzt"
+          "legendFormat": "{{mountpoint}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left",
+        "sizing": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 8,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 8,
+        "h": 6
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk used over time",
+      "description": "Used bytes per filesystem; growth shows here first.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_filesystem_size_bytes{job=\"node_exporter\", mountpoint=~\"/|/mnt/black-hdd|/mnt/red-hdd\"} - node_filesystem_avail_bytes{job=\"node_exporter\", mountpoint=~\"/|/mnt/black-hdd|/mnt/red-hdd\"}",
+          "refId": "A",
+          "legendFormat": "{{mountpoint}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 9,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 12,
+        "w": 8,
+        "h": 6
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk busy",
+      "description": "Time the disk was busy (I/O time). Near 100 % means the disk is the bottleneck (saturation, USE).",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(node_disk_io_time_seconds_total{job=\"node_exporter\"}[$__rate_interval]) * on (device) group_left (mountpoint) label_replace(node_filesystem_size_bytes{job=\"node_exporter\", mountpoint=~\"/|/mnt/(black|red)-hdd\"} * 0 + 1, \"device\", \"$1\", \"device\", \"/dev/(sd[a-z]+)[0-9]+\") * 100",
+          "refId": "A",
+          "legendFormat": "{{mountpoint}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 10,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 12,
+        "w": 8,
+        "h": 6
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Uptime",
+      "description": "Since the last boot.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "time() - node_boot_time_seconds{job=\"node_exporter\"}",
+          "refId": "A",
+          "legendFormat": "homeserver"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 11,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 6,
+        "h": 3
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Load (1 / 5 / 15 min)",
+      "description": "Run-queue length; compare with 8 cores.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_load1{job=\"node_exporter\"}",
+          "refId": "A",
+          "legendFormat": "1m"
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (node) (rate(node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"}[$__rate_interval]))",
+          "expr": "node_load5{job=\"node_exporter\"}",
           "refId": "B",
-          "legendFormat": "verfügbar"
+          "legendFormat": "5m"
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "count by (node) (node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"})",
+          "expr": "node_load15{job=\"node_exporter\"}",
           "refId": "C",
-          "legendFormat": "gesamt"
+          "legendFormat": "15m"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 1,
+          "noValue": "0",
           "color": {
             "mode": "fixed",
             "fixedColor": "text"
-          }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 2
         },
         "overrides": []
       },
@@ -689,25 +965,124 @@
         "textMode": "value_and_name",
         "colorMode": "none",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "vertical"
-      }
-    },
-    {
-      "id": 10,
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 12,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "gauge",
-      "title": "CPU genutzt",
-      "description": "Anteil der genutzten CPU-Zeit über alle Kerne.",
       "gridPos": {
-        "x": 7,
-        "y": 13,
-        "w": 5,
-        "h": 4
+        "x": 6,
+        "y": 18,
+        "w": 18,
+        "h": 3
+      }
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "k3s node: $node",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 24,
+        "h": 1
       },
+      "panels": [],
+      "repeat": "node"
+    },
+    {
+      "type": "stat",
+      "title": "CPU (cores)",
+      "description": "CPU cores of the node VM.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (node) (1 - rate(node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "used"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (node) (rate(node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"}[$__rate_interval]))",
+          "refId": "B",
+          "legendFormat": "free"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "count by (node) (node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"})",
+          "refId": "C",
+          "legendFormat": "total"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 14,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 7,
+        "h": 4
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "CPU used",
+      "description": "",
       "targets": [
         {
           "datasource": {
@@ -757,23 +1132,23 @@
           "values": false
         },
         "showThresholdMarkers": true
-      }
-    },
-    {
-      "id": 11,
+      },
+      "id": 15,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "stat",
-      "title": "RAM",
-      "description": "Genutzt = gesamt - MemAvailable; verfügbar = MemAvailable (inkl. freigebbarem Cache).",
       "gridPos": {
-        "x": 12,
-        "y": 13,
-        "w": 7,
+        "x": 7,
+        "y": 22,
+        "w": 5,
         "h": 4
-      },
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Memory",
+      "description": "Memory of the node VM.",
       "targets": [
         {
           "datasource": {
@@ -782,7 +1157,7 @@
           },
           "expr": "node_memory_MemTotal_bytes{job=\"k3s_node_exporter\", node=~\"$node\"} - node_memory_MemAvailable_bytes{job=\"k3s_node_exporter\", node=~\"$node\"}",
           "refId": "A",
-          "legendFormat": "genutzt"
+          "legendFormat": "used"
         },
         {
           "datasource": {
@@ -791,7 +1166,7 @@
           },
           "expr": "node_memory_MemAvailable_bytes{job=\"k3s_node_exporter\", node=~\"$node\"}",
           "refId": "B",
-          "legendFormat": "verfügbar"
+          "legendFormat": "available"
         },
         {
           "datasource": {
@@ -800,17 +1175,28 @@
           },
           "expr": "node_memory_MemTotal_bytes{job=\"k3s_node_exporter\", node=~\"$node\"}",
           "refId": "C",
-          "legendFormat": "gesamt"
+          "legendFormat": "total"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "decimals": 1,
+          "noValue": "0",
           "color": {
             "mode": "fixed",
             "fixedColor": "text"
-          }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 1
         },
         "overrides": []
       },
@@ -825,25 +1211,27 @@
         "textMode": "value_and_name",
         "colorMode": "none",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "vertical"
-      }
-    },
-    {
-      "id": 12,
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 16,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "gauge",
-      "title": "RAM genutzt",
-      "description": "Anteil des genutzten Arbeitsspeichers (1 - MemAvailable / MemTotal).",
       "gridPos": {
-        "x": 19,
-        "y": 13,
-        "w": 5,
+        "x": 12,
+        "y": 22,
+        "w": 7,
         "h": 4
-      },
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "Memory used",
+      "description": "",
       "targets": [
         {
           "datasource": {
@@ -893,23 +1281,23 @@
           "values": false
         },
         "showThresholdMarkers": true
-      }
-    },
-    {
-      "id": 13,
+      },
+      "id": 17,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "timeseries",
-      "title": "CPU über Zeit (Kerne)",
-      "description": "Genutzte Kerne, gestrichelt die Gesamtzahl.",
       "gridPos": {
-        "x": 0,
-        "y": 17,
-        "w": 12,
-        "h": 7
-      },
+        "x": 19,
+        "y": 22,
+        "w": 5,
+        "h": 4
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU over time (cores)",
+      "description": "",
       "targets": [
         {
           "datasource": {
@@ -918,7 +1306,7 @@
           },
           "expr": "sum by (node) (1 - rate(node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"}[$__rate_interval]))",
           "refId": "A",
-          "legendFormat": "genutzt"
+          "legendFormat": "used"
         },
         {
           "datasource": {
@@ -927,24 +1315,25 @@
           },
           "expr": "count by (node) (node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"})",
           "refId": "B",
-          "legendFormat": "gesamt"
+          "legendFormat": "total"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "min": 0,
           "custom": {
             "lineWidth": 2,
             "fillOpacity": 10,
             "showPoints": "never",
+            "spanNulls": false,
             "stacking": {
               "mode": "none"
             }
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "min": 0
         },
         "overrides": [
           {
@@ -997,23 +1386,23 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
-    },
-    {
-      "id": 14,
+      },
+      "id": 18,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "timeseries",
-      "title": "RAM über Zeit",
-      "description": "Genutzter Arbeitsspeicher, gestrichelt der gesamte.",
       "gridPos": {
-        "x": 12,
-        "y": 17,
+        "x": 0,
+        "y": 26,
         "w": 12,
         "h": 7
-      },
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory over time",
+      "description": "",
       "targets": [
         {
           "datasource": {
@@ -1022,7 +1411,7 @@
           },
           "expr": "node_memory_MemTotal_bytes{job=\"k3s_node_exporter\", node=~\"$node\"} - node_memory_MemAvailable_bytes{job=\"k3s_node_exporter\", node=~\"$node\"}",
           "refId": "A",
-          "legendFormat": "genutzt"
+          "legendFormat": "used"
         },
         {
           "datasource": {
@@ -1031,24 +1420,25 @@
           },
           "expr": "node_memory_MemTotal_bytes{job=\"k3s_node_exporter\", node=~\"$node\"}",
           "refId": "B",
-          "legendFormat": "gesamt"
+          "legendFormat": "total"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "min": 0,
           "custom": {
             "lineWidth": 2,
             "fillOpacity": 10,
             "showPoints": "never",
+            "spanNulls": false,
             "stacking": {
               "mode": "none"
             }
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "min": 0
         },
         "overrides": [
           {
@@ -1101,40 +1491,305 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
-    },
-    {
-      "id": 15,
+      },
+      "id": 19,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "gridPos": {
+        "x": 12,
+        "y": 26,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "Root disk used",
+      "description": "The VM's disk (on the homeserver's SSD).",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "100 * (1 - node_filesystem_avail_bytes{job=\"k3s_node_exporter\", node=~\"$node\", mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"k3s_node_exporter\", node=~\"$node\", mountpoint=\"/\"})",
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdMarkers": true
+      },
+      "id": 20,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 6,
+        "h": 4
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Pods running",
+      "description": "",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(kube_pod_status_phase{phase=\"Running\"} * on (namespace, pod) group_left (node) kube_pod_info{node=~\"$node\"})",
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 21,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 33,
+        "w": 6,
+        "h": 4
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Load (1 / 15 min)",
+      "description": "",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_load1{job=\"k3s_node_exporter\", node=~\"$node\"}",
+          "refId": "A",
+          "legendFormat": "1m"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_load15{job=\"k3s_node_exporter\", node=~\"$node\"}",
+          "refId": "B",
+          "legendFormat": "15m"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 22,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 33,
+        "w": 6,
+        "h": 4
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Uptime",
+      "description": "",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "time() - node_boot_time_seconds{job=\"k3s_node_exporter\", node=~\"$node\"}",
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 23,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 33,
+        "w": 6,
+        "h": 4
+      }
+    },
+    {
+      "id": 24,
       "type": "row",
-      "title": "Verbrauch nach Gruppe (Nodes: $node)",
+      "title": "Usage by app (nodes: $node)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 24,
+        "y": 37,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 16,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
       "type": "bargauge",
-      "title": "CPU nach Gruppe (Top 12, Kerne)",
-      "description": "Container-CPU je Namespace und App (aus dem Pod-Namen abgeleitet), kubelet/cAdvisor.",
-      "gridPos": {
-        "x": 0,
-        "y": 25,
-        "w": 12,
-        "h": 9
-      },
+      "title": "CPU by app (top 12, cores)",
+      "description": "Container CPU per namespace and app (derived from the Pod name).",
       "targets": [
         {
           "datasource": {
@@ -1167,31 +1822,31 @@
         "showUnfilled": true,
         "valueMode": "text",
         "namePlacement": "left",
+        "sizing": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
           "values": false
-        },
-        "sizing": "auto"
-      }
-    },
-    {
-      "id": 17,
+        }
+      },
+      "id": 25,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "bargauge",
-      "title": "RAM nach Gruppe (Top 12)",
-      "description": "Working Set je Namespace und App: der Speicher, den der Kernel nicht ohne Weiteres zurückholen kann.",
       "gridPos": {
-        "x": 12,
-        "y": 25,
+        "x": 0,
+        "y": 38,
         "w": 12,
         "h": 9
-      },
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Memory by app (top 12)",
+      "description": "Working set per namespace and app.",
       "targets": [
         {
           "datasource": {
@@ -1224,31 +1879,31 @@
         "showUnfilled": true,
         "valueMode": "text",
         "namePlacement": "left",
+        "sizing": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
           "values": false
-        },
-        "sizing": "auto"
-      }
-    },
-    {
-      "id": 18,
+        }
+      },
+      "id": 26,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "table",
-      "title": "Gruppen (Klick auf eine App zeigt ihre Pods)",
       "gridPos": {
-        "x": 0,
-        "y": 34,
-        "w": 24,
-        "h": 10
-      },
-      "description": "Anteile beziehen sich auf die ausgewählten Nodes zusammen.",
+        "x": 12,
+        "y": 38,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "type": "table",
+      "title": "Apps (click an app to see its Pods)",
+      "description": "Shares are of the selected nodes together.",
       "targets": [
         {
           "datasource": {
@@ -1311,12 +1966,12 @@
               "Time": true
             },
             "renameByName": {
-              "namespace": "Namespace",
-              "workload": "App",
-              "Value #A": "CPU (Kerne)",
+              "namespace": "namespace",
+              "workload": "app",
+              "Value #A": "CPU (cores)",
               "Value #B": "CPU %",
-              "Value #C": "RAM",
-              "Value #D": "RAM %"
+              "Value #C": "memory",
+              "Value #D": "memory %"
             },
             "indexByName": {
               "namespace": 0,
@@ -1333,7 +1988,7 @@
           "options": {
             "sort": [
               {
-                "field": "RAM",
+                "field": "memory",
                 "desc": true
               }
             ]
@@ -1342,6 +1997,7 @@
       ],
       "fieldConfig": {
         "defaults": {
+          "noValue": "None",
           "custom": {
             "align": "auto"
           }
@@ -1350,7 +2006,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "CPU (Kerne)"
+              "options": "CPU (cores)"
             },
             "properties": [
               {
@@ -1366,7 +2022,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "RAM"
+              "options": "memory"
             },
             "properties": [
               {
@@ -1381,8 +2037,8 @@
           },
           {
             "matcher": {
-              "id": "byRegexp",
-              "options": ".*%"
+              "id": "byName",
+              "options": "CPU %"
             },
             "properties": [
               {
@@ -1394,16 +2050,16 @@
                 "value": 1
               },
               {
+                "id": "max",
+                "value": 100
+              },
+              {
                 "id": "custom.cellOptions",
                 "value": {
                   "type": "gauge",
                   "mode": "basic",
                   "valueDisplayMode": "text"
                 }
-              },
-              {
-                "id": "max",
-                "value": 100
               },
               {
                 "id": "color",
@@ -1417,15 +2073,50 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "App"
+              "options": "memory %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "app"
             },
             "properties": [
               {
                 "id": "links",
                 "value": [
                   {
-                    "title": "Pods dieser App",
-                    "url": "/d/monitoring-node-resources/node-resources?${node:queryparam}&var-namespace=${__data.fields.namespace}&var-workload=${__data.fields.workload}&${__url_time_range}"
+                    "title": "Pods of this app",
+                    "url": "/d/monitoring-node-resources?${node:queryparam}&var-namespace=${__data.fields.namespace}&var-workload=${__data.fields.workload}&${__url_time_range}"
                   }
                 ]
               }
@@ -1436,39 +2127,36 @@
       "options": {
         "showHeader": true,
         "cellHeight": "sm"
-      }
-    },
-    {
-      "id": 19,
+      },
+      "id": 27,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "gridPos": {
+        "x": 0,
+        "y": 47,
+        "w": 24,
+        "h": 10
+      }
+    },
+    {
+      "id": 28,
       "type": "row",
       "title": "Pods: $namespace / $workload",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 57,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 20,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
       "type": "table",
       "title": "Pods",
-      "gridPos": {
-        "x": 0,
-        "y": 45,
-        "w": 24,
-        "h": 8
-      },
+      "description": "",
       "targets": [
         {
           "datasource": {
@@ -1507,11 +2195,8 @@
               "Time": true
             },
             "renameByName": {
-              "namespace": "Namespace",
-              "pod": "Pod",
-              "node": "Node",
-              "Value #A": "CPU (Kerne)",
-              "Value #B": "RAM"
+              "Value #A": "CPU (cores)",
+              "Value #B": "memory"
             },
             "indexByName": {
               "namespace": 0,
@@ -1527,7 +2212,7 @@
           "options": {
             "sort": [
               {
-                "field": "RAM",
+                "field": "memory",
                 "desc": true
               }
             ]
@@ -1535,12 +2220,17 @@
         }
       ],
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "noValue": "None",
+          "custom": {
+            "align": "auto"
+          }
+        },
         "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "CPU (Kerne)"
+              "options": "CPU (cores)"
             },
             "properties": [
               {
@@ -1556,7 +2246,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "RAM"
+              "options": "memory"
             },
             "properties": [
               {
@@ -1574,23 +2264,23 @@
       "options": {
         "showHeader": true,
         "cellHeight": "sm"
-      }
-    },
-    {
-      "id": 21,
+      },
+      "id": 29,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "timeseries",
-      "title": "CPU je Pod (Kerne)",
-      "description": "Wähle oben Namespace und App, um auf wenige Pods einzugrenzen.",
       "gridPos": {
         "x": 0,
-        "y": 53,
-        "w": 12,
+        "y": 58,
+        "w": 24,
         "h": 8
-      },
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU per Pod (cores)",
+      "description": "Pick a namespace and app above to narrow down.",
       "targets": [
         {
           "datasource": {
@@ -1605,18 +2295,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "min": 0,
           "custom": {
             "lineWidth": 2,
             "fillOpacity": 10,
             "showPoints": "never",
+            "spanNulls": false,
             "stacking": {
               "mode": "none"
             }
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "min": 0
         },
         "overrides": []
       },
@@ -1633,23 +2324,23 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
-    },
-    {
-      "id": 22,
+      },
+      "id": 30,
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "type": "timeseries",
-      "title": "RAM je Pod",
-      "description": "Working Set je Pod.",
       "gridPos": {
-        "x": 12,
-        "y": 53,
+        "x": 0,
+        "y": 66,
         "w": 12,
         "h": 8
-      },
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory per Pod",
+      "description": "Working set per Pod.",
       "targets": [
         {
           "datasource": {
@@ -1664,18 +2355,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "min": 0,
           "custom": {
             "lineWidth": 2,
             "fillOpacity": 10,
             "showPoints": "never",
+            "spanNulls": false,
             "stacking": {
               "mode": "none"
             }
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "min": 0
         },
         "overrides": []
       },
@@ -1692,11 +2384,152 @@
           "mode": "multi",
           "sort": "desc"
         }
+      },
+      "id": 31,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 66,
+        "w": 12,
+        "h": 8
       }
+    },
+    {
+      "id": 32,
+      "type": "row",
+      "title": "Docker on the host",
+      "collapsed": true,
+      "gridPos": {
+        "x": 0,
+        "y": 74,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "CPU per container",
+          "description": "Docker containers on the homeserver (cAdvisor), in cores.",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{job=\"cadvisor\", name!=\"\"}[$__rate_interval]))",
+              "refId": "A",
+              "legendFormat": "{{name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "min": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "id": 33,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 75,
+            "w": 12,
+            "h": 8
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Memory per container",
+          "description": "Working set per Docker container on the homeserver.",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum by (name) (container_memory_working_set_bytes{job=\"cadvisor\", name!=\"\"})",
+              "refId": "A",
+              "legendFormat": "{{name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "min": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "id": 34,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 75,
+            "w": 12,
+            "h": 8
+          }
+        }
+      ]
     }
-  ],
-  "annotations": {
-    "list": []
-  },
-  "links": []
+  ]
 }
