@@ -19,13 +19,15 @@ misconfigurations:
       - argocd/blocky/deployment.yaml
       - argocd/bulwark/deployment.yaml
       - argocd/grafana/deployment.yaml
+      - argocd/nextcloud/deployment.yaml
       - argocd/paperless/deployment.yaml
       - argocd/paperless/export-cronjob.yaml
       - argocd/stalwart/deployment.yaml
     statement: >-
       These ran with a writable root filesystem under Terraform too
       (Paperless writes outside its data dirs); read-only needs
-      testing which paths each writes.
+      testing which paths each writes. Nextcloud's entrypoint writes
+      outside its volumes too (PHP conf.d, Apache run dirs).
   - id: KSV-0022
     paths:
       - argocd/stalwart/deployment.yaml
@@ -37,7 +39,11 @@ misconfigurations:
       - argocd/stalwart/deployment.yaml
       - argocd/blocky/deployment.yaml
       - argocd/ingress/templates/deployment.yaml
-    statement: Stalwart, Blocky and Traefik listen on their well-known ports directly.
+      - argocd/nextcloud/deployment.yaml
+    statement: >-
+      Stalwart, Blocky and Traefik listen on their well-known ports directly;
+      Nextcloud's Apache on 80 as uid 33 through the namespaced sysctl
+      net.ipv4.ip_unprivileged_port_start, without NET_BIND_SERVICE.
   - id: KSV-0007
     paths:
       - argocd/vaultwarden/deployment.yaml
