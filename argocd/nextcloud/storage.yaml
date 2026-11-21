@@ -31,11 +31,11 @@ spec:
   storageClassName: local-path
   volumeName: nextcloud-postgres-pv
 ---
-# NFS on the black HDD: the test instance's empty directory until the cutover (k3s-bootstrap).
+# NFS on the black HDD: the live data directory, AIO's until the cutover (k3s-bootstrap).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nextcloud-data
+  name: nextcloud-files
   namespace: apps
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
@@ -46,7 +46,7 @@ spec:
     requests:
       storage: 1Ti
   storageClassName: local-path
-  volumeName: nextcloud-data-pv
+  volumeName: nextcloud-files-pv
 ---
 # NFS on the red HDD: the backup CronJob's target (k3s-bootstrap).
 apiVersion: v1

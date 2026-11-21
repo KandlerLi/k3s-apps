@@ -22,10 +22,11 @@ spec:
           automountServiceAccountToken: false
           containers:
           - env:
+            # Nextcloud's Service since the ADR 0033 cutover (formerly AIO's Apache on 192.168.101.1:11000).
             - name: SANKEY_EXPORT_ENDPOINT_HOST
-              value: 192.168.101.1
+              value: nextcloud-svc
             - name: SANKEY_EXPORT_ENDPOINT_PORT
-              value: '11000'
+              value: '80'
             - name: SANKEY_EXPORT_HTTP_HOST
               value: nextcloud.jkandler.de
             - name: SANKEY_EXPORT_USERNAME

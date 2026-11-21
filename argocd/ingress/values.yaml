@@ -59,29 +59,29 @@ routes:
     rate_limit:
       average: 120
       burst: 240
-  # Nextcloud on k3s, test instance until the ADR 0033 cutover; Authelia lets only julian in. Nextcloud
-  # frames its own pages (PDF viewer), so no frameDeny; it sends X-Frame-Options SAMEORIGIN itself.
-  nextcloud-test:
-    rule: Host(`nextcloud-test.jkandler.de`)
+  # No forward-auth (reviewed exception, ADR 0033): sync clients, WebDAV and the apps sign in with app passwords and
+  # can't follow a login redirect; the web login itself goes only through Authelia (user_oidc, force-SSO). No body
+  # limit: Traefik's buffering middleware would hold each upload in memory, and the clients send chunks of up to
+  # 1 GB. Nextcloud frames its own pages (PDF viewer) and sends X-Frame-Options SAMEORIGIN itself.
+  nextcloud:
+    rule: Host(`nextcloud.jkandler.de`)
     url: http://nextcloud-svc:80
-    forward_auth: true
+    forward_auth: false
     rate_limit:
-      average: 600
-      burst: 1200
-    max_body_bytes: 536870912
+      average: 6000
+      burst: 3000
     referrer_policy: no-referrer
     frame_deny: false
-  # notify_push (in Nextcloud's Pod) expects the paths without /push.
-  nextcloud-test-push:
-    rule: Host(`nextcloud-test.jkandler.de`) && PathPrefix(`/push`)
+  # notify_push (in Nextcloud's Pod) expects the paths without /push; clients authenticate to it like to Nextcloud.
+  nextcloud-push:
+    rule: Host(`nextcloud.jkandler.de`) && PathPrefix(`/push`)
     priority: 100
     url: http://nextcloud-svc:7867
-    forward_auth: true
+    forward_auth: false
     strip_prefix: /push
     rate_limit:
       average: 600
       burst: 1200
-    max_body_bytes: 1048576
   stalwart:
     rule: Host(`stalwart.jkandler.de`)
     priority: 10
