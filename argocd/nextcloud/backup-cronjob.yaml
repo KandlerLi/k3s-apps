@@ -26,6 +26,12 @@ spec:
             - -c
             - |
               set -eu
+              # k3s' policy controller admits a new Pod's IP only after a second or two; until then 5432 refuses.
+              i=0
+              until pg_isready -q -h nextcloud-svc -U nextcloud -t 3; do
+                i=$((i + 1)); [ "$i" -lt 30 ] || { echo "PostgreSQL not reachable"; exit 1; }
+                sleep 2
+              done
               d="$(date -u +%Y%m%d-%H%M%S)"
               tmp="/backup/.nextcloud-db-$d.dump"
               pg_dump -h nextcloud-svc -U nextcloud -d nextcloud -Fc -f "$tmp"
