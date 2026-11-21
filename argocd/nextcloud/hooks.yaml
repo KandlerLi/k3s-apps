@@ -22,7 +22,7 @@ data:
 
     # Same provider and force-SSO as AIO's (home-infra's nextcloud_aio role, oidc.yml).
     occ app:install user_oidc >/dev/null 2>&1 || occ app:enable user_oidc
-    occ user_oidc:provider Authelia --clientid=nextcloud --clientsecret="$OIDC_CLIENT_SECRET" \
+    occ user_oidc:provider Authelia --clientid=nextcloud --clientsecret="${OIDC_CLIENT_SECRET}" \
       --discoveryuri=https://auth.jkandler.de/.well-known/openid-configuration
     occ config:app:set --value=0 user_oidc allow_multiple_user_backends
 
