@@ -1,0 +1,1205 @@
+{
+  "uid": "monitoring-node-resources",
+  "title": "k3s Node Resources",
+  "tags": [
+    "monitoring"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "description": "CPU und RAM je k3s-Node, Verbrauch nach Namespace/App mit Drill-down auf die Pods.",
+  "templating": {
+    "list": [
+      {
+        "name": "node",
+        "label": "Node",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "query": {
+          "query": "label_values(node_memory_MemTotal_bytes{job=\"k3s_node_exporter\"}, node)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "label_values(node_memory_MemTotal_bytes{job=\"k3s_node_exporter\"}, node)",
+        "regex": "",
+        "sort": 1,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "query": {
+          "query": "label_values(container_memory_working_set_bytes{job=\"k3s_kubelet_cadvisor\", container!=\"\", node=~\"$node\"}, namespace)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "label_values(container_memory_working_set_bytes{job=\"k3s_kubelet_cadvisor\", container!=\"\", node=~\"$node\"}, namespace)",
+        "regex": "",
+        "sort": 1,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      },
+      {
+        "name": "workload",
+        "label": "App",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "query": {
+          "query": "query_result(sum by (namespace, workload) (label_replace(label_replace(container_memory_working_set_bytes{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\"}, \"workload\", \"$1\", \"pod\", \"(.+)\"), \"workload\", \"$1\", \"pod\", \"^(.+?)(-[a-z0-9]{8,10})?-[a-z0-9]{5}$\")))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "query_result(sum by (namespace, workload) (label_replace(label_replace(container_memory_working_set_bytes{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\"}, \"workload\", \"$1\", \"pod\", \"(.+)\"), \"workload\", \"$1\", \"pod\", \"^(.+?)(-[a-z0-9]{8,10})?-[a-z0-9]{5}$\")))",
+        "regex": "/workload=\"([^\"]+)\"/",
+        "sort": 1,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "allValue": ".*"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "row",
+      "title": "Node: $node",
+      "repeat": "node",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "stat",
+      "title": "CPU (Kerne)",
+      "description": "Genutzte und freie CPU-Kerne des Nodes (node-exporter, Mittel über das Abfrageintervall).",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 7,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (node) (1 - rate(node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "genutzt"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (node) (rate(node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"}[$__rate_interval]))",
+          "refId": "B",
+          "legendFormat": "verfügbar"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "count by (node) (node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"})",
+          "refId": "C",
+          "legendFormat": "gesamt"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "id": 3,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "gauge",
+      "title": "CPU genutzt",
+      "description": "Anteil der genutzten CPU-Zeit über alle Kerne.",
+      "gridPos": {
+        "x": 7,
+        "y": 1,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "100 * avg by (node) (1 - rate(node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdMarkers": true
+      }
+    },
+    {
+      "id": 4,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "stat",
+      "title": "RAM",
+      "description": "Genutzt = gesamt - MemAvailable; verfügbar = MemAvailable (inkl. freigebbarem Cache).",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 7,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_memory_MemTotal_bytes{job=\"k3s_node_exporter\", node=~\"$node\"} - node_memory_MemAvailable_bytes{job=\"k3s_node_exporter\", node=~\"$node\"}",
+          "refId": "A",
+          "legendFormat": "genutzt"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_memory_MemAvailable_bytes{job=\"k3s_node_exporter\", node=~\"$node\"}",
+          "refId": "B",
+          "legendFormat": "verfügbar"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_memory_MemTotal_bytes{job=\"k3s_node_exporter\", node=~\"$node\"}",
+          "refId": "C",
+          "legendFormat": "gesamt"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "id": 5,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "gauge",
+      "title": "RAM genutzt",
+      "description": "Anteil des genutzten Arbeitsspeichers (1 - MemAvailable / MemTotal).",
+      "gridPos": {
+        "x": 19,
+        "y": 1,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "100 * (1 - node_memory_MemAvailable_bytes{job=\"k3s_node_exporter\", node=~\"$node\"} / node_memory_MemTotal_bytes{job=\"k3s_node_exporter\", node=~\"$node\"})",
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdMarkers": true
+      }
+    },
+    {
+      "id": 6,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "timeseries",
+      "title": "CPU über Zeit (Kerne)",
+      "description": "Genutzte Kerne, gestrichelt die Gesamtzahl.",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (node) (1 - rate(node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "genutzt"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "count by (node) (node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"})",
+          "refId": "B",
+          "legendFormat": "gesamt"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              },
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "mode": "none"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "timeseries",
+      "title": "RAM über Zeit",
+      "description": "Genutzter Arbeitsspeicher, gestrichelt der gesamte.",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_memory_MemTotal_bytes{job=\"k3s_node_exporter\", node=~\"$node\"} - node_memory_MemAvailable_bytes{job=\"k3s_node_exporter\", node=~\"$node\"}",
+          "refId": "A",
+          "legendFormat": "genutzt"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_memory_MemTotal_bytes{job=\"k3s_node_exporter\", node=~\"$node\"}",
+          "refId": "B",
+          "legendFormat": "gesamt"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              },
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "mode": "none"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "row",
+      "title": "Verbrauch nach Gruppe (Nodes: $node)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 9,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "bargauge",
+      "title": "CPU nach Gruppe (Top 12, Kerne)",
+      "description": "Container-CPU je Namespace und App (aus dem Pod-Namen abgeleitet), kubelet/cAdvisor.",
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sort_desc(topk(12, sum by (namespace, workload) (label_replace(label_replace(rate(container_cpu_usage_seconds_total{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\"}[$__rate_interval]), \"workload\", \"$1\", \"pod\", \"(.+)\"), \"workload\", \"$1\", \"pod\", \"^(.+?)(-[a-z0-9]{8,10})?-[a-z0-9]{5}$\"))))",
+          "refId": "A",
+          "legendFormat": "{{namespace}} / {{workload}}",
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "valueMode": "text",
+        "namePlacement": "left",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "sizing": "auto"
+      }
+    },
+    {
+      "id": 10,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "bargauge",
+      "title": "RAM nach Gruppe (Top 12)",
+      "description": "Working Set je Namespace und App: der Speicher, den der Kernel nicht ohne Weiteres zurückholen kann.",
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sort_desc(topk(12, sum by (namespace, workload) (label_replace(label_replace(container_memory_working_set_bytes{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\"}, \"workload\", \"$1\", \"pod\", \"(.+)\"), \"workload\", \"$1\", \"pod\", \"^(.+?)(-[a-z0-9]{8,10})?-[a-z0-9]{5}$\"))))",
+          "refId": "A",
+          "legendFormat": "{{namespace}} / {{workload}}",
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "valueMode": "text",
+        "namePlacement": "left",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "sizing": "auto"
+      }
+    },
+    {
+      "id": 11,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "table",
+      "title": "Gruppen (Klick auf eine App zeigt ihre Pods)",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 10
+      },
+      "description": "Anteile beziehen sich auf die ausgewählten Nodes zusammen.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (namespace, workload) (label_replace(label_replace(rate(container_cpu_usage_seconds_total{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\"}[$__rate_interval]), \"workload\", \"$1\", \"pod\", \"(.+)\"), \"workload\", \"$1\", \"pod\", \"^(.+?)(-[a-z0-9]{8,10})?-[a-z0-9]{5}$\"))",
+          "refId": "A",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "100 * sum by (namespace, workload) (label_replace(label_replace(rate(container_cpu_usage_seconds_total{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\"}[$__rate_interval]), \"workload\", \"$1\", \"pod\", \"(.+)\"), \"workload\", \"$1\", \"pod\", \"^(.+?)(-[a-z0-9]{8,10})?-[a-z0-9]{5}$\")) / scalar(sum(count by (node) (node_cpu_seconds_total{job=\"k3s_node_exporter\", node=~\"$node\", mode=\"idle\"})))",
+          "refId": "B",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (namespace, workload) (label_replace(label_replace(container_memory_working_set_bytes{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\"}, \"workload\", \"$1\", \"pod\", \"(.+)\"), \"workload\", \"$1\", \"pod\", \"^(.+?)(-[a-z0-9]{8,10})?-[a-z0-9]{5}$\"))",
+          "refId": "C",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "100 * sum by (namespace, workload) (label_replace(label_replace(container_memory_working_set_bytes{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\"}, \"workload\", \"$1\", \"pod\", \"(.+)\"), \"workload\", \"$1\", \"pod\", \"^(.+?)(-[a-z0-9]{8,10})?-[a-z0-9]{5}$\")) / scalar(sum(node_memory_MemTotal_bytes{job=\"k3s_node_exporter\", node=~\"$node\"}))",
+          "refId": "D",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "namespace": "Namespace",
+              "workload": "App",
+              "Value #A": "CPU (Kerne)",
+              "Value #B": "CPU %",
+              "Value #C": "RAM",
+              "Value #D": "RAM %"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "workload": 1,
+              "Value #A": 2,
+              "Value #B": 3,
+              "Value #C": 4,
+              "Value #D": 5
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "RAM",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU (Kerne)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RAM"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*%"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "App"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Pods dieser App",
+                    "url": "/d/monitoring-node-resources/node-resources?${node:queryparam}&var-namespace=${__data.fields.namespace}&var-workload=${__data.fields.workload}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 12,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "row",
+      "title": "Pods: $namespace / $workload",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 13,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "table",
+      "title": "Pods",
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (namespace, pod, node) (rate(container_cpu_usage_seconds_total{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\", pod=~\"(${workload:regex})-[a-z0-9]{8,10}-[a-z0-9]{5}|(${workload:regex})-[a-z0-9]{5}|(${workload:regex})\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (namespace, pod, node) (container_memory_working_set_bytes{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\", pod=~\"(${workload:regex})-[a-z0-9]{8,10}-[a-z0-9]{5}|(${workload:regex})-[a-z0-9]{5}|(${workload:regex})\"})",
+          "refId": "B",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "namespace": "Namespace",
+              "pod": "Pod",
+              "node": "Node",
+              "Value #A": "CPU (Kerne)",
+              "Value #B": "RAM"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "pod": 1,
+              "node": 2,
+              "Value #A": 3,
+              "Value #B": 4
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "RAM",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU (Kerne)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RAM"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 14,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "timeseries",
+      "title": "CPU je Pod (Kerne)",
+      "description": "Wähle oben Namespace und App, um auf wenige Pods einzugrenzen.",
+      "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (namespace, pod, node) (rate(container_cpu_usage_seconds_total{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\", pod=~\"(${workload:regex})-[a-z0-9]{8,10}-[a-z0-9]{5}|(${workload:regex})-[a-z0-9]{5}|(${workload:regex})\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{pod}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "type": "timeseries",
+      "title": "RAM je Pod",
+      "description": "Working Set je Pod.",
+      "gridPos": {
+        "x": 12,
+        "y": 41,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (namespace, pod, node) (container_memory_working_set_bytes{job=\"k3s_kubelet_cadvisor\", container!=\"\", pod!=\"\", node=~\"$node\", namespace=~\"$namespace\", pod=~\"(${workload:regex})-[a-z0-9]{8,10}-[a-z0-9]{5}|(${workload:regex})-[a-z0-9]{5}|(${workload:regex})\"})",
+          "refId": "A",
+          "legendFormat": "{{pod}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    }
+  ],
+  "annotations": {
+    "list": []
+  },
+  "links": []
+}
