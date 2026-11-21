@@ -42,12 +42,12 @@ spec:
           value: 127.0.0.1
         - name: POSTGRES_USER
           value: nextcloud
-        # k3s' Pod network, where Traefik connects from.
+        # k3s' Pod network, where Traefik connects from, and notify_push in this Pod.
         - name: TRUSTED_PROXIES
-          value: 10.42.0.0/16
+          value: 10.42.0.0/16 127.0.0.1
         # App Store apps the hook installs and keeps enabled; the list carried over from AIO (home-infra-tracker#73).
         - name: NEXTCLOUD_APPS
-          value: calendar contacts deck notes tasks tables shopping_list guests twofactor_totp twofactor_webauthn files_lock webhook_listeners
+          value: calendar contacts deck notes tasks tables shopping_list guests twofactor_totp twofactor_webauthn files_lock webhook_listeners notify_push
         envFrom:
         - secretRef:
             name: nextcloud-env
@@ -140,6 +140,53 @@ spec:
         - mountPath: /mnt/ncdata
           mountPropagation: None
           name: data
+      # notify_push: the binary ships with the app, so it waits until the hook has installed it.
+      - command:
+        - sh
+        - -c
+        - |
+          bin=/var/www/html/custom_apps/notify_push/bin/x86_64/notify_push
+          until [ -f "$bin" ]; do sleep 30; done
+          chmod u+x "$bin"
+          exec "$bin" /var/www/html/config/config.php
+        env:
+        - name: PORT
+          value: '7867'
+        - name: NEXTCLOUD_URL
+          value: http://localhost
+        - name: REDIS_URL
+          value: redis://127.0.0.1
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: DATABASE_URL
+              name: nextcloud-env
+        image: nextcloud:35.0.3-apache@sha256:f22d1dd63844bd15bbf6c2019149653c3d1c775ba48b173b56c3c6ad5f386196
+        name: notify-push
+        ports:
+        - containerPort: 7867
+          name: push
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 33
+          runAsNonRoot: true
+          runAsUser: 33
+        volumeMounts:
+        - mountPath: /var/www/html
+          mountPropagation: None
+          name: html
       enableServiceLinks: false
       initContainers:
       - args:
