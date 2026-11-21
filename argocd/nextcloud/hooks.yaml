@@ -41,5 +41,11 @@ data:
       occ app:install "$app" >/dev/null 2>&1 || occ app:enable "$app" || echo "app $app: not installed"
     done
     occ app:update --all || echo "app:update failed"
+    # Euro-Office (ADR 0034): browsers load it under Nextcloud's host, Nextcloud calls it in-cluster.
+    occ config:app:set eurooffice DocumentServerUrl --value="https://${OVERWRITEHOST}/eurooffice/" || echo "eurooffice: not configured"
+    occ config:app:set eurooffice DocumentServerInternalUrl --value="http://eurooffice-svc:8888/" || true
+    occ config:app:set eurooffice StorageUrl --value="https://${OVERWRITEHOST}/" || true
+    occ config:app:set eurooffice jwt_header --value=AuthorizationJwt || true
+    occ config:app:set eurooffice jwt_secret --value="${EUROOFFICE_JWT_SECRET}" || true
     # Not notify_push:setup: its self-test goes through the public URL, which forward-auth blocks while this is the test instance.
     occ config:app:set notify_push base_endpoint --value="https://${OVERWRITEHOST}/push" || echo "notify_push: endpoint not set"

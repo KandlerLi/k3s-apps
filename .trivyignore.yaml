@@ -18,6 +18,7 @@ misconfigurations:
       - argocd/authelia/deployment.yaml
       - argocd/blocky/deployment.yaml
       - argocd/bulwark/deployment.yaml
+      - argocd/eurooffice/deployment.yaml
       - argocd/grafana/deployment.yaml
       - argocd/nextcloud/deployment.yaml
       - argocd/paperless/deployment.yaml
@@ -27,7 +28,8 @@ misconfigurations:
       These ran with a writable root filesystem under Terraform too
       (Paperless writes outside its data dirs); read-only needs
       testing which paths each writes. Nextcloud's entrypoint writes
-      outside its volumes too (Apache run and lock dirs, PHP in /tmp).
+      outside its volumes too (Apache run and lock dirs, PHP in /tmp), and
+      Euro-Office's entrypoints rewrite their nginx and runtime config.
   - id: KSV-0022
     paths:
       - argocd/stalwart/deployment.yaml
