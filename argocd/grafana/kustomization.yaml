@@ -20,9 +20,14 @@ configMapGenerator:
       - dashboards/github-runners.json
       - dashboards/host-health.json
       - dashboards/k3s-node-health.json
+      # Only here, not in home-infra: CPU/RAM per k3s node with drill-down by namespace, app and Pod.
+      - dashboards/node-resources.json
       - dashboards/overview.json
       - dashboards/service-reachability.json
       - dashboards/service-status.json
     options:
       # Static name: Argo CD may change only named objects, see k3s-bootstrap's argocd.tf.
       disableNameSuffixHash: true
+      # Server-side apply: client-side apply copies every dashboard into last-applied-configuration, which caps at 256 KiB.
+      annotations:
+        argocd.argoproj.io/sync-options: ServerSideApply=true
