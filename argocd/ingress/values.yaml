@@ -1,7 +1,7 @@
 # One Traefik router per entry (name = router, service and middleware prefix). url is the in-cluster backend;
 # forward_auth puts Authelia in front, and a route with false is a reviewed exception. rate_limit and
 # max_body_bytes add those middlewares; referrer_policy defaults to no-referrer, frame_deny to true;
-# strip_prefix removes a path prefix before the backend sees it.
+# strip_prefix removes a path prefix before the backend sees it; request_headers sets headers towards the backend.
 routes:
   # Argo CD's UI (k3s-bootstrap); it also logs in through Authelia's OIDC.
   argo:
@@ -95,6 +95,9 @@ routes:
       average: 1200
       burst: 2400
     frame_deny: false
+    # Traefik sends wss on websocket upgrades; Euro-Office then builds http:// download links from that socket (mixed content).
+    request_headers:
+      X-Forwarded-Proto: https
   stalwart:
     rule: Host(`stalwart.jkandler.de`)
     priority: 10

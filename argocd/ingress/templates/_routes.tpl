@@ -23,7 +23,9 @@
     {{- $_ := set $middlewares (printf "%s-strip-prefix" $name) (dict "stripPrefix" (dict "prefixes" (list $r.strip_prefix))) }}
   {{- end }}
   {{- $chain = append $chain (printf "%s-security-headers" $name) }}
-  {{- $_ := set $middlewares (printf "%s-security-headers" $name) (dict "headers" (dict "contentTypeNosniff" true "frameDeny" (ternary $r.frame_deny true (hasKey $r "frame_deny")) "referrerPolicy" ($r.referrer_policy | default "no-referrer") "permissionsPolicy" "camera=(), microphone=(), geolocation=()" "stsSeconds" 31536000 "stsIncludeSubdomains" false)) }}
+  {{- $headers := dict "contentTypeNosniff" true "frameDeny" (ternary $r.frame_deny true (hasKey $r "frame_deny")) "referrerPolicy" ($r.referrer_policy | default "no-referrer") "permissionsPolicy" "camera=(), microphone=(), geolocation=()" "stsSeconds" 31536000 "stsIncludeSubdomains" false }}
+  {{- if $r.request_headers }}{{ $_ := set $headers "customRequestHeaders" $r.request_headers }}{{ end }}
+  {{- $_ := set $middlewares (printf "%s-security-headers" $name) (dict "headers" $headers) }}
   {{- $_ := set $middlewares (printf "%s-chain" $name) (dict "chain" (dict "middlewares" $chain)) }}
 {{- end }}
 {{- $fixed := .Files.Get "files/fixed-routes.yml" | fromYaml }}
