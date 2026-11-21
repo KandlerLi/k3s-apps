@@ -1,0 +1,140 @@
+# ADR 0033 cutover, applied by hand in the maintenance window (home-infra-docs runbook migrate-nextcloud-to-k3s.md); not in
+# kustomization.yaml, so Argo CD never runs it. Reads AIO's final dump and config.php from the backup directory, replaces the
+# k3s database with the dump and writes AIO's config.php adapted to k3s. Labelled nextcloud-backup for the 5432 NetworkPolicy.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nextcloud-restore-aio
+  namespace: apps
+spec:
+  activeDeadlineSeconds: 3600
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: nextcloud-backup
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+      - name: restore-db
+        command:
+        - sh
+        - -c
+        - |
+          set -eu
+          dump=/backup/aio-final.dump
+          [ -s "$dump" ] || { echo "$dump missing"; exit 1; }
+          pg_restore -l "$dump" > /dev/null
+          i=0
+          until pg_isready -q -d postgres -t 3; do
+            i=$((i + 1)); [ "$i" -lt 30 ] || { echo "PostgreSQL not reachable"; exit 1; }
+            sleep 2
+          done
+          # FORCE ends notify_push's and the paused Pod's connections; both reconnect.
+          psql -v ON_ERROR_STOP=1 -d postgres -c 'DROP DATABASE IF EXISTS nextcloud WITH (FORCE)'
+          psql -v ON_ERROR_STOP=1 -d postgres -c 'CREATE DATABASE nextcloud OWNER nextcloud'
+          # AIO's objects belong to oc_nextcloud, which doesn't exist here.
+          pg_restore --no-owner --no-acl --role=nextcloud --exit-on-error -d nextcloud "$dump"
+          echo "restored: $(psql -d nextcloud -tAc "select count(*) from information_schema.tables where table_schema='public'") tables, $(psql -d nextcloud -tAc 'select count(*) from oc_users') local users"
+        env:
+        - name: PGHOST
+          value: nextcloud-svc
+        - name: PGUSER
+          value: nextcloud
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: POSTGRES_PASSWORD
+              name: nextcloud-postgres
+        image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+        resources:
+          limits:
+            cpu: '1'
+            memory: 512Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsGroup: 33
+          runAsUser: 33
+        volumeMounts:
+        - mountPath: /backup
+          name: backup
+          readOnly: true
+      containers:
+      - name: config
+        command:
+        - sh
+        - -c
+        - |
+          set -eu
+          php <<'PHP'
+          <?php
+          $src = '/backup/aio-config.php';
+          $dst = '/var/www/html/config/config.php';
+          if (!is_file($src)) { fwrite(STDERR, "$src missing\n"); exit(1); }
+          $CONFIG = [];
+          require $src;
+          require '/usr/src/nextcloud/version.php';
+          $image = implode('.', $OC_Version);
+          if (($CONFIG['version'] ?? '') !== $image) { fwrite(STDERR, "AIO is on {$CONFIG['version']}, the image on $image: bump the image first\n"); exit(1); }
+          if (($CONFIG['datadirectory'] ?? '') !== '/mnt/ncdata') { fwrite(STDERR, "unexpected datadirectory\n"); exit(1); }
+          // AIO's database, Redis and proxy settings become the Pod's; NC_dbpassword from the Secret overrides dbpassword.
+          $set = [
+            'dbhost' => '127.0.0.1', 'dbname' => 'nextcloud', 'dbuser' => 'nextcloud', 'dbpassword' => '',
+            'redis' => ['host' => '127.0.0.1', 'port' => 6379],
+            'maintenance' => true,
+          ];
+          // AIO-only keys; previews fall back to the built-in providers without Imaginary.
+          $drop = ['trusted_proxies', 'preview_imaginary_url', 'preview_imaginary_key', 'enabledPreviewProviders',
+                   'one-click-instance', 'one-click-instance.link', 'one-click-instance.user-limit', 'AIO_VERSION',
+                   'eurooffice', 'updatedirectory', 'logfile', 'log_type'];
+          foreach ($set as $k => $v) { $CONFIG[$k] = $v; }
+          foreach ($drop as $k) { unset($CONFIG[$k]); }
+          if (is_file($dst) && !is_file("$dst.test-instance")) { copy($dst, "$dst.test-instance"); }
+          $tmp = "$dst.tmp";
+          file_put_contents($tmp, "<?php\n\$CONFIG = " . var_export($CONFIG, true) . ";\n");
+          chmod($tmp, 0640);
+          rename($tmp, $dst);
+          echo "config.php written: set " . implode(', ', array_keys($set)) . "; dropped " . implode(', ', $drop) . "\n";
+          PHP
+        image: nextcloud:35.0.3-apache@sha256:f22d1dd63844bd15bbf6c2019149653c3d1c775ba48b173b56c3c6ad5f386196
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsGroup: 33
+          runAsUser: 33
+        volumeMounts:
+        - mountPath: /backup
+          name: backup
+          readOnly: true
+        - mountPath: /var/www/html
+          name: html
+      volumes:
+      - name: backup
+        persistentVolumeClaim:
+          claimName: nextcloud-backup
+      - name: html
+        persistentVolumeClaim:
+          claimName: nextcloud-html
