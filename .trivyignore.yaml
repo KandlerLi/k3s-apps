@@ -18,6 +18,7 @@ misconfigurations:
       - argocd/authelia/deployment.yaml
       - argocd/blocky/deployment.yaml
       - argocd/bulwark/deployment.yaml
+      - argocd/eurooffice/deployment.yaml
       - argocd/grafana/deployment.yaml
       - argocd/nextcloud/deployment.yaml
       - argocd/paperless/deployment.yaml
@@ -27,7 +28,8 @@ misconfigurations:
       These ran with a writable root filesystem under Terraform too
       (Paperless writes outside its data dirs); read-only needs
       testing which paths each writes. Nextcloud's entrypoint writes
-      outside its volumes too (Apache run and lock dirs, PHP in /tmp).
+      outside its volumes too (Apache run and lock dirs, PHP in /tmp), and
+      Euro-Office's entrypoints rewrite their nginx and runtime config.
   - id: KSV-0022
     paths:
       - argocd/stalwart/deployment.yaml
@@ -46,8 +48,12 @@ misconfigurations:
       net.ipv4.ip_unprivileged_port_start, without NET_BIND_SERVICE.
   - id: KSV-0007
     paths:
+      - argocd/eurooffice/deployment.yaml
       - argocd/vaultwarden/deployment.yaml
-    statement: hostAliases pins auth.jkandler.de to Traefik in-cluster, so SSO needs no internet egress.
+    statement: >-
+      hostAliases pins a public name to Traefik's ClusterIP in-cluster
+      (Vaultwarden: auth.jkandler.de for SSO; Euro-Office: nextcloud.jkandler.de
+      for documents and callbacks), so neither needs internet egress.
   - id: KSV-01010
     paths:
       - argocd/ingress/templates/configmaps.yaml

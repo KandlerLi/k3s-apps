@@ -1,0 +1,313 @@
+# Euro-Office (ADR 0034): the Kubernetes build cluster-docs as proxy, docservice and converter, rootless as ds (101); PostgreSQL,
+# Redis and RabbitMQ as localhost sidecars. No persistent storage: it only holds open editing sessions. Secrets: externalsecret.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eurooffice
+  namespace: apps
+  annotations:
+    # Reloader (k3s-bootstrap) restarts the Pod when the Secret changes.
+    secret.reloader.stakater.com/reload: eurooffice-env
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eurooffice
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: eurooffice
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      # nginx in front of docservice; serves the editor's static files.
+      - command:
+        - /usr/local/bin/proxy-docker-entrypoint.sh
+        env: &eurooffice-env
+        # The image only sets COMPANY_NAME_LOW, but the entrypoints build every path from COMPANY_NAME.
+        - name: COMPANY_NAME
+          value: euro-office
+        - name: DB_HOST
+          value: 127.0.0.1
+        - name: DB_NAME
+          value: eurooffice
+        - name: DB_USER
+          value: eurooffice
+        - name: REDIS_SERVER_HOST
+          value: 127.0.0.1
+        - name: AMQP_HOST
+          value: 127.0.0.1
+        - name: JWT_HEADER
+          value: AuthorizationJwt
+        - name: LOG_LEVEL
+          value: WARN
+        # The request filter blocks private addresses; Nextcloud is reached only through Traefik's pinned ClusterIP (hostAliases).
+        - name: ALLOW_IP_ADDRESS_LIST
+          value: '["10.43.153.200"]'
+        envFrom:
+        - secretRef:
+            name: eurooffice-env
+            optional: false
+        image: ghcr.io/euro-office/cluster-docs:v9.3.8@sha256:e96e67326b9b2f8b3f0c2ecf0bbcf8b864cb0c73b96a4a85c25a590e54eb30e1
+        name: proxy
+        ports:
+        - containerPort: 8888
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /healthcheck
+            port: 8888
+          periodSeconds: 30
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 20m
+            memory: 32Mi
+        securityContext: &eurooffice-security
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsGroup: 101
+          runAsNonRoot: true
+          runAsUser: 101
+        startupProbe:
+          failureThreshold: 60
+          httpGet:
+            path: /healthcheck
+            port: 8888
+          periodSeconds: 10
+          timeoutSeconds: 5
+        volumeMounts:
+        - mountPath: /var/lib/euro-office/documentserver/App_Data/cache/files
+          mountPropagation: None
+          name: files
+      - args:
+        - docservice
+        env: *eurooffice-env
+        envFrom:
+        - secretRef:
+            name: eurooffice-env
+            optional: false
+        image: ghcr.io/euro-office/cluster-docs:v9.3.8@sha256:e96e67326b9b2f8b3f0c2ecf0bbcf8b864cb0c73b96a4a85c25a590e54eb30e1
+        livenessProbe:
+          failureThreshold: 5
+          periodSeconds: 30
+          tcpSocket:
+            port: 8000
+          timeoutSeconds: 5
+        name: docservice
+        resources:
+          limits:
+            cpu: '2'
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            memory: 256Mi
+        securityContext: *eurooffice-security
+        volumeMounts:
+        - mountPath: /var/lib/euro-office/documentserver/App_Data/cache/files
+          mountPropagation: None
+          name: files
+      - args:
+        - converter
+        env: *eurooffice-env
+        envFrom:
+        - secretRef:
+            name: eurooffice-env
+            optional: false
+        image: ghcr.io/euro-office/cluster-docs:v9.3.8@sha256:e96e67326b9b2f8b3f0c2ecf0bbcf8b864cb0c73b96a4a85c25a590e54eb30e1
+        name: converter
+        resources:
+          limits:
+            cpu: '2'
+            memory: 1536Mi
+          requests:
+            cpu: 50m
+            memory: 256Mi
+        securityContext: *eurooffice-security
+        volumeMounts:
+        - mountPath: /var/lib/euro-office/documentserver/App_Data/cache/files
+          mountPropagation: None
+          name: files
+      enableServiceLinks: false
+      # Documents and callbacks go to Nextcloud's public name, kept in-cluster through ingress-svc's pinned ClusterIP.
+      hostAliases:
+      - hostnames:
+        - nextcloud.jkandler.de
+        ip: 10.43.153.200
+      initContainers:
+      # The schema ships in cluster-utils; PostgreSQL runs it on its first start, which with emptyDir is every Pod start.
+      - command:
+        - cp
+        - /scripts/schema/postgresql/createdb.sql
+        - /initdb/
+        image: ghcr.io/euro-office/cluster-utils:v9.3.8@sha256:57038aab00acab73d276aff5882390ab350f515b2c59915ef8dd767ac9f8b3dc
+        name: schema
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 10m
+            memory: 16Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 101
+          runAsNonRoot: true
+          runAsUser: 101
+        volumeMounts:
+        - mountPath: /initdb
+          mountPropagation: None
+          name: initdb
+      # Session data only, localhost only, so no password (trust).
+      - args:
+        - -c
+        - listen_addresses=127.0.0.1
+        env:
+        - name: POSTGRES_DB
+          value: eurooffice
+        - name: POSTGRES_USER
+          value: eurooffice
+        - name: POSTGRES_HOST_AUTH_METHOD
+          value: trust
+        image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+        name: postgres
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 20m
+            memory: 64Mi
+        restartPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsGroup: 70
+          runAsNonRoot: true
+          runAsUser: 70
+        # TCP answers only once initdb (and the schema) is done: the temporary init server listens on the socket only.
+        startupProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - 127.0.0.1
+            - -U
+            - eurooffice
+            - -d
+            - eurooffice
+          failureThreshold: 60
+          periodSeconds: 2
+        volumeMounts:
+        - mountPath: /var/lib/postgresql
+          mountPropagation: None
+          name: postgres-data
+        - mountPath: /docker-entrypoint-initdb.d
+          mountPropagation: None
+          name: initdb
+          readOnly: true
+      - args:
+        - --bind
+        - 127.0.0.1
+        - --save
+        - ''
+        - --appendonly
+        - 'no'
+        image: redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+        name: redis
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+        restartPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 65534
+          runAsNonRoot: true
+          runAsUser: 65534
+        startupProbe:
+          exec:
+            command:
+            - redis-cli
+            - -h
+            - 127.0.0.1
+            - ping
+          failureThreshold: 30
+          periodSeconds: 2
+      # guest/guest, Euro-Office's default, is accepted from loopback only.
+      - env:
+        - name: RABBITMQ_NODENAME
+          value: rabbit@localhost
+        image: rabbitmq:4-alpine@sha256:3dbd31cb9e4d45dac44de7b73cc45b848028494e98bcab71477386cbd4dc7f56
+        name: rabbitmq
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 20m
+            memory: 128Mi
+        restartPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsGroup: 101
+          runAsNonRoot: true
+          runAsUser: 100
+        startupProbe:
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - -q
+            - check_running
+          failureThreshold: 60
+          periodSeconds: 5
+          timeoutSeconds: 10
+        volumeMounts:
+        - mountPath: /var/lib/rabbitmq
+          mountPropagation: None
+          name: rabbitmq-data
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      shareProcessNamespace: false
+      volumes:
+      - emptyDir: {}
+        name: files
+      - emptyDir: {}
+        name: initdb
+      - emptyDir: {}
+        name: postgres-data
+      - emptyDir: {}
+        name: rabbitmq-data

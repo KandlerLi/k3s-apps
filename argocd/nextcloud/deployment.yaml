@@ -47,7 +47,7 @@ spec:
           value: 10.42.0.0/16 127.0.0.1 ::1
         # App Store apps the hook installs and keeps enabled; the list carried over from AIO (home-infra-tracker#73).
         - name: NEXTCLOUD_APPS
-          value: calendar contacts deck notes tasks tables shopping_list guests twofactor_totp twofactor_webauthn files_lock webhook_listeners notify_push
+          value: calendar contacts deck notes tasks tables shopping_list guests twofactor_totp twofactor_webauthn files_lock webhook_listeners notify_push eurooffice
         envFrom:
         - secretRef:
             name: nextcloud-env

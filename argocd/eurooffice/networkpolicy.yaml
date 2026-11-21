@@ -1,0 +1,45 @@
+# In: Traefik (browsers, behind forward-auth) and Nextcloud (server-side calls). Out: DNS and Traefik, through which it fetches
+# documents from and calls back to Nextcloud; nothing on the internet.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eurooffice
+  namespace: apps
+spec:
+  egress:
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+    to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+  - ports:
+    - port: 443
+      protocol: TCP
+    to:
+    - podSelector:
+        matchLabels:
+          app: ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: ingress
+    - podSelector:
+        matchLabels:
+          app: nextcloud
+    ports:
+    - port: 8888
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app: eurooffice
+  policyTypes:
+  - Ingress
+  - Egress
