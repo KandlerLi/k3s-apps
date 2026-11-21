@@ -189,9 +189,10 @@ spec:
           name: html
       enableServiceLinks: false
       initContainers:
+      # All interfaces for the backup CronJob; networkpolicy.yaml lets only that Job in on 5432.
       - args:
         - -c
-        - listen_addresses=127.0.0.1
+        - listen_addresses=*
         envFrom:
         - secretRef:
             name: nextcloud-postgres

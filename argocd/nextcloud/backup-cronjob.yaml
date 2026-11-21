@@ -1,0 +1,88 @@
+# Nightly pg_dump and config.php to the red HDD (ADR 0033); home-infra's restic picks them up at 03:45 UTC.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nextcloud-backup
+  namespace: apps
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 900
+      backoffLimit: 0
+      completions: 1
+      manualSelector: false
+      parallelism: 1
+      template:
+        metadata:
+          labels:
+            app: nextcloud-backup
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - |
+              set -eu
+              d="$(date -u +%Y%m%d-%H%M%S)"
+              tmp="/backup/.nextcloud-db-$d.dump"
+              pg_dump -h nextcloud-svc -U nextcloud -d nextcloud -Fc -f "$tmp"
+              # A dump pg_restore can't list is no backup.
+              pg_restore -l "$tmp" > /dev/null
+              mv "$tmp" "/backup/nextcloud-db-$d.dump"
+              cp /html/config/config.php "/backup/nextcloud-config-$d.php"
+              find /backup -maxdepth 1 -name 'nextcloud-*' -mtime +14 -delete
+              echo "Nextcloud backup written: nextcloud-db-$d.dump, nextcloud-config-$d.php"
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: nextcloud-postgres
+            image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+            name: nextcloud-backup
+            resources:
+              limits:
+                cpu: 500m
+                memory: 256Mi
+              requests:
+                cpu: 10m
+                memory: 32Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              privileged: false
+              readOnlyRootFilesystem: true
+              runAsGroup: 33
+              runAsNonRoot: true
+              runAsUser: 33
+            volumeMounts:
+            - mountPath: /backup
+              mountPropagation: None
+              name: backup
+            # config.php only; read-only, on k3s-node-1 like the Pod.
+            - mountPath: /html
+              mountPropagation: None
+              name: html
+              readOnly: true
+          enableServiceLinks: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          shareProcessNamespace: false
+          volumes:
+          - name: backup
+            persistentVolumeClaim:
+              claimName: nextcloud-backup
+          - name: html
+            persistentVolumeClaim:
+              claimName: nextcloud-html
+  schedule: 30 3 * * *
+  startingDeadlineSeconds: 300
+  timeZone: Etc/UTC

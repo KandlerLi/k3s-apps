@@ -4,8 +4,10 @@ kind: Kustomization
 namespace: apps
 
 resources:
+  - backup-cronjob.yaml
   - deployment.yaml
   - externalsecret.yaml
   - hooks.yaml
+  - networkpolicy.yaml
   - service.yaml
   - storage.yaml
