@@ -27,7 +27,7 @@ misconfigurations:
       These ran with a writable root filesystem under Terraform too
       (Paperless writes outside its data dirs); read-only needs
       testing which paths each writes. Nextcloud's entrypoint writes
-      outside its volumes too (PHP conf.d, Apache run dirs).
+      outside its volumes too (Apache run and lock dirs, PHP in /tmp).
   - id: KSV-0022
     paths:
       - argocd/stalwart/deployment.yaml
