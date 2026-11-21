@@ -1,16 +1,16 @@
 {
-  "title": "GitHub Runners",
+  "title": "CI – GitHub runners",
   "uid": "monitoring-github-runners",
   "schemaVersion": 39,
   "version": 1,
   "editable": false,
-  "refresh": "30s",
+  "refresh": "1m",
   "time": {
     "from": "now-6h",
     "to": "now"
   },
   "tags": [
-    "monitoring"
+    "homeserver"
   ],
   "panels": [
     {
@@ -1219,5 +1219,21 @@
         "y": 62
       }
     }
-  ]
+  ],
+  "description": "Self-hosted GitHub Actions runners (ARC) on k3s-node-2: Pods, GitHub's view, activity, node load.",
+  "links": [
+    {
+      "title": "Dashboards",
+      "type": "dashboards",
+      "tags": [
+        "homeserver"
+      ],
+      "asDropdown": false,
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link"
+    }
+  ],
+  "graphTooltip": 1
 }

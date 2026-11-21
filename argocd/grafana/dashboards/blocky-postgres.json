@@ -21,34 +21,22 @@
       }
     ]
   },
-  "description": "Grafana dashboard for Blocky with PostgreSQL query logging",
+  "description": "Blocky's query log in PostgreSQL: top domains and clients, recent queries.",
   "editable": false,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "links": [
     {
+      "title": "Dashboards",
+      "type": "dashboards",
+      "tags": [
+        "homeserver"
+      ],
       "asDropdown": false,
-      "icon": "external link",
       "includeVars": false,
-      "keepTime": false,
-      "tags": [],
-      "targetBlank": true,
-      "title": "GitHub",
-      "tooltip": "",
-      "type": "link",
-      "url": "https://github.com/shizunge/blocky-postgresql-dashboard"
-    },
-    {
-      "asDropdown": false,
-      "icon": "external link",
-      "includeVars": false,
-      "keepTime": false,
-      "tags": [],
-      "targetBlank": true,
-      "title": "Grafana",
-      "tooltip": "",
-      "type": "link",
-      "url": "https://grafana.com/grafana/dashboards/17996"
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link"
     }
   ],
   "panels": [
@@ -654,7 +642,7 @@
           "refId": "A"
         }
       ],
-      "title": "Client Actvity",
+      "title": "Client activity",
       "transformations": [
         {
           "id": "prepareTimeSeries",
@@ -1578,7 +1566,9 @@
   ],
   "refresh": "1m",
   "schemaVersion": 42,
-  "tags": [],
+  "tags": [
+    "homeserver"
+  ],
   "templating": {
     "list": [
       {
@@ -1708,7 +1698,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Blocky-Postgres",
+  "title": "DNS – Query log",
   "uid": "monitoring-blocky-postgres",
   "version": 15,
   "weekStart": ""

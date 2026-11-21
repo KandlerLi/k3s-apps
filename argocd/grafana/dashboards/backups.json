@@ -10,7 +10,7 @@
     "to": "now"
   },
   "tags": [
-    "monitoring"
+    "homeserver"
   ],
   "panels": [
     {
@@ -72,7 +72,8 @@
           "instant": true,
           "refId": "A"
         }
-      ]
+      ],
+      "description": ""
     },
     {
       "id": 2,
@@ -120,7 +121,8 @@
           "instant": true,
           "refId": "A"
         }
-      ]
+      ],
+      "description": ""
     },
     {
       "id": 3,
@@ -184,7 +186,24 @@
           "legendFormat": "{{backup}}",
           "refId": "A"
         }
-      ]
+      ],
+      "description": ""
     }
-  ]
+  ],
+  "description": "Age of every backup (host marker files and k3s CronJobs); the alert fires past 26 h.",
+  "links": [
+    {
+      "title": "Dashboards",
+      "type": "dashboards",
+      "tags": [
+        "homeserver"
+      ],
+      "asDropdown": false,
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link"
+    }
+  ],
+  "graphTooltip": 1
 }

@@ -10,21 +10,18 @@ resources:
   - service.yaml
 
 configMapGenerator:
-  # Vendored from home-infra's monitoring/files/dashboards; the originals stay canonical there.
+  # The dashboards live here; tags and the top link bar tie them together (tag homeserver).
   - name: grafana-dashboards
     files:
-      - dashboards/backups.json
-      - dashboards/blocky-postgres.json
-      - dashboards/blocky.json
-      - dashboards/container-health.json
-      - dashboards/github-runners.json
-      - dashboards/host-health.json
-      - dashboards/k3s-node-health.json
-      # Only here, not in home-infra: CPU/RAM of the host and per k3s node, drill-down by namespace, app and Pod.
-      - dashboards/node-resources.json
+      # Generated and normalised by scripts/grafana-dashboards.py; home-infra's files/dashboards copies are stale (tracker #76).
       - dashboards/overview.json
+      - dashboards/node-resources.json
+      - dashboards/k8s-workloads.json
       - dashboards/service-reachability.json
-      - dashboards/service-status.json
+      - dashboards/backups.json
+      - dashboards/blocky.json
+      - dashboards/blocky-postgres.json
+      - dashboards/github-runners.json
     options:
       # Static name: Argo CD may change only named objects, see k3s-bootstrap's argocd.tf.
       disableNameSuffixHash: true
