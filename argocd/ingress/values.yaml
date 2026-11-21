@@ -83,7 +83,8 @@ routes:
       average: 600
       burst: 1200
   # Euro-Office's editor (ADR 0034), loaded by the browser inside Nextcloud: behind forward-auth, so only browsers with an
-  # Authelia session reach it; Nextcloud calls it in-cluster. It frames into Nextcloud's page (same origin).
+  # Authelia session reach it; Nextcloud calls it in-cluster. It frames into Nextcloud's page (same origin). No body limit:
+  # the editor talks over a websocket, which Traefik's buffering middleware breaks (its nginx caps bodies at 100m itself).
   nextcloud-eurooffice:
     rule: Host(`nextcloud.jkandler.de`) && PathPrefix(`/eurooffice`)
     priority: 100
@@ -93,7 +94,6 @@ routes:
     rate_limit:
       average: 1200
       burst: 2400
-    max_body_bytes: 104857600
     frame_deny: false
   stalwart:
     rule: Host(`stalwart.jkandler.de`)
