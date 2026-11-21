@@ -11,5 +11,8 @@ spec:
   - name: push
     port: 7867
     targetPort: 7867
+  - name: postgres
+    port: 5432
+    targetPort: 5432
   selector:
     app: nextcloud

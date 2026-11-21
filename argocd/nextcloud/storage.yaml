@@ -47,3 +47,20 @@ spec:
       storage: 1Ti
   storageClassName: local-path
   volumeName: nextcloud-data-pv
+---
+# NFS on the red HDD: the backup CronJob's target (k3s-bootstrap).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextcloud-backup
+  namespace: apps
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: local-path
+  volumeName: nextcloud-backup-pv
