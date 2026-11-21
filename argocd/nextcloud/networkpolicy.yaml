@@ -1,4 +1,5 @@
-# In: Traefik to Apache and notify_push, the backup Job to PostgreSQL; nothing else. Out stays open (App Store, Authelia).
+# In: Traefik to Apache and notify_push, sankey-export to Apache, the backup Job to PostgreSQL; nothing else.
+# Out stays open (App Store, Authelia).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -14,6 +15,14 @@ spec:
     - port: 80
       protocol: TCP
     - port: 7867
+      protocol: TCP
+  # WebDAV with its own app password (ADR 0015), in-cluster instead of through Traefik.
+  - from:
+    - podSelector:
+        matchLabels:
+          app: sankey-export
+    ports:
+    - port: 80
       protocol: TCP
   - from:
     - podSelector:
