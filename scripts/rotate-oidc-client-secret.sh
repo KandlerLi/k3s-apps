@@ -130,6 +130,8 @@ case "${client}" in
   bulwark) client_es=(apps bulwark-oidc) ;;
   paperless) client_es=(apps paperless-env) ;;
   vaultwarden) client_es=(apps vaultwarden-sso) ;;
+  # Reloader restarts Nextcloud; its start hook re-registers the provider with the new secret (ADR 0033).
+  nextcloud) client_es=(apps nextcloud-env) ;;
   *) client_es=() ;;
 esac
 if [ ${#client_es[@]} -eq 2 ]; then
@@ -145,30 +147,7 @@ if [ "${client}" = "argocd" ]; then
   ( cd "${k3s_bootstrap_dir}" && scripts/roll-out.sh apply )
 fi
 
-if [ "${client}" = "nextcloud" ]; then
-  home_infra_dir="${repo_root}/../home-infra"
-  [ -d "${home_infra_dir}" ] || fail "expected KandlerLi/home-infra as a sibling of this repo at ${home_infra_dir}, not found"
-  [ -x "${home_infra_dir}/.venv/bin/ansible-playbook" ] || fail "${home_infra_dir}/.venv/bin/ansible-playbook not found -- set up its venv first"
-
-  echo "==> re-running KandlerLi/home-infra's site.yml so Nextcloud's own occ config picks up the new plaintext"
-  echo "    (this is a real upsert, not a formality -- ansible/roles/nextcloud_aio/tasks/oidc.yml's own occ user_oidc:provider call)"
-  ( cd "${home_infra_dir}" && ./.venv/bin/ansible-playbook ansible/playbooks/site.yml --ask-become-pass )
-
-  cat <<EOF
-
-Done. This can't be verified automatically -- it's a browser OIDC login
-flow. Confirm for real:
-  1. Sign out of Nextcloud if signed in.
-  2. "Sign in with Authelia" on Nextcloud -- must reach a real Authelia
-     login/consent screen and land back in Nextcloud authenticated.
-  3. If it fails, the two values are still both in Secrets Manager, in
-     Authelia's live Kubernetes Secret, and in Nextcloud's own occ
-     config from the site.yml run above -- re-check you pasted the
-     plaintext and hash from the SAME generation command, not two
-     different runs (the pair only matches if generated together).
-EOF
-else
-  cat <<EOF
+cat <<EOF
 
 Done. This can't be verified automatically -- it's a browser OIDC login
 flow. Confirm for real:
@@ -180,4 +159,3 @@ flow. Confirm for real:
      and hash from the SAME generation command, not from two different
      runs (the pair only matches if generated together).
 EOF
-fi

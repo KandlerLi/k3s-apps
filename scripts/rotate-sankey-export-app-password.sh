@@ -127,7 +127,7 @@ fi
 
 echo
 if [ "${ok}" = "1" ]; then
-  echo "Rotation applied and verified. Now revoke the OLD token on the homeserver:"
+  echo "Rotation applied and verified. Now revoke the OLD token in the Nextcloud Pod:"
 else
   echo "Verify the next CronJob run succeeded before revoking. Local kubectl:"
   echo "  kubectl -n apps get pods -l app=sankey-export -o wide"
@@ -137,7 +137,7 @@ else
   echo "  ${node_kubectl} logs -l app=sankey-export --tail=30"
 fi
 cat <<'EOF'
-  docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:list sankey-export
+  kubectl -n apps exec deploy/nextcloud -c nextcloud -- php occ user:auth-tokens:list sankey-export
   # Then delete every id except the new one (:delete takes <uid> then <id>).
-  docker exec nextcloud-aio-nextcloud php occ user:auth-tokens:delete sankey-export <OLD_ID>
+  kubectl -n apps exec deploy/nextcloud -c nextcloud -- php occ user:auth-tokens:delete sankey-export <OLD_ID>
 EOF
