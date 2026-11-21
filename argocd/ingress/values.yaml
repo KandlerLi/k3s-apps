@@ -1,6 +1,7 @@
 # One Traefik router per entry (name = router, service and middleware prefix). url is the in-cluster backend;
 # forward_auth puts Authelia in front, and a route with false is a reviewed exception. rate_limit and
-# max_body_bytes add those middlewares; referrer_policy defaults to no-referrer, frame_deny to true.
+# max_body_bytes add those middlewares; referrer_policy defaults to no-referrer, frame_deny to true;
+# strip_prefix removes a path prefix before the backend sees it.
 routes:
   # Argo CD's UI (k3s-bootstrap); it also logs in through Authelia's OIDC.
   argo:
@@ -70,6 +71,17 @@ routes:
     max_body_bytes: 536870912
     referrer_policy: no-referrer
     frame_deny: false
+  # notify_push (in Nextcloud's Pod) expects the paths without /push.
+  nextcloud-test-push:
+    rule: Host(`nextcloud-test.jkandler.de`) && PathPrefix(`/push`)
+    priority: 100
+    url: http://nextcloud-svc:7867
+    forward_auth: true
+    strip_prefix: /push
+    rate_limit:
+      average: 600
+      burst: 1200
+    max_body_bytes: 1048576
   stalwart:
     rule: Host(`stalwart.jkandler.de`)
     priority: 10

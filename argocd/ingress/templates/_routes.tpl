@@ -18,6 +18,10 @@
     {{- $chain = append $chain (printf "%s-request-limit" $name) }}
     {{- $_ := set $middlewares (printf "%s-request-limit" $name) (dict "buffering" (dict "maxRequestBodyBytes" (int64 $r.max_body_bytes) "memRequestBodyBytes" (int64 $r.max_body_bytes))) }}
   {{- end }}
+  {{- if $r.strip_prefix }}
+    {{- $chain = append $chain (printf "%s-strip-prefix" $name) }}
+    {{- $_ := set $middlewares (printf "%s-strip-prefix" $name) (dict "stripPrefix" (dict "prefixes" (list $r.strip_prefix))) }}
+  {{- end }}
   {{- $chain = append $chain (printf "%s-security-headers" $name) }}
   {{- $_ := set $middlewares (printf "%s-security-headers" $name) (dict "headers" (dict "contentTypeNosniff" true "frameDeny" (ternary $r.frame_deny true (hasKey $r "frame_deny")) "referrerPolicy" ($r.referrer_policy | default "no-referrer") "permissionsPolicy" "camera=(), microphone=(), geolocation=()" "stsSeconds" 31536000 "stsIncludeSubdomains" false)) }}
   {{- $_ := set $middlewares (printf "%s-chain" $name) (dict "chain" (dict "middlewares" $chain)) }}
