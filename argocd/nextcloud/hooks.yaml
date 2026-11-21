@@ -9,6 +9,8 @@ data:
     #!/bin/sh
     set -eu
     occ() { php /var/www/html/occ "$@"; }
+    # In maintenance mode no apps load, so user_oidc's command is missing and the Pod would crash-loop (cutover runbook).
+    if occ status --output=json | grep -q '"maintenance":true'; then echo "maintenance mode: settings skipped"; exit 0; fi
 
     # Redis through occ, not REDIS_HOST: the image writes that into the root-owned PHP conf.d, which fails as uid 33.
     occ config:system:set redis host --value=127.0.0.1
@@ -34,6 +36,7 @@ data:
   20-apps.sh: |
     #!/bin/sh
     occ() { php /var/www/html/occ "$@"; }
+    if occ status --output=json | grep -q '"maintenance":true'; then echo "maintenance mode: apps skipped"; exit 0; fi
     for app in $NEXTCLOUD_APPS; do
       occ app:install "$app" >/dev/null 2>&1 || occ app:enable "$app" || echo "app $app: not installed"
     done
