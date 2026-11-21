@@ -20,7 +20,7 @@ configMapGenerator:
       - dashboards/github-runners.json
       - dashboards/host-health.json
       - dashboards/k3s-node-health.json
-      # Only here, not in home-infra: CPU/RAM per k3s node with drill-down by namespace, app and Pod.
+      # Only here, not in home-infra: CPU/RAM of the host and per k3s node, drill-down by namespace, app and Pod.
       - dashboards/node-resources.json
       - dashboards/overview.json
       - dashboards/service-reachability.json
