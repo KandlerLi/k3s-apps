@@ -63,6 +63,10 @@ spec:
           value: "true"
         - name: ENFORCE_WHITELIST
           value: "true"
+        # Java profile names; Bedrock players by their Floodgate UUID.
+        - name: WHITELIST
+          value: |
+            kandiman
         - name: MAX_PLAYERS
           value: "8"
         # Lower than vanilla's 10: the i7-2600's single-core speed is the limit.
