@@ -67,6 +67,7 @@ spec:
         - name: WHITELIST
           value: |
             kandiman
+            00000000-0000-0000-0009-01f4da00ccee
         - name: MAX_PLAYERS
           value: "8"
         # Lower than vanilla's 10: the i7-2600's single-core speed is the limit.
