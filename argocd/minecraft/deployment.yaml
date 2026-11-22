@@ -17,6 +17,14 @@ spec:
         app: minecraft
     spec:
       automountServiceAccountToken: false
+      # Its own tainted node, off k3s-node-1's kernel (ADR 0036).
+      nodeSelector:
+        kubernetes.io/hostname: k3s-node-3
+      tolerations:
+      - effect: NoSchedule
+        key: workload
+        operator: Equal
+        value: minecraft
       initContainers:
       # A fresh RCON password per Pod start, shared only with the backup sidecar; it never leaves the Pod.
       - command:
@@ -40,6 +48,34 @@ spec:
         volumeMounts:
         - mountPath: /rcon
           name: rcon
+      # Unpacks the newest backup into an empty world volume: the move to node-3, and the restore path after it.
+      - command:
+        - restore-tar-backup
+        env:
+        - name: SRC_DIR
+          value: /data
+        - name: DEST_DIR
+          value: /backups
+        image: itzg/mc-backup:2026.11.1@sha256:d731fa58822525cc65a23fbd82f472be4fc74854ee313da36bb4872bdba722c7
+        name: restore-backup
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /backups
+          name: backups
+          readOnly: true
       containers:
       - env:
         - name: EULA
@@ -183,7 +219,7 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: minecraft
+          claimName: minecraft-world
       - name: backups
         persistentVolumeClaim:
           claimName: minecraft-backup
