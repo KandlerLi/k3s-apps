@@ -20,6 +20,7 @@ misconfigurations:
       - argocd/bulwark/deployment.yaml
       - argocd/eurooffice/deployment.yaml
       - argocd/grafana/deployment.yaml
+      - argocd/minecraft/deployment.yaml
       - argocd/nextcloud/deployment.yaml
       - argocd/paperless/deployment.yaml
       - argocd/paperless/export-cronjob.yaml
@@ -30,6 +31,7 @@ misconfigurations:
       testing which paths each writes. Nextcloud's entrypoint writes
       outside its volumes too (Apache run and lock dirs, PHP in /tmp), and
       Euro-Office's entrypoints rewrite their nginx and runtime config.
+      The itzg Minecraft and mc-backup images write tooling state outside /data.
   - id: KSV-0022
     paths:
       - argocd/stalwart/deployment.yaml

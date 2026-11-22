@@ -1,0 +1,178 @@
+# Paper with Geyser and Floodgate, so Java and Bedrock players share one world; mc-backup tars it nightly. See home-infra-docs ADR 0036.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minecraft
+  namespace: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minecraft
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: minecraft
+    spec:
+      automountServiceAccountToken: false
+      initContainers:
+      # A fresh RCON password per Pod start, shared only with the backup sidecar; it never leaves the Pod.
+      - command:
+        - sh
+        - -c
+        - head -c 32 /dev/urandom | base64 > /rcon/password
+        image: itzg/minecraft-server:2026.11.0-java25@sha256:8d5080d8dcd0a2629c2e4f248678373a337a40537ad6ef2857c7dbcda6e3eadd
+        name: rcon-password
+        resources:
+          limits:
+            memory: 32Mi
+          requests:
+            cpu: 10m
+            memory: 16Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /rcon
+          name: rcon
+      containers:
+      - env:
+        - name: EULA
+          value: "TRUE"
+        - name: TYPE
+          value: PAPER
+        - name: VERSION
+          value: "26.3"
+        # Unpinned on purpose: Bedrock clients auto-update, and only the latest Geyser speaks their protocol.
+        - name: PLUGINS
+          value: |
+            https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
+            https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot
+        - name: MEMORY
+          value: 3G
+        - name: USE_AIKAR_FLAGS
+          value: "true"
+        - name: ONLINE_MODE
+          value: "true"
+        - name: ENABLE_WHITELIST
+          value: "true"
+        - name: ENFORCE_WHITELIST
+          value: "true"
+        - name: MAX_PLAYERS
+          value: "8"
+        # Lower than vanilla's 10: the i7-2600's single-core speed is the limit.
+        - name: VIEW_DISTANCE
+          value: "8"
+        - name: SIMULATION_DISTANCE
+          value: "6"
+        - name: DIFFICULTY
+          value: normal
+        - name: MOTD
+          value: Kandler Minecraft
+        - name: RCON_PASSWORD_FILE
+          value: /rcon/password
+        - name: TZ
+          value: Europe/Berlin
+        image: itzg/minecraft-server:2026.11.0-java25@sha256:8d5080d8dcd0a2629c2e4f248678373a337a40537ad6ef2857c7dbcda6e3eadd
+        livenessProbe:
+          exec:
+            command:
+            - mc-health
+          failureThreshold: 6
+          periodSeconds: 30
+          timeoutSeconds: 10
+        name: minecraft
+        ports:
+        - containerPort: 25565
+          name: java
+          protocol: TCP
+        - containerPort: 19132
+          name: bedrock
+          protocol: UDP
+        resources:
+          limits:
+            memory: 4Gi
+          requests:
+            cpu: 500m
+            memory: 3584Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+        # The first start downloads Paper and the plugins and generates the world.
+        startupProbe:
+          exec:
+            command:
+            - mc-health
+          failureThreshold: 60
+          periodSeconds: 10
+          timeoutSeconds: 10
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /rcon
+          name: rcon
+          readOnly: true
+      - env:
+        - name: BACKUP_INTERVAL
+          value: 24h
+        - name: PRUNE_BACKUPS_DAYS
+          value: "14"
+        - name: RCON_PASSWORD_FILE
+          value: /rcon/password
+        - name: SRC_DIR
+          value: /data
+        - name: DEST_DIR
+          value: /backups
+        - name: TZ
+          value: Europe/Berlin
+        image: itzg/mc-backup:2026.11.1@sha256:d731fa58822525cc65a23fbd82f472be4fc74854ee313da36bb4872bdba722c7
+        name: backup
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+        volumeMounts:
+        - mountPath: /data
+          name: data
+          readOnly: true
+        - mountPath: /backups
+          name: backups
+        - mountPath: /rcon
+          name: rcon
+          readOnly: true
+      enableServiceLinks: false
+      securityContext:
+        # The homeserver's minecraft-backup account: NFS root_squash lets only its ids write the backup directory.
+        fsGroup: 975
+        runAsGroup: 975
+        runAsNonRoot: true
+        runAsUser: 980
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: minecraft
+      - name: backups
+        persistentVolumeClaim:
+          claimName: minecraft-backup
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 1Mi
+        name: rcon
