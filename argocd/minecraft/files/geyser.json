@@ -1,0 +1,12 @@
+{
+  "patches": [
+    {
+      "file": "/data/plugins/Geyser-Spigot/config.yml",
+      "ops": [
+        { "$set": { "path": "$.java['auth-type']", "value": "floodgate" } },
+        { "$set": { "path": "$.bedrock.signaling['advertise-addresses']", "value": ["minecraft.jkandler.de"] } },
+        { "$set": { "path": "$.bedrock.signaling['stun-discovery']", "value": false } }
+      ]
+    }
+  ]
+}

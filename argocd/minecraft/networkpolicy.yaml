@@ -1,4 +1,4 @@
-# In: only the two game ports. Out: DNS and HTTPS to the internet (Mojang login, Paper and plugin downloads), never the LAN or cluster.
+# In: only the game ports. Out: DNS and HTTPS to the internet (Mojang login, Paper and plugin downloads), never the LAN or cluster.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -34,6 +34,8 @@ spec:
       protocol: TCP
     - port: 19132
       protocol: UDP
+    - port: 19132
+      protocol: TCP
   podSelector:
     matchLabels:
       app: minecraft

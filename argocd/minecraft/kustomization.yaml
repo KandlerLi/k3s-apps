@@ -8,3 +8,11 @@ resources:
   - networkpolicy.yaml
   - service.yaml
   - storage.yaml
+
+configMapGenerator:
+  - name: minecraft-geyser-patches
+    files:
+      - files/geyser.json
+    options:
+      # A fixed name: Argo CD may only write ConfigMaps k3s-bootstrap names.
+      disableNameSuffixHash: true

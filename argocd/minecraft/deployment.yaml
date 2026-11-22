@@ -76,6 +76,9 @@ spec:
           value: Kandler Minecraft
         - name: RCON_PASSWORD_FILE
           value: /rcon/password
+        # Geyser's config has no env vars; these patches apply on every start, once the plugin has created it.
+        - name: PATCH_DEFINITIONS
+          value: /patches
         - name: TZ
           value: Europe/Berlin
         image: itzg/minecraft-server:2026.11.0-java25@sha256:8d5080d8dcd0a2629c2e4f248678373a337a40537ad6ef2857c7dbcda6e3eadd
@@ -94,6 +97,9 @@ spec:
         - containerPort: 19132
           name: bedrock
           protocol: UDP
+        - containerPort: 19132
+          name: bedrock-signal
+          protocol: TCP
         resources:
           limits:
             memory: 4Gi
@@ -119,6 +125,9 @@ spec:
           name: data
         - mountPath: /rcon
           name: rcon
+          readOnly: true
+        - mountPath: /patches
+          name: patches
           readOnly: true
       - env:
         - name: BACKUP_INTERVAL
@@ -172,6 +181,9 @@ spec:
       - name: backups
         persistentVolumeClaim:
           claimName: minecraft-backup
+      - configMap:
+          name: minecraft-geyser-patches
+        name: patches
       - emptyDir:
           medium: Memory
           sizeLimit: 1Mi
