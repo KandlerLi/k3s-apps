@@ -1,4 +1,4 @@
-# Java on 25565/tcp, Bedrock (Geyser) on 19132/udp; Local keeps the client IP. RCON is never exposed.
+# Java on 25565/tcp; Bedrock (Geyser, NetherNet) signals on 19132/tcp and plays on 19132/udp. Local keeps the client IP. RCON is never exposed.
 apiVersion: v1
 kind: Service
 metadata:
@@ -15,6 +15,10 @@ spec:
   - name: bedrock
     port: 19132
     protocol: UDP
+    targetPort: 19132
+  - name: bedrock-signal
+    port: 19132
+    protocol: TCP
     targetPort: 19132
   selector:
     app: minecraft
