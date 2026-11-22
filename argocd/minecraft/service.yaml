@@ -4,6 +4,9 @@ kind: Service
 metadata:
   name: minecraft-svc
   namespace: apps
+  annotations:
+    # Client-side apply merges ports by number only and drops 19132/tcp next to 19132/udp; server-side keys on port and protocol.
+    argocd.argoproj.io/sync-options: ServerSideApply=true
 spec:
   externalTrafficPolicy: Local
   healthCheckNodePort: 31565
