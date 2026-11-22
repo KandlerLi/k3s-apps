@@ -77,8 +77,9 @@ spec:
         - name: RCON_PASSWORD_FILE
           value: /rcon/password
         # Geyser's config has no env vars; these patches apply on every start, once the plugin has created it.
+        # The file itself: a directory is read as single patch definitions, not as this patch set.
         - name: PATCH_DEFINITIONS
-          value: /patches
+          value: /patches/geyser.json
         - name: TZ
           value: Europe/Berlin
         image: itzg/minecraft-server:2026.11.0-java25@sha256:8d5080d8dcd0a2629c2e4f248678373a337a40537ad6ef2857c7dbcda6e3eadd
