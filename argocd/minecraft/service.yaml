@@ -1,0 +1,21 @@
+# Java on 25565/tcp, Bedrock (Geyser) on 19132/udp; Local keeps the client IP. RCON is never exposed.
+apiVersion: v1
+kind: Service
+metadata:
+  name: minecraft-svc
+  namespace: apps
+spec:
+  externalTrafficPolicy: Local
+  healthCheckNodePort: 31565
+  ports:
+  - name: java
+    port: 25565
+    protocol: TCP
+    targetPort: 25565
+  - name: bedrock
+    port: 19132
+    protocol: UDP
+    targetPort: 19132
+  selector:
+    app: minecraft
+  type: LoadBalancer
