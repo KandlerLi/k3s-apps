@@ -1,4 +1,4 @@
-# Java on 25565/tcp; Bedrock (Geyser, NetherNet) signals on 19132/tcp and plays on 19132/udp. Local keeps the client IP. RCON is never exposed.
+# Fixed node ports on k3s-node-3, where home-infra's k3s_ingress_forward DNATs 25565/tcp, 19132/udp and 19132/tcp. Local keeps the client IP. RCON is never exposed.
 apiVersion: v1
 kind: Service
 metadata:
@@ -9,20 +9,23 @@ metadata:
     argocd.argoproj.io/sync-options: ServerSideApply=true
 spec:
   externalTrafficPolicy: Local
-  healthCheckNodePort: 31565
   ports:
   - name: java
+    nodePort: 30565
     port: 25565
     protocol: TCP
     targetPort: 25565
   - name: bedrock
+    nodePort: 31932
     port: 19132
     protocol: UDP
     targetPort: 19132
   - name: bedrock-signal
+    nodePort: 31933
     port: 19132
     protocol: TCP
     targetPort: 19132
   selector:
     app: minecraft
-  type: LoadBalancer
+  # k3s' servicelb doesn't run on the tainted node.
+  type: NodePort
