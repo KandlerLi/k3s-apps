@@ -283,6 +283,37 @@ def summarize_budget(incomes: list[IncomeRow], costs: list[CostRow]) -> BudgetSu
     )
 
 
+# Fixed layout: Plotly's "snap" reorders nodes and stacks small nodes' labels.
+COLUMN_X = (0.001, 0.33, 0.66, 0.999)
+NODE_PAD_PX = 12
+LABEL_MIN_PX = 36  # room for a two-line label at font_size 13
+PLOT_WIDTH = 1600
+MARGIN = dict(l=10, r=10, t=60, b=10)
+
+
+def _stack(heights: list[float], plot_height: float) -> list[float]:
+    """Top edges for nodes stacked with NODE_PAD_PX gaps, centered vertically."""
+    total = sum(heights) + NODE_PAD_PX * (len(heights) - 1)
+    top = max((plot_height - total) / 2, 0)
+    tops = []
+    for height in heights:
+        tops.append(top)
+        top += height + NODE_PAD_PX
+    return tops
+
+
+def _spread(centers: list[float], heights: list[float], plot_height: float) -> list[float]:
+    """Top edges as close to the wanted centers as possible without overlap."""
+    tops = [c - h / 2 for c, h in zip(centers, heights)]
+    for i in range(len(tops)):
+        floor = tops[i - 1] + heights[i - 1] + NODE_PAD_PX if i else 0
+        tops[i] = max(tops[i], floor)
+    for i in reversed(range(len(tops))):
+        ceiling = tops[i + 1] - NODE_PAD_PX if i + 1 < len(tops) else plot_height
+        tops[i] = min(tops[i], ceiling - heights[i])
+    return tops
+
+
 def build_sankey_figure(summary: BudgetSummary):
     """Build the Plotly Figure from a BudgetSummary. Pure/no I/O -- the
     actual PNG write (and the only part that needs Kaleido/a real
@@ -292,58 +323,115 @@ def build_sankey_figure(summary: BudgetSummary):
 
     labels: list[str] = []
     colors: list[str] = []
+    columns: list[int] = []
+    node_values: list[float] = []
     sources: list[int] = []
     targets: list[int] = []
     values: list[float] = []
 
-    def add_node(label: str, color: str) -> int:
+    def add_node(label: str, color: str, column: int, value: float) -> int:
         labels.append(label)
         colors.append(color)
+        columns.append(column)
+        node_values.append(value)
         return len(labels) - 1
 
-    hub = add_node(f"Einkommen<br>{format_euro(summary.income_total)}", HUB_COLOR)
+    def add_link(source: int, target: int, value: float) -> None:
+        sources.append(source)
+        targets.append(target)
+        values.append(value)
+
+    hub = add_node(
+        f"Einkommen<br>{format_euro(summary.income_total)}", HUB_COLOR, 1, summary.income_total
+    )
 
     for income in summary.incomes:
         node = add_node(
             f"{income.name}<br>{format_euro(income.amount)} ({income.percentage:.0f}%)",
-            INCOME_COLOR,
+            INCOME_COLOR, 0, income.amount,
         )
-        sources.append(node)
-        targets.append(hub)
-        values.append(income.amount)
+        add_link(node, hub, income.amount)
 
+    children: dict[int, list[int]] = {}
     for category in summary.categories:
         category_node = add_node(
             f"{category.name}<br>{format_euro(category.amount)} ({category.percentage:.0f}%)",
-            category.color,
+            category.color, 2, category.amount,
         )
-        sources.append(hub)
-        targets.append(category_node)
-        values.append(category.amount)
-
+        add_link(hub, category_node, category.amount)
+        children[category_node] = []
         for subcategory in category.subcategories:
             sub_node = add_node(
                 f"{subcategory.name}<br>{format_euro(subcategory.amount)}",
-                category.color,
+                category.color, 3, subcategory.amount,
             )
-            sources.append(category_node)
-            targets.append(sub_node)
-            values.append(subcategory.amount)
+            add_link(category_node, sub_node, subcategory.amount)
+            children[category_node].append(sub_node)
 
     if summary.budget > 0:
         budget_node = add_node(
             f"Budget<br>{format_euro(summary.budget)} "
             f"({percentage(summary.budget, summary.income_total):.0f}%)",
-            BUDGET_COLOR,
+            BUDGET_COLOR, 2, summary.budget,
         )
-        sources.append(hub)
-        targets.append(budget_node)
-        values.append(summary.budget)
+        add_link(hub, budget_node, summary.budget)
+
+    by_column = [[i for i, c in enumerate(columns) if c == col] for col in range(4)]
+    if not by_column[3]:
+        by_column.pop()
+    last = len(by_column) - 1
+    # Mirrors Plotly's node scale, which counts every sink node in the last column.
+    scale_columns = [[] for _ in by_column]
+    for i, col in enumerate(columns):
+        scale_columns[last if i not in sources else col].append(i)
+
+    plot_height = 930.0
+    while True:
+        ky = min(
+            (plot_height - NODE_PAD_PX * (len(nodes) - 1)) / sum(node_values[i] for i in nodes)
+            for nodes in scale_columns
+        )
+        slots = [max(v * ky, LABEL_MIN_PX) for v in node_values]
+        needed = max(
+            sum(slots[i] for i in nodes) + NODE_PAD_PX * (len(nodes) - 1) for nodes in by_column
+        )
+        if needed <= plot_height:
+            break
+        plot_height += 20
+
+    centers = [0.0] * len(labels)
+    for col, nodes in enumerate(by_column):
+        if col == 2 and last == 3:
+            # Center each category on its subcategories to keep links short.
+            leaf_tops = dict(zip(by_column[3], _stack([slots[i] for i in by_column[3]], plot_height)))
+            wanted = []
+            previous_bottom = 0.0
+            for i in nodes:
+                kids = children.get(i, [])
+                if kids:
+                    top = leaf_tops[kids[0]]
+                    bottom = leaf_tops[kids[-1]] + slots[kids[-1]]
+                    wanted.append((top + bottom) / 2)
+                    previous_bottom = bottom
+                else:
+                    wanted.append(previous_bottom + NODE_PAD_PX + slots[i] / 2)
+                    previous_bottom += NODE_PAD_PX + slots[i]
+            tops = _spread(wanted, [slots[i] for i in nodes], plot_height)
+        else:
+            tops = _stack([slots[i] for i in nodes], plot_height)
+        for i, top in zip(nodes, tops):
+            centers[i] = top + slots[i] / 2
+
+    x_positions = [COLUMN_X[c] if c < last else COLUMN_X[-1] for c in columns]
+    y_positions = [min(max(c / plot_height, 0.001), 0.999) for c in centers]
 
     fig = go.Figure(
         go.Sankey(
-            arrangement="snap",
-            node=dict(label=labels, color=colors, pad=18, thickness=16, line=dict(width=0)),
+            arrangement="fixed",
+            node=dict(
+                label=labels, color=colors, x=x_positions, y=y_positions,
+                pad=NODE_PAD_PX, thickness=16, line=dict(width=0),
+            ),
             link=dict(source=sources, target=targets, value=values, color="rgba(160,160,160,0.35)"),
         )
     )
@@ -353,9 +441,9 @@ def build_sankey_figure(summary: BudgetSummary):
             f"{format_euro(summary.expense_total)} Ausgaben"
         ),
         font_size=13,
-        width=1600,
-        height=1000,
-        margin=dict(l=10, r=10, t=60, b=10),
+        width=PLOT_WIDTH,
+        height=int(plot_height) + MARGIN["t"] + MARGIN["b"],
+        margin=MARGIN,
     )
     return fig
 
