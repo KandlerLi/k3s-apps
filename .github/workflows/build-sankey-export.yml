@@ -1,6 +1,6 @@
 name: Build sankey-export image
 
-# Builds sankey_export's image on the self-hosted runner and pushes it to GHCR.
+# Builds sankey_export's image on a GitHub-hosted runner and pushes it to GHCR.
 
 on:
   push:
@@ -20,7 +20,7 @@ permissions:
 jobs:
   build-and-push:
     name: Build and push
-    runs-on: [self-hosted, home, debian]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
