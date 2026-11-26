@@ -118,3 +118,19 @@ vulnerabilities:
     statement: >-
       rclone in mc-backup, which runs BACKUP_METHOD=tar and never calls rclone;
       the rclone method would only use lsf/copy/deletefile, never serve or rc.
+  - id: CVE-2026-8763
+    paths:
+      - usr/share/mc-image-helper-*/lib/bcprov-jdk18on-*.jar
+    expired_at: 2026-12-31
+    statement: >-
+      bcprov in minecraft-server's mc-image-helper, pulled in by oras-java-sdk
+      and used only by install-oci-pack, which runs only for an OCI
+      GENERIC_PACKS ref; we set none.
+  - id: CVE-2022-36944
+    paths:
+      - usr/share/mc-image-helper-*/lib/scala-library-*.jar
+    expired_at: 2026-12-31
+    statement: >-
+      scala-library in minecraft-server's mc-image-helper, used only by the
+      schema/schemas subcommands; mc-image-helper does no Java
+      deserialization, which the gadget chain needs.
