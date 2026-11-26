@@ -74,8 +74,8 @@ vulnerabilities:
   - id: CVE-2025-68121
     expired_at: 2026-12-31
     statement: >-
-      Go crypto/tls in the gosu of postgres:17-alpine and postgres:18-alpine,
-      which only drops privileges at container start and does no TLS.
+      Go crypto/tls in postgres:18-alpine's gosu (eurooffice), which only
+      drops privileges at container start and does no TLS.
   - id: CVE-2026-41176
     paths:
       - opt/rclone
