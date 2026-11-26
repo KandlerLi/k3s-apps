@@ -76,3 +76,45 @@ vulnerabilities:
     statement: >-
       Go crypto/tls in the gosu of postgres:17-alpine and postgres:18-alpine,
       which only drops privileges at container start and does no TLS.
+  - id: CVE-2026-41176
+    paths:
+      - opt/rclone
+    expired_at: 2026-12-31
+    statement: >-
+      rclone in mc-backup, which runs BACKUP_METHOD=tar and never calls rclone;
+      the rclone method would only use lsf/copy/deletefile, never serve or rc.
+  - id: CVE-2026-41179
+    paths:
+      - opt/rclone
+    expired_at: 2026-12-31
+    statement: >-
+      rclone in mc-backup, which runs BACKUP_METHOD=tar and never calls rclone;
+      the rclone method would only use lsf/copy/deletefile, never serve or rc.
+  - id: CVE-2026-49980
+    paths:
+      - opt/rclone
+    expired_at: 2026-12-31
+    statement: >-
+      rclone in mc-backup, which runs BACKUP_METHOD=tar and never calls rclone;
+      the rclone method would only use lsf/copy/deletefile, never serve or rc.
+  - id: CVE-2026-88018
+    paths:
+      - opt/rclone
+    expired_at: 2026-12-31
+    statement: >-
+      rclone in mc-backup, which runs BACKUP_METHOD=tar and never calls rclone;
+      the rclone method would only use lsf/copy/deletefile, never serve or rc.
+  - id: CVE-2026-88044
+    paths:
+      - opt/rclone
+    expired_at: 2026-12-31
+    statement: >-
+      rclone in mc-backup, which runs BACKUP_METHOD=tar and never calls rclone;
+      the rclone method would only use lsf/copy/deletefile, never serve or rc.
+  - id: CVE-2026-33186
+    paths:
+      - opt/rclone
+    expired_at: 2026-12-31
+    statement: >-
+      rclone in mc-backup, which runs BACKUP_METHOD=tar and never calls rclone;
+      the rclone method would only use lsf/copy/deletefile, never serve or rc.
