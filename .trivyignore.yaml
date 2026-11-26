@@ -134,3 +134,31 @@ vulnerabilities:
       scala-library in minecraft-server's mc-image-helper, used only by the
       schema/schemas subcommands; mc-image-helper does no Java
       deserialization, which the gadget chain needs.
+  - id: CVE-2026-44172
+    purls:
+      - pkg:deb/debian/libmariadb3
+      - pkg:deb/debian/mariadb-client
+      - pkg:deb/debian/mariadb-client-core
+      - pkg:deb/debian/mariadb-common
+    expired_at: 2026-12-31
+    statement: >-
+      MariaDB client packages in paperless-ngx, which runs with
+      PAPERLESS_DBENGINE=postgresql; no process maps libmariadb.
+  - id: CVE-2026-49261
+    purls:
+      - pkg:deb/debian/libmariadb3
+      - pkg:deb/debian/mariadb-client
+      - pkg:deb/debian/mariadb-client-core
+      - pkg:deb/debian/mariadb-common
+    expired_at: 2026-12-31
+    statement: >-
+      MariaDB client packages in paperless-ngx, which runs with
+      PAPERLESS_DBENGINE=postgresql; no process maps libmariadb.
+  - id: CVE-2026-128138
+    paths:
+      - usr/local/lib/python3.*/site-packages/nltk-*.dist-info/METADATA
+    expired_at: 2026-12-31
+    statement: >-
+      nltk in paperless-ngx, a llama-index-core dependency used only for
+      tokenizing and stopwords; the image has no Java, so the JVM/JAR
+      launcher path can't run.
