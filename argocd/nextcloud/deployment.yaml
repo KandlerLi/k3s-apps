@@ -189,64 +189,6 @@ spec:
           name: html
       enableServiceLinks: false
       initContainers:
-      # One-shot move to v19 (home-infra-tracker#79): dumps the old cluster until pgdata/ holds the restored v19 one.
-      - command:
-        - sh
-        - -c
-        - |
-          set -eu
-          # /pv is the whole volume; the new cluster lives under pgdata/ (the postgres container's subPath).
-          new=/pv/pgdata
-          if [ -s "$new/19/docker/PG_VERSION" ]; then
-            [ -e "$new/restored" ] && exit 0
-            echo "$new holds a v19 cluster without the restored marker: an earlier restore failed, inspect it before removing $new" >&2
-            exit 1
-          fi
-          mkdir -p "$new"
-          pg_ctl -D "$OLD_PGDATA" -o "-c listen_addresses='' -c unix_socket_directories=/tmp" -w start
-          pg_dump -h /tmp -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f /initdb/old.dump
-          pg_ctl -D "$OLD_PGDATA" -m fast -w stop
-          # Sourced by the v19 entrypoint on first init only, while its socket-only temp server runs.
-          cat > /initdb/restore.sh <<'EOF'
-          if ! pg_restore --exit-on-error --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB" /docker-entrypoint-initdb.d/old.dump; then
-            # Without PG_VERSION the next start retries initdb on a non-empty directory and fails instead of serving a half-restored DB.
-            rm -f "$PGDATA/PG_VERSION"
-            exit 1
-          fi
-          touch /var/lib/postgresql/restored
-          EOF
-          echo "dumped $(du -h /initdb/old.dump | cut -f1) from $OLD_PGDATA"
-        env:
-        - name: OLD_PGDATA
-          value: /pv/18/docker
-        envFrom:
-        - secretRef:
-            name: nextcloud-postgres
-            optional: false
-        image: postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
-        name: postgres-upgrade
-        resources:
-          limits:
-            cpu: '1'
-            memory: 1Gi
-          requests:
-            cpu: 20m
-            memory: 128Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          privileged: false
-          readOnlyRootFilesystem: false
-          runAsGroup: 70
-          runAsNonRoot: true
-          runAsUser: 70
-        volumeMounts:
-        - mountPath: /pv
-          name: postgres-data
-        - mountPath: /initdb
-          name: postgres-upgrade
       # All interfaces for the backup CronJob; networkpolicy.yaml lets only that Job in on 5432.
       - args:
         - -c
@@ -302,15 +244,12 @@ spec:
           runAsGroup: 70
           runAsNonRoot: true
           runAsUser: 70
-        # pgdata/ hides the pre-19 cluster from the entrypoint; PGDATA is pgdata/<major>/docker, so pg_upgrade --link works later.
+        # PGDATA is pgdata/<major>/docker, so pg_upgrade --link works later.
         volumeMounts:
         - mountPath: /var/lib/postgresql
           mountPropagation: None
           name: postgres-data
           subPath: pgdata
-        - mountPath: /docker-entrypoint-initdb.d
-          name: postgres-upgrade
-          readOnly: true
       - args:
         - --bind
         - 127.0.0.1
@@ -357,9 +296,6 @@ spec:
           value: '0'
       shareProcessNamespace: false
       volumes:
-      - emptyDir:
-          sizeLimit: 1Gi
-        name: postgres-upgrade
       - name: html
         persistentVolumeClaim:
           claimName: nextcloud-html
