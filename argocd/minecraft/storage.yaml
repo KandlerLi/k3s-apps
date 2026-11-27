@@ -1,20 +1,4 @@
-# World on k3s-node-3 (minecraft-world; "minecraft" is node-1's old copy until the move is verified), backups on the red HDD; never pruned.
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: minecraft
-  namespace: apps
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false,Delete=false
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-  storageClassName: local-path
-  volumeName: minecraft-pv
----
+# World on k3s-node-3, backups on the red HDD; never pruned.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
