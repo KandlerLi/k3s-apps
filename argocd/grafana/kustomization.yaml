@@ -13,7 +13,7 @@ configMapGenerator:
   # The dashboards live here; tags and the top link bar tie them together (tag homeserver).
   - name: grafana-dashboards
     files:
-      # Generated and normalised by scripts/grafana-dashboards.py; home-infra's files/dashboards copies are stale (tracker #76).
+      # Generated and normalised by scripts/grafana-dashboards.py; CI checks they match it.
       - dashboards/overview.json
       - dashboards/node-resources.json
       - dashboards/k8s-workloads.json

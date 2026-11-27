@@ -35,3 +35,12 @@ jobs:
           done
           exit "$status"
 
+      # A hand edit to a generated dashboard would be overwritten by the next generator run.
+      - name: Grafana dashboards match their generator and pass static checks
+        run: |
+          tmp="$(mktemp -d)"
+          cp -r argocd/grafana/dashboards/. "$tmp"
+          python3 scripts/grafana-dashboards.py "$tmp" > /dev/null
+          diff -r argocd/grafana/dashboards "$tmp" || { echo "::error::rerun scripts/grafana-dashboards.py and commit the result"; exit 1; }
+          python3 scripts/check-grafana-dashboards.py
+
