@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Usage: rotate-oidc-client-secret.sh <grafana|bulwark|paperless|vaultwarden|nextcloud|argocd>
+# Usage: rotate-oidc-client-secret.sh <grafana|bulwark|paperless|vaultwarden|nextcloud|argocd|argocd-platform> [--new]
+# --new: a client's first secret pair, where both keys don't exist yet.
 # Rotates an Authelia OIDC client secret pair; procedure per client in secrets-manager's runbooks.
 
 set -euo pipefail
@@ -13,8 +14,9 @@ fail() {
   exit 1
 }
 
-[ $# -eq 1 ] || fail "usage: $(basename "$0") <grafana|bulwark|paperless|vaultwarden|nextcloud|argocd>"
+[ $# -eq 1 ] || { [ $# -eq 2 ] && [ "$2" = "--new" ]; } || fail "usage: $(basename "$0") <grafana|bulwark|paperless|vaultwarden|nextcloud|argocd|argocd-platform> [--new]"
 client="$1"
+new_client="${2:-}"
 case "$client" in
   grafana)
     client_secret_id="home-infra/grafana"
@@ -31,15 +33,15 @@ case "$client" in
   nextcloud)
     client_secret_id="home-infra/nextcloud"
     ;;
-  argocd)
+  argocd | argocd-platform)
     client_secret_id="home-infra/argocd"
     ;;
   *)
-    fail "usage: $(basename "$0") <grafana|bulwark|paperless|vaultwarden|nextcloud|argocd>"
+    fail "usage: $(basename "$0") <grafana|bulwark|paperless|vaultwarden|nextcloud|argocd|argocd-platform> [--new]"
     ;;
 esac
-hash_key="authelia_oidc_${client}_client_secret_hash"
-plaintext_key="authelia_oidc_${client}_client_secret"
+hash_key="authelia_oidc_${client//-/_}_client_secret_hash"
+plaintext_key="authelia_oidc_${client//-/_}_client_secret"
 
 command -v jq >/dev/null || fail "jq not found"
 command -v aws >/dev/null || fail "aws not found"
@@ -102,8 +104,13 @@ fi
 echo "==> writing the new hash into ${authelia_secret_id}"
 authelia_json="$(aws secretsmanager get-secret-value --secret-id "${authelia_secret_id}" --region "${region}" \
   --query SecretString --output text)" || fail "get-secret-value for ${authelia_secret_id} failed"
-echo "${authelia_json}" | jq -e --arg k "${hash_key}" 'has($k)' >/dev/null \
-  || fail "${authelia_secret_id} has no \"${hash_key}\" key -- aborting rather than guessing"
+if [ -n "${new_client}" ]; then
+  echo "${authelia_json}" | jq -e --arg k "${hash_key}" 'has($k) | not' >/dev/null \
+    || fail "${authelia_secret_id} already has \"${hash_key}\" -- drop --new to rotate it"
+else
+  echo "${authelia_json}" | jq -e --arg k "${hash_key}" 'has($k)' >/dev/null \
+    || fail "${authelia_secret_id} has no \"${hash_key}\" key -- aborting rather than guessing"
+fi
 tmp_authelia="$(mktemp)"
 echo "${authelia_json}" | jq --arg k "${hash_key}" --arg v "${hash}" '.[$k] = $v' > "${tmp_authelia}"
 aws secretsmanager put-secret-value --secret-id "${authelia_secret_id}" --region "${region}" \
@@ -113,8 +120,13 @@ aws secretsmanager put-secret-value --secret-id "${authelia_secret_id}" --region
 echo "==> writing the new plaintext into ${client_secret_id}"
 client_json="$(aws secretsmanager get-secret-value --secret-id "${client_secret_id}" --region "${region}" \
   --query SecretString --output text)" || fail "get-secret-value for ${client_secret_id} failed"
-echo "${client_json}" | jq -e --arg k "${plaintext_key}" 'has($k)' >/dev/null \
-  || fail "${client_secret_id} has no \"${plaintext_key}\" key -- aborting rather than guessing"
+if [ -n "${new_client}" ]; then
+  echo "${client_json}" | jq -e --arg k "${plaintext_key}" 'has($k) | not' >/dev/null \
+    || fail "${client_secret_id} already has \"${plaintext_key}\" -- drop --new to rotate it"
+else
+  echo "${client_json}" | jq -e --arg k "${plaintext_key}" 'has($k)' >/dev/null \
+    || fail "${client_secret_id} has no \"${plaintext_key}\" key -- aborting rather than guessing"
+fi
 tmp_client="$(mktemp)"
 echo "${client_json}" | jq --arg k "${plaintext_key}" --arg v "${plaintext}" '.[$k] = $v' > "${tmp_client}"
 aws secretsmanager put-secret-value --secret-id "${client_secret_id}" --region "${region}" \
@@ -139,7 +151,8 @@ if [ ${#client_es[@]} -eq 2 ]; then
   kubectl -n "${client_es[0]}" annotate externalsecret "${client_es[1]}" force-sync="${now}" --overwrite >/dev/null
 fi
 
-if [ "${client}" = "argocd" ]; then
+# A new client's first pair: k3s-bootstrap starts reading it in its own PR, so nothing to apply yet.
+if { [ "${client}" = "argocd" ] || [ "${client}" = "argocd-platform" ]; } && [ -z "${new_client}" ]; then
   k3s_bootstrap_dir="${repo_root}/../../bootstrap/k3s-bootstrap"
   [ -x "${k3s_bootstrap_dir}/scripts/roll-out.sh" ] || fail "expected KandlerLi/k3s-bootstrap at ${k3s_bootstrap_dir}, not found"
 
