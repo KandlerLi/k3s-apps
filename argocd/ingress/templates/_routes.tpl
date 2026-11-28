@@ -9,6 +9,10 @@
   {{- $_ := set $routers $name $router }}
   {{- $_ := set $services $name (dict "loadBalancer" (dict "passHostHeader" true "servers" (list (dict "url" $r.url)))) }}
   {{- $chain := list }}
+  {{- if $r.ip_allow_list }}
+    {{- $chain = append $chain (printf "%s-ip-allow-list" $name) }}
+    {{- $_ := set $middlewares (printf "%s-ip-allow-list" $name) (dict "ipAllowList" (dict "sourceRange" $r.ip_allow_list)) }}
+  {{- end }}
   {{- if $r.forward_auth }}{{ $chain = append $chain "authelia-forward-auth" }}{{ end }}
   {{- if $r.rate_limit }}
     {{- $chain = append $chain (printf "%s-rate-limit" $name) }}
