@@ -2,11 +2,23 @@
 # forward_auth puts Authelia in front, and a route with false is a reviewed exception. rate_limit and
 # max_body_bytes add those middlewares; referrer_policy defaults to no-referrer, frame_deny to true;
 # strip_prefix removes a path prefix before the backend sees it; request_headers sets headers towards the backend.
+# ip_allow_list admits only these source ranges, ahead of everything else in the chain.
 routes:
   # Argo CD's UI (k3s-bootstrap); it also logs in through Authelia's OIDC.
   argo:
     rule: Host(`argo.jkandler.de`)
     url: http://argocd-server.argocd.svc.cluster.local:80
+    forward_auth: true
+    rate_limit:
+      average: 120
+      burst: 240
+    max_body_bytes: 1048576
+  # The platform Argo CD (k3s-bootstrap, ADR 0037): LAN only, no public DNS record (Blocky maps the name).
+  argo-platform:
+    rule: Host(`argo-platform.jkandler.de`)
+    url: http://argocd-platform-server.argocd-platform.svc.cluster.local:80
+    ip_allow_list:
+      - 192.168.178.0/24
     forward_auth: true
     rate_limit:
       average: 120
